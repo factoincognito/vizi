@@ -18,7 +18,7 @@ it reads next to it. `docs/SPEC.md` is the spec of the page itself.
   Those points are marked **(approved)** below.
 - **Clead's design (the HOW), within the approved intent:** everything
   else in this file: the order the paths are tried in, the rules R0 to
-  R8, the three kinds of report item, and how `STATUS.md` is read (S1 to
+  R9, the three kinds of report item, and how `STATUS.md` is read (S1 to
   S5). It is Clead's call, not a question for the product owner, and it
   does not block building. It changes through a reviewed PR.
 - **Not decided:** a lint mode beyond the page's report.
@@ -41,7 +41,8 @@ read. When none exists, the page says that no backlog file was found.
 ## 2. Rules (what the parser reads)
 
 Clead's design. "At column 0" means the line has no indent. Fences (R7)
-are found first, so that nothing inside a fence is read by any other
+and HTML comments (R9) are found first, in one pass from the top of the
+file, so that nothing inside a fence or a comment is read by any other
 rule.
 
 **R0. List item.** A line whose text, after any indent, starts with
@@ -128,6 +129,34 @@ ends the description before it (R4) and belongs to no entry.
 **R8. Line numbers.** Lines are counted from 1, the file's first line.
 An entry's line is the line it starts on. The report gives the line of
 each item it lists.
+
+**R9. HTML comments.** A comment opens only on a line whose text,
+after any indent, starts with `<!--`, and only outside a fence (R7) and
+outside another comment. It closes at the first `-->` after that, on the
+same line or a later one. Fences and comments are found in one pass from
+the top: a line inside an open comment never opens a fence, and a line
+inside an open fence never opens a comment. Everything from the `<!--`
+to the `-->` is dropped before the other rules are applied; text after
+the `-->` on its line is kept as that line's text. A dropped comment
+leaves its line breaks in place, so line numbers (R8) stay true. What is
+inside a comment is never an entry, a heading or a report item: a
+commented-out entry is not shown. A `<!--` anywhere else on a line (after
+other text, or inside backticks) is text, not a comment. A comment that
+never closes runs to the end of the file and is reported as Info
+(section 3). For example:
+
+```markdown
+<!-- - **[NOW] AB-9** — Hidden. -->
+- **[NEXT] AB-10** — Drop `<!--` markers.
+<!--
+- **[NOW] AB-11** — Also hidden.
+-->
+```
+
+Line 1 is a comment on one line and is dropped; AB-9 is not shown.
+Line 2 is entry AB-10 with the title "Drop `<!--` markers.": its `<!--`
+is not at the start of the line. Lines 3 to 5 are a comment across
+lines; AB-11 is not shown.
 
 ### Example
 
@@ -220,6 +249,7 @@ inside a fence (R7) are never report items.
     out;
   - more than one backlog file found (section 1);
   - a fence that never closes (R7);
+  - an HTML comment that never closes (R9);
   - what `STATUS.md` could not give (S2).
 
 Further recommendations, which the report does not check: a legend of
@@ -240,9 +270,9 @@ Clead's design, for `src/status.ts`:
 **S1. Layout.** The template's: a `# Status` heading, a
 `Last update: YYYY-MM-DD` line, and the headings `## Phase`,
 `## Current focus`, `## Next step` and `## Blockers`. HTML comments
-(`<!-- … -->`, also across lines) are dropped before reading; the
-template's file starts with one. A dropped comment leaves its line
-breaks in place, so line numbers (R8) stay true.
+are found and dropped by the same rule as in a backlog file (R9) before
+reading; the template's file starts with one. A dropped comment leaves
+its line breaks in place, so line numbers (R8) stay true.
 
 **S2. Fields.** A field's text is every line after its heading up to the
 next heading (R5) or the end of the file, without blank lines at its

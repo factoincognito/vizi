@@ -319,10 +319,8 @@ Not checked; each is settled in the backlog item that meets it.
 6. How the page behaves on a long backlog, about 1500 lines (the length
    of the template's `docs/BACKLOG.md`), tested with a synthetic file of
    that size. PBI-1.2.
-7. How HTML comments in a backlog file are read: the rules of
-   `docs/BACKLOG-FORMAT.md` do not cover them yet, so a commented-out
-   entry would be read as an entry. Settled by a spec PR before or with
-   PBI-1.1.
+7. Settled 2026-11-04: HTML comments in a backlog file are dropped
+   before reading (`docs/BACKLOG-FORMAT.md`, R9).
 8. Not decided: whether the template's own wording of the "no external
    requests" rule changes as well (2.3). That is a template change,
    through the template's review flow.
