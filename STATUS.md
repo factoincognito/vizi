@@ -9,17 +9,16 @@ all projects reads them.
 
 # Status
 
-Last update: YYYY-MM-DD
+Last update: 2026-11-04
 
 ## Phase
-One line: where the project is in its life (idea, design, build, running).
+Design.
 
 ## Current focus
-What the project is working on now.
+The spec: `docs/SPEC.md` and the backlog format spec `docs/BACKLOG-FORMAT.md` (PR #3).
 
 ## Next step
-The next concrete step and who takes it.
+Crog reviews the spec (PR #3); once it merges, the parser and report module (PBI-1.1).
 
 ## Blockers
-What stops progress, and who can unblock it. "None" when nothing does.
-A blocker that waits on the product owner starts with "Product Owner:".
+None.
