@@ -18,7 +18,7 @@ it reads next to it. `docs/SPEC.md` is the spec of the page itself.
   Those points are marked **(approved)** below.
 - **Clead's design (the HOW), within the approved intent:** everything
   else in this file: the order the paths are tried in, the rules R0 to
-  R8, the three kinds of report item, and how `STATUS.md` is read (S1 to
+  R9, the three kinds of report item, and how `STATUS.md` is read (S1 to
   S5). It is Clead's call, not a question for the product owner, and it
   does not block building. It changes through a reviewed PR.
 - **Not decided:** a lint mode beyond the page's report.
@@ -41,8 +41,8 @@ read. When none exists, the page says that no backlog file was found.
 ## 2. Rules (what the parser reads)
 
 Clead's design. "At column 0" means the line has no indent. Fences (R7)
-are found first, so that nothing inside a fence is read by any other
-rule.
+are found first, then HTML comments outside fences are dropped (R9), so
+that nothing inside a fence or a comment is read by any other rule.
 
 **R0. List item.** A line whose text, after any indent, starts with
 `- `, `* ` or a number and a full stop followed by a space (`1. `).
@@ -128,6 +128,15 @@ ends the description before it (R4) and belongs to no entry.
 **R8. Line numbers.** Lines are counted from 1, the file's first line.
 An entry's line is the line it starts on. The report gives the line of
 each item it lists.
+
+**R9. HTML comments.** Outside a fence (R7), an HTML comment
+(`<!-- … -->`, also across lines) is dropped before the other rules are
+applied, as in `STATUS.md` (S1). A dropped comment leaves its line
+breaks in place, so line numbers (R8) stay true. What is inside a
+comment is never an entry, a heading or a report item: a commented-out
+entry is not shown. An `<!--` that never closes runs to the end of the
+file and is reported as Info (section 3). A `<!--` inside a fence is
+text, not a comment.
 
 ### Example
 
@@ -220,6 +229,7 @@ inside a fence (R7) are never report items.
     out;
   - more than one backlog file found (section 1);
   - a fence that never closes (R7);
+  - an HTML comment that never closes (R9);
   - what `STATUS.md` could not give (S2).
 
 Further recommendations, which the report does not check: a legend of
