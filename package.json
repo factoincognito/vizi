@@ -1,7 +1,7 @@
 {
-  "name": "[project-name]",
+  "name": "vizi",
   "version": "0.1.0",
-  "description": "[project-description]",
+  "description": "Visualizes the progression of your projects",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

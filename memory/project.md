@@ -1,9 +1,8 @@
 # Project
 
-**Name:** [PROJECT NAME]
-**Repo:** [OWNER/REPO]
-**Description:** [What the project is, who it is for, and what problem
-it solves.]
+**Name:** Vizi - backlog visualizer
+**Repo:** factoincognito/vizi
+**Description:** Visualizes the progression of your projects
 
 **Goals:**
 - [Goal]

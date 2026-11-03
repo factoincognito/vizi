@@ -1,4 +1,4 @@
-# [PROJECT NAME] — Agent Entry Point
+# Vizi - backlog visualizer — Agent Entry Point
 
 This file is read by two agents. Read the "Both agents" sections and
 your own.
