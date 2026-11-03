@@ -1,6 +1,6 @@
-# [PROJECT NAME] — Technical Specification
+# Vizi - backlog visualizer — Technical Specification
 
-**Date:** [DATE]
+**Date:** 2026-11-04
 **Status:** Draft
 **Owner:** Clead (technical correctness) / Adam (intent)
 
