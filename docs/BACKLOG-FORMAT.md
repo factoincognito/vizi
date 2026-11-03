@@ -34,7 +34,7 @@ project's root), `docs/BACKLOG.md` and `docs/PRODUCT_BACKLOG.md`.
 
 Clead's design: they are tried in that order, and the first one found is
 read. When more than one exists, the report says so and names the one
-read.
+read. When none exists, the page says that no backlog file was found.
 
 ---
 
@@ -63,10 +63,12 @@ places:
   a warning, section 3).
 
 Inside the bold, nothing else stands besides the marker and one ID.
-When it does (`- **[NOW] ABC-12 urgent**`), the entry is read with no
-ID, the whole text inside the bold after the marker becomes the start of
-the entry's text, no ID is looked for after the bold, and the entry gets
-a warning. An entry without an ID is still read.
+When it does (`- **[NOW] ABC-12 urgent** — Fix it.`), the entry is read
+with no ID and gets a warning. No ID is looked for after the bold, but
+notes and the dash still are (R3). The entry's text is the text inside
+the bold after the marker, a space, then the text R3 finds after the
+bold: here `ABC-12 urgent Fix it.` An entry without an ID is still
+read.
 
 **R3. Head, notes and the dash.** The head is the entry line, plus the
 indented lines right under it that are not blank and not list items (R0,
@@ -239,10 +241,12 @@ Clead's design, for `src/status.ts`:
 `Last update: YYYY-MM-DD` line, and the headings `## Phase`,
 `## Current focus`, `## Next step` and `## Blockers`. HTML comments
 (`<!-- … -->`, also across lines) are dropped before reading; the
-template's file starts with one.
+template's file starts with one. A dropped comment leaves its line
+breaks in place, so line numbers (R8) stay true.
 
 **S2. Fields.** A field's text is every line after its heading up to the
-next heading (R5), without blank lines at its start and end. "Last
+next heading (R5) or the end of the file, without blank lines at its
+start and end. "Last
 update" is the date on the first line that starts with `Last update: `;
 it must be a date in the form `YYYY-MM-DD`. A missing field heading, a
 missing "Last update" line, or a date not in that form is listed in the
@@ -254,22 +258,24 @@ and lines outside list items are ignored. Otherwise each paragraph
 (lines separated by blank lines) is one blocker. A blocker's text is
 read after its list marker and any spaces.
 
-**S4. None.** A blocker whose text is `None`, or starts with `None.` or
-`None `, is not a blocker: the page shows "None", and the rest of its
-text, if any, as a remark under it, not highlighted. Other blockers in
-the same section are still read.
+**S4. None.** A blocker whose text is `None` on its own, or starts with
+`None.`, is not a blocker: the page shows "None", and the rest of its
+text, if any, as a remark under it, not highlighted. Any other text that
+starts with `None`, such as `None of the CI runners start.`, is a
+blocker. Other blockers in the same section are still read.
 
 **S5. Waiting on the product owner.** A blocker waits on the product
-owner, and is highlighted, when its text starts with:
-- `Product Owner:` (the template's rule), or
-- one name followed by a colon: one word of letters that starts with an
-  upper-case letter, such as `Adam:`, unless that word is in the named
-  constant `AGENT_ROLE_NAMES` (`Clead`, `Crog`): the workflow's agent
-  roles, which are not the product owner.
+owner, and is highlighted, when its text starts with one of the prefixes
+in the named constant `PRODUCT_OWNER_PREFIXES` in `src/status.ts`. Its
+default is one prefix, `Product Owner:` (the template's rule). The
+comparison is exact and case-sensitive, at the start of the blocker's
+text (S3). A blocker that starts any other way, such as `CI:` or
+`Crog:`, is shown but not highlighted.
 
-The page cannot learn a project's product owner's name, so any single
-capitalised name counts. A blocker that starts with an agent role, or
-any other way, is shown but not highlighted.
+The page cannot learn a project's product owner's name. To recognise
+another prefix, such as a project that writes its product owner's name
+followed by a colon, add it to `PRODUCT_OWNER_PREFIXES` through a PR,
+with a test that it is highlighted.
 
 Example (made up):
 
@@ -291,15 +297,13 @@ Crog reads the settings file (PBI-2.4).
 
 ## Blockers
 - Product Owner: choose the default port.
-- Maria: send the test account.
 - Crog: waits for CI on #12.
 - The build server is down.
 ```
 
 is read as: Phase "Build.", Current focus "The settings page.", Next
 step "Crog reads the settings file (PBI-2.4).", Last update 2026-11-04,
-and four blockers: the first two highlighted (S5), the third not (an
-agent role), the fourth not (no name and colon).
+and three blockers: the first highlighted (S5), the other two not.
 
 More Blockers sections, and how they are read:
 
@@ -307,4 +311,6 @@ More Blockers sections, and how they are read:
 |---|---|
 | `None.` | no blockers |
 | `None. The release waits until the next test run passes.` | no blockers; the remark "The release waits until the next test run passes." (S4) |
-| two paragraphs: `Adam: approve the spec.` and `CI is red on main.` | two blockers, the first highlighted (S3, S5) |
+| `None of the CI runners start.` | one blocker, not highlighted (S4) |
+| `CI: red on main.` | one blocker, not highlighted (S5) |
+| two paragraphs: `Product Owner: approve the spec.` and `CI is red on main.` | two blockers, the first highlighted (S3, S5) |

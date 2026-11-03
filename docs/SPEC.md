@@ -40,7 +40,7 @@ Points that come from the approved summary are marked **(approved)**.
 
 **Not decided.** Marked "not decided" where they appear: a lint mode
 beyond the page's report (section 1), and a change to the template's own
-wording of the external-requests rule (section 4, item 7).
+wording of the external-requests rule (section 4, item 8).
 
 ---
 
@@ -156,22 +156,27 @@ summary are marked **(approved)**.
   `docs/BACKLOG.md` and `docs/PRODUCT_BACKLOG.md`; `STATUS.md` is read.
 - **Order.** The three paths are tried in that order, and the first one
   found is read. When more than one exists, the report says so and names
-  the one read.
+  the one read. When none exists, the page says that no backlog file was
+  found, and shows the status if there is one.
 - **Local folder.** The user picks the project's folder. `STATUS.md` is
   read at the folder's root. Nothing is sent anywhere.
 - **GitHub URL.** `https://github.com/<owner>/<repo>`, optionally
-  followed by `/tree/<branch>`. No token is stored or asked for. The
-  page makes these anonymous requests, in this order:
+  followed by `/tree/<branch>`, where the branch is everything after
+  `/tree/`, a trailing `/` dropped (branch names can hold `/`). No token
+  is stored or asked for. The page makes these anonymous requests, in
+  this order:
   1. `GET https://api.github.com/repos/<owner>/<repo>`, for the default
      branch (skipped when the URL names a branch);
   2. `GET https://api.github.com/repos/<owner>/<repo>/git/trees/<branch>?recursive=1`,
      the file list: it tells which of the three backlog paths exist, and
      feeds the documentation list and the path links (3.4);
   3. `GET https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>`,
-     once for the backlog file and once for `STATUS.md` if the file list
-     has it; documentation files are not fetched (3.4).
+     once for the backlog file and once for `STATUS.md`, each only if
+     the file list has it; documentation files are not fetched (3.4).
 
-  So one load makes three or four requests. If request 1 or 2 answers
+  So one load makes one or two requests to `api.github.com` (requests 1
+  and 2) and up to two to `raw.githubusercontent.com` (request 3): two
+  to four in all when the backlog file is found. If request 1 or 2 answers
   404, the page says "not found or not public" and offers the local
   folder instead. Any other failed request is shown with its HTTP status
   and is not retried.
@@ -190,9 +195,10 @@ summary are marked **(approved)**.
   last, in the order first seen, and is not folded. A column shows its
   entry count.
 - **(approved) List.** Entries grouped under the backlog's own headings,
-  in file order, with a marker filter and a text search. Entries before
-  the first heading are shown under "(no heading)". The search matches
-  the ID, the notes, the title and the description, ignoring case.
+  in file order, with a marker filter and a text search. Clead's design
+  for the rest: entries before the first heading are shown under
+  "(no heading)", and the search matches the ID, the notes, the title
+  and the description, ignoring case.
 - **Card or row.** Shows the marker, the ID, the notes and the title,
   split as `docs/BACKLOG-FORMAT.md` R3 and R4 define. Titles are first
   sentences and can be long, so a card shows at most two lines of the
@@ -302,8 +308,8 @@ Not checked; each is settled in the backlog item that meets it.
    endpoints allow any origin (3.1), but a browser was not tried.
    PBI-1.2.
 3. GitHub's anonymous rate limit as a browser sees it. One load makes
-   two or three `api.github.com` requests (3.1, requests 1 and 2) and one
-   or two to `raw.githubusercontent.com`. The checks in 3.1 ran through a
+   one or two `api.github.com` requests (3.1, requests 1 and 2) and up
+   to two to `raw.githubusercontent.com`. The checks in 3.1 ran through a
    proxy that appears to add credentials, so they do not show the
    anonymous limit. PBI-1.2.
 4. What an anonymous request for a private repo gets back (the page's
@@ -313,6 +319,10 @@ Not checked; each is settled in the backlog item that meets it.
 6. How the page behaves on a long backlog, about 1500 lines (the length
    of the template's `docs/BACKLOG.md`), tested with a synthetic file of
    that size. PBI-1.2.
-7. Not decided: whether the template's own wording of the "no external
+7. How HTML comments in a backlog file are read: the rules of
+   `docs/BACKLOG-FORMAT.md` do not cover them yet, so a commented-out
+   entry would be read as an entry. Settled by a spec PR before or with
+   PBI-1.1.
+8. Not decided: whether the template's own wording of the "no external
    requests" rule changes as well (2.3). That is a template change,
    through the template's review flow.
