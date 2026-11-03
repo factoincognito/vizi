@@ -17,6 +17,7 @@ Everything in the Node/TypeScript standards applies, plus the web rules below.
 ### Web rules
 
 - **One self-contained file.** `npm run build` produces `dist/index.html` with all script and style inlined. No CDN scripts, web fonts, images or other external requests. The browser test fails if the page requests anything besides its own document.
+  - **In vizi** (product owner's intent approval of `docs/SPEC.md`, 2026-11-04; `docs/SPEC.md` 2.3): the rule covers what the page loads at startup, so fetching a backlog after the user types a public GitHub repo's address is allowed. Content the page shows never makes a request of its own (`docs/SPEC.md` 3.7). The load check in `e2e/smoke.e2e.ts` stays as it is, and the browser tests stub GitHub's answers with Playwright routes, so no test reaches the network.
 - **Logic in pure modules, wiring in `src/main.ts`.** Calculations and other logic live in `src/*.ts` modules that do not touch the DOM; test them with Jest. `src/main.ts` only wires that logic to the page. It is excluded from the coverage gate and is covered by the Playwright tests.
 - **Phone first.** Design for 375px width first. The page must not scroll sideways at 375px or at 1280px.
 - **Light and dark.** Support `prefers-color-scheme`. Every browser test runs in both.
