@@ -10,7 +10,8 @@
 
 ## Current situation summary
 
-Project just bootstrapped from the template. Nothing staged yet.
+Phase 1 (the first version) is in design: the spec is PR #3. One
+question for the product owner is staged below.
 
 ---
 
@@ -26,7 +27,22 @@ Project just bootstrapped from the template. Nothing staged yet.
 **Action:** the next step and who takes it.
 -->
 
-(none yet)
+### 1. Definition of done for Phase 1 — new, a question for the product owner
+
+**Previous assumption:** none; `memory/project.md` leaves it as
+"[Product Owner decides]".
+**Revised assessment:** Clead's proposal, not decided: Phase 1 is done
+when the page, built with `npm run build` and opened locally from
+`dist/index.html`, shows the public template's `docs/BACKLOG.md` and
+`STATUS.md`, both from a local folder and from the template's GitHub
+URL, as the list, the board and the status, with documentation links
+and a report of what it could not read; and CI `build` is green on
+`main`.
+**Impact on plan:** sets when PBI-1.1 and PBI-1.2 together close the
+phase; it adds no new PBI.
+**Action:** Clead asks the product owner to accept, change or replace
+this; once he decides, Clead writes it into `memory/project.md` and
+removes this entry.
 
 ---
 
