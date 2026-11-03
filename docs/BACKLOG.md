@@ -37,8 +37,7 @@ Build order: Clead's proposal, from the design the spec is taken from.
   `docs/BACKLOG-FORMAT.md` and returns the entries, their groups and the
   report of what it could not read or read with a warning;
   `src/status.ts` reads `STATUS.md`. No DOM. Tested with Jest, test
-  first; fixtures are synthetic or taken from the public template's
-  `docs/BACKLOG.md` only (`docs/SPEC.md`).
+  first, on synthetic fixtures only (`docs/SPEC.md` 2.2).
 
 - **[LATER] PBI-1.2** — The page. Folder and GitHub URL input, the board
   and the list, the status, the documentation links and the report tab,
