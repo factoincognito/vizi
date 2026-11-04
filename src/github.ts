@@ -155,7 +155,7 @@ function makeRequests(
       return failure(
         "token-refused",
         401,
-        "GitHub refused the token: it may have expired. It has been forgotten; enter a new one.",
+        `GitHub refused the token for ${ref.owner.toLowerCase()}: it may have expired. It has been forgotten; enter a new one.`,
       );
     }
     if (answer.status === 403) {

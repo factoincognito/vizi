@@ -366,10 +366,21 @@ describe("loadRepo with a token (3.8): the answers", () => {
       const r = await loadRepo(ref, fetcher, TOKEN);
       expect(r).toMatchObject({ ok: false, kind: "token-refused", status: 401 });
       expect(!r.ok && r.message).toBe(
-        "GitHub refused the token: it may have expired. It has been forgotten; enter a new one.",
+        "GitHub refused the token for acme: it may have expired. It has been forgotten; enter a new one.",
       );
     },
   );
+
+  it("401 names the owner of the address in lower case, and never the token", async () => {
+    const { fetcher } = fakeWithInit({
+      "https://api.github.com/repos/Acme/Widgets": { status: 401 },
+    });
+    const r = await loadRepo({ owner: "Acme", repo: "Widgets", branch: null }, fetcher, TOKEN);
+    expect(!r.ok && r.message).toBe(
+      "GitHub refused the token for acme: it may have expired. It has been forgotten; enter a new one.",
+    );
+    expect(!r.ok && r.message).not.toContain(TOKEN);
+  });
 
   it("401 without a token is an ordinary HTTP status, as in 3.1", async () => {
     const { fetcher } = fakeWithInit({ [API]: { status: 401 } });

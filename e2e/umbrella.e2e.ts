@@ -30,6 +30,7 @@ const fixtures = join(__dirname, "fixtures");
 const UMBRELLA = join(fixtures, "umbrella");
 const UMBRELLA_BACKLOG = join(fixtures, "umbrella-backlog");
 const UMBRELLA_EMPTY = join(fixtures, "umbrella-empty");
+const UMBRELLA_CROSS = join(fixtures, "umbrella-cross");
 const PROJECT = join(fixtures, "project");
 const read = (dir: string, path: string) => readFileSync(join(dir, path), "utf8");
 const TOKEN = "github_pat_TEST_umbrella_abcd1234";
@@ -40,6 +41,8 @@ type Seen = { method: string; url: string; headers: Record<string, string> };
 interface StubOptions {
   /** The hub repo has a docs/BACKLOG.md as well. */
   hubBacklog?: boolean;
+  /** The hub's PROJECTS.md also points to a repo of another owner (other/gadgets). */
+  cross?: boolean;
   /** Keeps the answer to a URL waiting; `n` counts the requests to that URL, from 1. Resolve with `release`. */
   hold?: (url: string, n: number) => boolean;
   /** Overrides the text of a file; `n` counts the requests to that URL, from 1. */
@@ -53,10 +56,10 @@ interface Stub {
 }
 
 /** The files of each synthetic repo: acme/hub (the umbrella), acme/widgets and acme/plain. */
-function repoFiles(repo: string, hubBacklog: boolean): Record<string, string> {
+function repoFiles(repo: string, hubBacklog: boolean, cross = false): Record<string, string> {
   if (repo === "hub") {
     return {
-      "PROJECTS.md": read(UMBRELLA, "PROJECTS.md"),
+      "PROJECTS.md": cross ? read(UMBRELLA_CROSS, "PROJECTS.md") : read(UMBRELLA, "PROJECTS.md"),
       "STATUS.md": read(UMBRELLA, "STATUS.md"),
       "projects/notes/STATUS.md": read(UMBRELLA, "projects/notes/STATUS.md"),
       "projects/odd/STATUS.md": read(UMBRELLA, "projects/odd/STATUS.md"),
@@ -99,7 +102,9 @@ async function stubGithub(context: BrowserContext, options: StubOptions = {}): P
       const forced = options.status?.(url);
       if (forced) return route.fulfill({ status: forced, headers: cors, body: "" });
 
-      const repoMatch = /^https:\/\/api\.github\.com\/repos\/acme\/([a-z0-9-]+)$/.exec(url);
+      const repoMatch = /^https:\/\/api\.github\.com\/repos\/(?:acme|other)\/([a-z0-9-]+)$/.exec(
+        url,
+      );
       if (repoMatch) {
         return route.fulfill({
           status: 200,
@@ -108,13 +113,13 @@ async function stubGithub(context: BrowserContext, options: StubOptions = {}): P
         });
       }
       const treeMatch =
-        /^https:\/\/api\.github\.com\/repos\/acme\/([a-z0-9-]+)\/git\/trees\/main\?recursive=1$/.exec(
+        /^https:\/\/api\.github\.com\/repos\/(?:acme|other)\/([a-z0-9-]+)\/git\/trees\/main\?recursive=1$/.exec(
           url,
         );
       if (treeMatch?.[1]) {
-        const tree = Object.keys(repoFiles(treeMatch[1], options.hubBacklog ?? false)).map(
-          (path) => ({ path, type: "blob" }),
-        );
+        const tree = Object.keys(
+          repoFiles(treeMatch[1], options.hubBacklog ?? false, options.cross),
+        ).map((path) => ({ path, type: "blob" }));
         return route.fulfill({
           status: 200,
           headers: cors,
@@ -122,13 +127,18 @@ async function stubGithub(context: BrowserContext, options: StubOptions = {}): P
         });
       }
       const fileMatch =
-        /^https:\/\/api\.github\.com\/repos\/acme\/([a-z0-9-]+)\/contents\/([^?]+)\?ref=main$/.exec(
+        /^https:\/\/api\.github\.com\/repos\/(?:acme|other)\/([a-z0-9-]+)\/contents\/([^?]+)\?ref=main$/.exec(
           url,
-        ) ?? /^https:\/\/raw\.githubusercontent\.com\/acme\/([a-z0-9-]+)\/main\/(.+)$/.exec(url);
+        ) ??
+        /^https:\/\/raw\.githubusercontent\.com\/(?:acme|other)\/([a-z0-9-]+)\/main\/(.+)$/.exec(
+          url,
+        );
       if (fileMatch?.[1] && fileMatch[2]) {
         const text =
           options.text?.(url, n) ??
-          repoFiles(fileMatch[1], options.hubBacklog ?? false)[decodeURIComponent(fileMatch[2])];
+          repoFiles(fileMatch[1], options.hubBacklog ?? false, options.cross)[
+            decodeURIComponent(fileMatch[2])
+          ];
         if (text !== undefined) return route.fulfill({ status: 200, headers: cors, body: text });
       }
       return route.fulfill({ status: 404, headers: cors, body: "" });
@@ -156,6 +166,11 @@ const pointer = (page: Page, text: string) =>
 const showStatus = (page: Page, text: string) =>
   pointer(page, text).getByRole("link", { name: "Show status" });
 const panel = (page: Page) => page.getByTestId("project-status");
+const tokenLine = (page: Page, owner = "acme") =>
+  page.locator(`[data-testid="token-line"][data-owner="${owner}"]`);
+const forgetToken = (page: Page, owner = "acme") =>
+  tokenLine(page, owner).getByTestId("token-forget");
+const TOKEN2 = "github_pat_TEST_umbrella_wxyz9876";
 
 type Outline = { h: string; p: string[]; c: Outline[] };
 /** The shown tree as plain data. */
@@ -601,10 +616,11 @@ test.describe("one panel, the newest wins (3.9)", () => {
 });
 
 test.describe("with a token held (3.8, 3.9)", () => {
-  async function useToken(page: Page) {
-    await page.locator("#token-input").fill(TOKEN);
+  async function useToken(page: Page, token = TOKEN, owner = "acme") {
+    await page.locator("#owner-input").fill(owner);
+    await page.locator("#token-input").fill(token);
     await page.locator("#token-use").click();
-    await expect(page.getByTestId("token-line")).toBeVisible();
+    await expect(tokenLine(page, owner)).toBeVisible();
   }
 
   test("loading the umbrella project, Open in vizi and Show status all use it; no request goes to raw.githubusercontent.com", async ({
@@ -672,7 +688,7 @@ test.describe("a status read with the token, in a project loaded without one (3.
     await page.locator("#token-input").fill(TOKEN);
     await page.locator("#token-remember").setChecked(remember);
     await page.locator("#token-use").click();
-    await expect(page.getByTestId("token-line")).toBeVisible();
+    await expect(tokenLine(page)).toBeVisible();
     await showStatus(page, "projects/notes/").click();
     await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("Notes phase.");
     // The status read carried the token although the umbrella itself was loaded without it.
@@ -686,7 +702,7 @@ test.describe("a status read with the token, in a project loaded without one (3.
     context,
   }) => {
     await tokenlessUmbrellaThenToken(page, context, false);
-    await page.getByRole("button", { name: "Forget the token" }).click();
+    await forgetToken(page).click();
     await expect(panel(page)).toBeHidden();
     await expect(panel(page)).toBeEmpty();
     await expect(page.locator("body")).not.toContainText("Notes phase");
@@ -697,7 +713,7 @@ test.describe("a status read with the token, in a project loaded without one (3.
     await tokenlessUmbrellaThenToken(page, context, true);
     const other = await context.newPage();
     await other.goto("/");
-    await other.evaluate(() => localStorage.removeItem("vizi.githubToken"));
+    await other.evaluate(() => localStorage.removeItem("vizi.githubTokens"));
     await expect(page.getByTestId("token-line")).toBeHidden();
     await expect(panel(page)).toBeHidden();
     await expect(page.locator("body")).not.toContainText("Notes phase");
@@ -715,7 +731,7 @@ test.describe("a status read with the token, in a project loaded without one (3.
     await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("Notes phase.");
     await page.locator("#token-input").fill(TOKEN);
     await page.locator("#token-use").click();
-    await page.getByRole("button", { name: "Forget the token" }).click();
+    await forgetToken(page).click();
     await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("Notes phase.");
   });
 
@@ -724,12 +740,12 @@ test.describe("a status read with the token, in a project loaded without one (3.
     context,
   }) => {
     await tokenlessUmbrellaThenToken(page, context, false);
-    await page.getByRole("button", { name: "Forget the token" }).click();
+    await forgetToken(page).click();
     await showStatus(page, "projects/odd/").click();
     await expect(panel(page).getByTestId("pstatus-focus")).toHaveText("Odd focus.");
     await page.locator("#token-input").fill(TOKEN);
     await page.locator("#token-use").click();
-    await page.getByRole("button", { name: "Forget the token" }).click();
+    await forgetToken(page).click();
     await expect(panel(page).getByTestId("pstatus-focus")).toHaveText("Odd focus.");
   });
 
@@ -743,5 +759,124 @@ test.describe("a status read with the token, in a project loaded without one (3.
     await expect(page.locator("#message")).toContainText("GitHub refused the token");
     await expect(panel(page)).toBeHidden();
     await expect(panel(page)).toBeEmpty();
+  });
+});
+
+test.describe("two owners' tokens (3.8, 3.9)", () => {
+  async function useToken(page: Page, token: string, owner: string) {
+    await page.locator("#owner-input").fill(owner);
+    await page.locator("#token-input").fill(token);
+    await page.locator("#token-use").click();
+    await expect(tokenLine(page, owner)).toBeVisible();
+  }
+  const sentTo = (stub: Stub, fragment: string) =>
+    gets(stub).filter((s) => s.url.includes(fragment));
+
+  test("Open in vizi uses the token of the pointed repo's owner, and Show status that of the project on the page", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context, { cross: true });
+    await page.goto("/");
+    await useToken(page, TOKEN, "acme");
+    await useToken(page, TOKEN2, "other");
+    await openUrl(page, HUB);
+    await expect(umbrellaTab(page)).toBeVisible();
+    for (const s of gets(stub)) expect(s.headers.authorization, s.url).toBe(`Bearer ${TOKEN}`);
+
+    await showStatus(page, "projects/notes/").click();
+    await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("Notes phase.");
+    expect(sentTo(stub, "/projects/notes/STATUS.md")[0]?.headers.authorization).toBe(
+      `Bearer ${TOKEN}`,
+    );
+
+    const mark = gets(stub).length;
+    await pointer(page, "other/gadgets").getByRole("link", { name: "Open in vizi" }).click();
+    await expect(page.locator("#project-name")).toHaveText("other/gadgets (main)");
+    const sent = gets(stub).slice(mark);
+    expect(sent.length).toBeGreaterThan(0);
+    for (const s of sent) expect(s.headers.authorization, s.url).toBe(`Bearer ${TOKEN2}`);
+
+    const again = gets(stub).length;
+    await openUrl(page, HUB);
+    await pointer(page, "acme/widgets").getByRole("link", { name: "Open in vizi" }).click();
+    await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
+    for (const s of gets(stub).slice(again)) {
+      expect(s.headers.authorization, s.url).toBe(`Bearer ${TOKEN}`);
+    }
+  });
+
+  test("a token held only for another owner is not used for the hub, Open in vizi or Show status", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context, { cross: true });
+    await page.goto("/");
+    await useToken(page, TOKEN2, "other");
+    await openUrl(page, HUB);
+    await expect(umbrellaTab(page)).toBeVisible();
+    await showStatus(page, "projects/notes/").click();
+    await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("Notes phase.");
+    await pointer(page, "acme/widgets").getByRole("link", { name: "Open in vizi" }).click();
+    await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
+    expect(gets(stub).length).toBeGreaterThan(0);
+    expect(gets(stub).every((s) => !("authorization" in s.headers))).toBe(true);
+  });
+
+  test("Open in vizi fills the Owner field with the pointed repo's owner until the user has typed in it", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context, { cross: true });
+    await page.goto("/");
+    await openUrl(page, HUB);
+    await expect(page.locator("#owner-input")).toHaveValue("acme");
+    await pointer(page, "other/gadgets").getByRole("link", { name: "Open in vizi" }).click();
+    await expect(page.locator("#project-name")).toHaveText("other/gadgets (main)");
+    await expect(page.locator("#owner-input")).toHaveValue("other");
+
+    await page.locator("#owner-input").fill("mine");
+    await openUrl(page, HUB);
+    await pointer(page, "other/gadgets").getByRole("link", { name: "Open in vizi" }).click();
+    await expect(page.locator("#project-name")).toHaveText("other/gadgets (main)");
+    await expect(page.locator("#owner-input")).toHaveValue("mine");
+  });
+
+  test("Forget for the other owner leaves the hub, its panel and the token read of the hub", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context, { cross: true });
+    await page.goto("/");
+    await useToken(page, TOKEN, "acme");
+    await useToken(page, TOKEN2, "other");
+    await openUrl(page, HUB);
+    await showStatus(page, "projects/notes/").click();
+    await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("Notes phase.");
+    await forgetToken(page, "other").click();
+    await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("Notes phase.");
+    await expect(umbrellaTab(page)).toBeVisible();
+    await forgetToken(page, "acme").click();
+    await expect(panel(page)).toBeHidden();
+    await expect(page.locator("#results")).toBeHidden();
+  });
+
+  test("a 401 on Show status forgets only the refused owner's token, and a newer token for that owner is kept", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context, {
+      cross: true,
+      status: (url) => (url === NOTES_API ? 401 : undefined),
+    });
+    await page.goto("/");
+    await useToken(page, TOKEN, "acme");
+    await useToken(page, TOKEN2, "other");
+    await openUrl(page, HUB);
+    await showStatus(page, "projects/notes/").click();
+    await expect(page.locator("#message")).toContainText("GitHub refused the token for acme");
+    await expect(tokenLine(page, "acme")).toBeHidden();
+    await expect(tokenLine(page, "other")).toBeVisible();
+    await expect(panel(page)).toBeHidden();
   });
 });

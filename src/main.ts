@@ -51,6 +51,8 @@ const storage = browserStorage();
 const tokens = createTokenStore(storage);
 /** Whether the results on the page were loaded with a token: Forget hides them (3.8). */
 let projectUsedToken = false;
+/** The owner (in lower case) of the project loaded by address, whose token a "Show status" read uses; null for a folder. */
+let projectOwner: string | null = null;
 
 interface Project {
   name: string;
@@ -76,8 +78,8 @@ type StatusRead = (
   | { kind: "missing" }
   | { kind: "failed"; message: string; tokenRefused: boolean }
 ) & {
-  /** Whether the read carried the token: Forget then clears the panel (3.8). */
-  usedToken: boolean;
+  /** The token the read carried, or null: Forget of its owner then clears the panel, and a 401 forgets it if still current (3.8). */
+  token: string | null;
 };
 
 // ----------------------------------------------------------------- DOM helpers
@@ -466,6 +468,7 @@ function renderReport(p: Project): number {
 /** Loads a repo by its address in the same page, as a newer load (3.9, "Open in vizi"). */
 function openInVizi(address: string): void {
   must<HTMLInputElement>("url-input").value = address;
+  fillOwnerFromAddress();
   void openUrl(address);
 }
 
@@ -555,14 +558,19 @@ async function showProjectStatus(pointer: Extract<Pointer, { kind: "folder" }>):
   const read = await p.readProjectStatus(pointer.name, stale);
   if (stale()) return;
   if (read.kind === "failed" && read.tokenRefused) {
-    // GitHub refused the token: forget it, as 3.8 sets out. No panel is left under the message.
+    // GitHub refused the token: forget it if it is still the one held, as 3.8 sets out. No panel is left under the message.
     clearProjectStatus();
-    dropToken();
-    forgetEverything(read.message);
+    const owner = projectOwner;
+    if (owner !== null && read.token !== null && tokens.forgetIfCurrent(owner, read.token)) {
+      renderTokens();
+      forgetResultsFor(owner, read.message);
+    } else {
+      say(read.message);
+    }
     return;
   }
   const box = must("project-status");
-  panelUsedToken = read.usedToken;
+  panelUsedToken = read.token !== null;
   const statusPath = `${pointer.text}STATUS.md`;
   box.hidden = false;
   box.replaceChildren(
@@ -686,6 +694,7 @@ function build(
 function hideResults(): void {
   project = null;
   projectUsedToken = false;
+  projectOwner = null;
   must("results").hidden = true;
   for (const id of [
     "status",
@@ -727,7 +736,8 @@ async function openUrl(address: string): Promise<void> {
     return;
   }
   say("Loading…");
-  const token = tokens.current();
+  const owner = ref.owner.toLowerCase();
+  const token = tokens.tokenFor(owner);
   const result = await loadRepo(
     ref,
     guardedFetch(token, () => load !== latestLoad),
@@ -735,9 +745,15 @@ async function openUrl(address: string): Promise<void> {
   );
   if (load !== latestLoad) return;
   if (!result.ok) {
-    // GitHub refused the token: it is dead, so it is forgotten and cannot break later public loads.
-    if (result.kind === "token-refused") dropToken();
-    say(result.message);
+    // GitHub refused the token: it is dead, so it is forgotten (if still the one held) and cannot break later public loads.
+    if (result.kind === "token-refused" && token !== null && tokens.forgetIfCurrent(owner, token)) {
+      renderTokens();
+    }
+    const noToken =
+      result.kind === "not-found" && token === null && tokens.owners().length > 0
+        ? ` No token is held for ${owner}.`
+        : "";
+    say(result.message + noToken);
     hideResults();
     return;
   }
@@ -755,21 +771,22 @@ async function openUrl(address: string): Promise<void> {
     async (name, stale) => {
       const path = `projects/${name}/STATUS.md`;
       // Without the file in the file list there is nothing to ask for.
-      if (!result.files.includes(path)) return { kind: "missing", usedToken: false };
-      const current = tokens.current();
-      const usedToken = current !== null;
+      if (!result.files.includes(path)) return { kind: "missing", token: null };
+      // The token held for the project's owner at this moment (3.8).
+      const current = tokens.tokenFor(owner);
       const answer = await readRepoFile(withBranch, path, guardedFetch(current, stale), current);
-      if (answer.ok) return { kind: "text", text: answer.text, usedToken };
+      if (answer.ok) return { kind: "text", text: answer.text, token: current };
       return {
         kind: "failed",
         message: answer.message,
         tokenRefused: answer.kind === "token-refused",
-        usedToken,
+        token: current,
       };
     },
   );
   show(p);
   projectUsedToken = token !== null;
+  projectOwner = owner;
   say(
     p.backlog
       ? ""
@@ -816,21 +833,22 @@ async function openFolder(input: HTMLInputElement): Promise<void> {
     projectsText,
     async (name) => {
       const path = `projects/${name}/STATUS.md`;
-      if (!byPath.has(path)) return { kind: "missing", usedToken: false };
+      if (!byPath.has(path)) return { kind: "missing", token: null };
       try {
-        return { kind: "text", text: await read(path), usedToken: false };
+        return { kind: "text", text: await read(path), token: null };
       } catch {
         return {
           kind: "failed",
           message: `${path} could not be read.`,
           tokenRefused: false,
-          usedToken: false,
+          token: null,
         };
       }
     },
   );
   show(p);
   projectUsedToken = false;
+  projectOwner = null;
   say(
     p.backlog
       ? ""
@@ -840,35 +858,80 @@ async function openFolder(input: HTMLInputElement): Promise<void> {
 
 // -------------------------------------------------------------------- token
 
-/** Shows or hides the "Token in use" line; the token itself is shown only in its masked form. */
-function renderToken(): void {
-  const token = tokens.current();
-  must("token-status").hidden = token === null;
-  must("token-line").textContent =
-    token === null
-      ? ""
-      : `Token in use: ${maskToken(token)}, ${tokens.isSaved() ? "saved in this browser" : "for this page only"}.`;
-  if (token !== null) must<HTMLInputElement>("token-remember").checked = tokens.isSaved();
+/** Whether the user has typed in the Owner field: the page then leaves it alone (3.8). */
+let ownerTyped = false;
+
+/** While the user has not typed in the Owner field, it holds the owner of the address in the address field. */
+function fillOwnerFromAddress(): void {
+  if (ownerTyped) return;
+  const ref = parseGithubUrl(must<HTMLInputElement>("url-input").value);
+  if (ref) must<HTMLInputElement>("owner-input").value = ref.owner;
 }
 
-/** Drops the token from memory and storage (3.8). Whether results or loads go with it is the caller's call. */
-function dropToken(): void {
-  tokens.forget();
-  must<HTMLInputElement>("token-remember").checked = false;
-  must<HTMLInputElement>("token-input").value = "";
-  renderToken();
+/** One owner's line: the masked token, where it is kept, its own Remember box and Forget button. */
+function tokenLine(owner: string): HTMLElement {
+  const token = tokens.tokenFor(owner) ?? "";
+  const saved = tokens.isSaved(owner);
+  const box = h("input", { type: "checkbox", "data-testid": "token-remember-owner" });
+  box.checked = saved;
+  box.addEventListener("change", () => {
+    tokens.setRemember(owner, box.checked);
+    must("token-message").textContent =
+      box.checked && !tokens.isSaved(owner) ? NOT_SAVED_MESSAGE : "";
+    renderTokens();
+  });
+  const forget = h(
+    "button",
+    {
+      type: "button",
+      "data-testid": "token-forget",
+      "aria-label": `Forget the token for ${owner}`,
+    },
+    "Forget",
+  );
+  forget.addEventListener("click", () => {
+    tokens.forget(owner);
+    renderTokens();
+    forgetResultsFor(owner, `The token for ${owner} has been forgotten.`);
+  });
+  return h(
+    "li",
+    { "data-testid": "token-line", "data-owner": owner },
+    h(
+      "span",
+      { "data-testid": "token-text" },
+      `${owner}: ${maskToken(token)}, ${saved ? "saved in this browser" : "for this page only"}`,
+    ),
+    h("label", { class: "check" }, box, " Remember"),
+    forget,
+  );
 }
+
+/** Shows the "Tokens in use" lines and the line for a token an earlier vizi saved; a token is shown only in its masked form. */
+function renderTokens(): void {
+  const owners = tokens.owners();
+  must("token-status").hidden = owners.length === 0;
+  must("token-list").replaceChildren(...owners.map(tokenLine));
+  const old = tokens.migration();
+  must("token-migrate").hidden = old === null;
+  must("migrate-line").textContent =
+    old === null ? "" : `A token saved by an earlier vizi: ${maskToken(old)}`;
+}
+
+const NOT_SAVED_MESSAGE = "The browser would not save the token; it is kept for this page only.";
 
 /**
- * What "Forget the token" does, here and when another tab removed the key:
- * the token goes, the results loaded with it are hidden, and it counts as a
- * newer load, so the answer of a load still running is dropped (3.1, 3.8).
+ * What a Forget does after the token is gone (here, and when another tab
+ * forgot): the results loaded with it are hidden, and it counts as a
+ * newer load, so the answer of a load still running is dropped (3.1,
+ * 3.8). `owner` is the owner forgotten, or null for all of them.
  */
-function forgetEverything(message: string): void {
+function forgetResultsFor(owner: string | null, message: string): void {
   latestLoad += 1;
-  if (projectUsedToken) hideResults();
+  const mine = owner === null || projectOwner === owner;
+  if (projectUsedToken && mine) hideResults();
   // A status read with the token goes too, also in a project that was loaded without it.
-  else if (panelUsedToken) clearProjectStatus();
+  else if (panelUsedToken && mine) clearProjectStatus();
   must("token-message").textContent = "";
   say(message);
 }
@@ -876,17 +939,26 @@ function forgetEverything(message: string): void {
 function useToken(): void {
   const input = must<HTMLInputElement>("token-input");
   const remember = must<HTMLInputElement>("token-remember").checked;
-  const result = tokens.use(input.value, remember);
+  const result = tokens.use(must<HTMLInputElement>("owner-input").value, input.value, remember);
   input.value = "";
   const message = must("token-message");
   if (!result.ok) message.textContent = result.message;
-  else if (remember && !result.saved)
-    message.textContent = "The browser would not save the token; it is kept for this page only.";
+  else if (remember && !result.saved) message.textContent = NOT_SAVED_MESSAGE;
   else message.textContent = "";
-  renderToken();
+  renderTokens();
 }
 
 function mountToken(): HTMLElement {
+  const owner = h("input", {
+    id: "owner-input",
+    type: "text",
+    autocomplete: "off",
+    spellcheck: "false",
+  });
+  owner.addEventListener("input", () => {
+    ownerTyped = owner.value !== "";
+    fillOwnerFromAddress();
+  });
   const input = h("input", {
     id: "token-input",
     type: "password",
@@ -896,33 +968,64 @@ function mountToken(): HTMLElement {
   const remember = h("input", { id: "token-remember", type: "checkbox" });
   const use = h("button", { id: "token-use", type: "button" }, "Use");
   use.addEventListener("click", useToken);
-  remember.addEventListener("change", () => {
-    tokens.setRemember(remember.checked);
-    renderToken();
+  const forgetAll = h("button", { id: "token-forget-all", type: "button" }, "Forget all");
+  forgetAll.addEventListener("click", () => {
+    tokens.forgetAll();
+    renderTokens();
+    forgetResultsFor(null, "All tokens have been forgotten.");
   });
-  const forget = h("button", { id: "token-forget", type: "button" }, "Forget the token");
-  forget.addEventListener("click", () => {
-    dropToken();
-    forgetEverything("The token has been forgotten.");
+  const migrateOwner = h("input", {
+    id: "migrate-owner",
+    type: "text",
+    autocomplete: "off",
+    spellcheck: "false",
+  });
+  const keep = h("button", { id: "migrate-keep", type: "button" }, "Keep for this owner");
+  keep.addEventListener("click", () => {
+    const result = tokens.keepMigrated(migrateOwner.value);
+    must("token-message").textContent = result.ok
+      ? result.saved
+        ? ""
+        : NOT_SAVED_MESSAGE
+      : result.message;
+    renderTokens();
+  });
+  const dropOld = h("button", { id: "migrate-forget", type: "button" }, "Forget");
+  dropOld.addEventListener("click", () => {
+    tokens.forgetMigrated();
+    must("token-message").textContent = "";
+    renderTokens();
   });
   // Not a <form>: a browser has no form to offer to save the field from (3.8).
   return h(
     "div",
     { id: "token-box" },
+    h("label", { for: "owner-input" }, "Owner"),
+    owner,
     h("label", { for: "token-input" }, "GitHub token (for private repos)"),
     h("div", { class: "token-row" }, input, use),
     h("label", { class: "check" }, remember, " Remember the token"),
     h(
       "p",
       { id: "token-note", class: "muted", "data-testid": "token-note" },
-      "Use a read-only token limited to the repos you need, with an expiry. Other factoincognito Pages sites share this page's storage and can reach the token.",
+      "Use a read-only token limited to the repos you need, with an expiry, for the owner of those repos. Other factoincognito Pages sites share this page's storage and can reach the tokens.",
     ),
     h("p", { id: "token-message", role: "status", "data-testid": "token-message" }),
     h(
       "div",
       { id: "token-status", hidden: "" },
-      h("p", { id: "token-line", "data-testid": "token-line" }),
-      forget,
+      h("h3", {}, "Tokens in use"),
+      h("ul", { id: "token-list" }),
+      forgetAll,
+    ),
+    h(
+      "div",
+      { id: "token-migrate", hidden: "" },
+      h("p", { id: "migrate-line", "data-testid": "migrate-line" }),
+      h("label", { for: "migrate-owner" }, "Owner"),
+      migrateOwner,
+      keep,
+      dropOld,
     ),
   );
 }
@@ -957,6 +1060,7 @@ function mount(): void {
     urlInput,
     h("button", { id: "open-url", type: "submit" }, "Open"),
   );
+  urlInput.addEventListener("input", fillOwnerFromAddress);
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     void openUrl(urlInput.value);
@@ -1027,15 +1131,16 @@ function mount(): void {
 
 mount();
 tokens.start();
-renderToken();
-// Another open tab saved, changed or removed the token (3.8).
+renderTokens();
+// Another open tab saved, forgot or removed tokens (3.8). Following an event never writes to storage.
 window.addEventListener("storage", (event) => {
   if (storage === null || (event.storageArea !== null && event.storageArea !== storage)) return;
-  const outcome = tokens.onStorage(event.key, event.newValue);
-  if (outcome === "forgotten") {
-    dropToken();
-    forgetEverything("The token was removed in another tab, so it has been forgotten.");
-  } else if (outcome === "adopted") {
-    renderToken();
+  const outcome = tokens.onStorage(event.key, event.oldValue, event.newValue);
+  renderTokens();
+  if (outcome.allForgotten) {
+    forgetResultsFor(null, "The tokens were removed in another tab, so they have been forgotten.");
+  }
+  for (const owner of outcome.forgotten) {
+    forgetResultsFor(owner, `The token for ${owner} has been forgotten.`);
   }
 });
