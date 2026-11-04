@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { test as base, expect, type Page, type Route } from "@playwright/test";
-import { CLOSING_LINK, HELP_STEPS, HELP_TITLE, plainText } from "../src/help";
+import { CLOSING_LINK, HELP_STEPS, HELP_TITLE, plainText, READ_ONLY_SENTENCE } from "../src/help";
 import { isAllowedRequest } from "./guard";
 
 /** Every test: any request other than the page's own document and GitHub's two hosts fails it (2.3). */
@@ -280,6 +280,39 @@ test.describe("the view's structure and text (3.10)", () => {
     expect(((await step5.textContent()) ?? "").toLowerCase()).not.toContain("folder");
   });
 
+  test("the read-only sentence is the first text after the h2, before the first step's h3, as static text", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await openView(page);
+    const after = await page.evaluate(() => {
+      const h2 = document.getElementById("help-title");
+      const next = h2?.nextElementSibling;
+      const h3 = document.querySelector("#help h3");
+      return {
+        tag: next?.tagName,
+        text: next?.textContent,
+        beforeSteps: Boolean(
+          next && h3 && next.compareDocumentPosition(h3) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ),
+        // Every text node between the h2 and the first h3 belongs to the sentence.
+        between: (() => {
+          if (!h2 || !h3) return null;
+          const range = document.createRange();
+          range.setStartAfter(h2);
+          range.setEndBefore(h3);
+          return range.toString().replace(/\s+/g, " ").trim();
+        })(),
+      };
+    });
+    expect(after).toEqual({
+      tag: "P",
+      text: READ_ONLY_SENTENCE,
+      beforeSteps: true,
+      between: READ_ONLY_SENTENCE,
+    });
+  });
+
   test("every control label the text names exists on the start page", async ({ page }) => {
     await page.goto("/");
     const labels = await page.evaluate(() =>
@@ -514,6 +547,7 @@ test.describe("the help view and the page's rules (2.3, 3.10)", () => {
       .replace(/\\n/g, "\n")
       .replace(/\\(["'`\\])/g, "$1");
     expect(decoded).toContain(HELP_TITLE);
+    expect(decoded).toContain(READ_ONLY_SENTENCE);
     for (const step of HELP_STEPS) {
       for (const line of step.example.split("\n")) {
         if (line.trim() !== "") expect(decoded, line).toContain(line);

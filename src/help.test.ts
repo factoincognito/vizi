@@ -19,6 +19,7 @@ import {
   type Paragraph,
   PROJECTS_EXAMPLE,
   plainText,
+  READ_ONLY_SENTENCE,
   STATUS_EXAMPLE,
   TOKEN_EXAMPLE,
 } from "./help";
@@ -28,7 +29,7 @@ import { parseToken } from "./token";
 
 /** Every piece of text the view shows, as data. */
 function allText(): string[] {
-  const out = [HELP_TITLE, plainText(CLOSING_LINK.label), CLOSING_LINK.href];
+  const out = [HELP_TITLE, READ_ONLY_SENTENCE, plainText(CLOSING_LINK.label), CLOSING_LINK.href];
   for (const step of HELP_STEPS) {
     out.push(plainText(step.title), step.example, ...step.paragraphs.map(plainText));
   }
@@ -62,6 +63,12 @@ describe("the help view's text (3.10)", () => {
       expect(step.paragraphs.length).toBeGreaterThan(0);
       expect(step.example.trim()).not.toBe("");
     }
+  });
+
+  test("the read-only sentence is the one of 3.10, word for word", () => {
+    expect(READ_ONLY_SENTENCE).toBe(
+      "vizi is a read-only tool: it reads your project's files on GitHub and never changes anything there.",
+    );
   });
 
   test("a paragraph is a list of parts, each plain text or code, and none is empty", () => {
