@@ -378,15 +378,6 @@ test.describe("what a load with a token sends (3.8)", () => {
     ]);
     expect(gets(stub).every((s) => !("authorization" in s.headers))).toBe(true);
   });
-
-  test("folder mode never uses the token", async ({ page, context }) => {
-    const stub = await stubGithub(context);
-    await page.goto("/");
-    await useToken(page, TOKEN);
-    await page.locator("#folder-input").setInputFiles(project);
-    await expect(page.locator("#results")).toBeVisible();
-    expect(stub.seen).toEqual([]);
-  });
 });
 
 test.describe("the token is never shown or logged (3.8)", () => {
@@ -515,7 +506,7 @@ test.describe("answers to a token (3.8)", () => {
     await expect(line(page)).toBeVisible();
   });
 
-  test("404 on request 1: not found, or no access; offers the folder; the token is kept", async ({
+  test("404 on request 1: not found, or no access; the token is kept", async ({
     page,
     context,
   }) => {
@@ -524,7 +515,7 @@ test.describe("answers to a token (3.8)", () => {
     await useToken(page, TOKEN);
     await openUrl(page);
     await expect(page.locator("#message")).toHaveText(
-      "Not found, or the token does not give access to this repo. Open the project as a local folder instead.",
+      "Not found, or the token does not give access to this repo.",
     );
     await expect(line(page)).toBeVisible();
   });
@@ -958,22 +949,19 @@ test.describe("one token per owner (3.8)", () => {
     mark = gets(stub).length;
     await openUrl(page, "https://github.com/other/thing");
     await expect(page.locator("#message")).toHaveText(
-      "Not found or not public. Open the project as a local folder instead. No token is held for other.",
+      "Not found or not public. If the repo is private, add a token for its owner.",
     );
     const sent = gets(stub).slice(mark);
     expect(sent.length).toBeGreaterThan(0);
     for (const s of sent) expect("authorization" in s.headers).toBe(false);
   });
 
-  test("with no token held for any owner, a 404 does not mention tokens", async ({
-    page,
-    context,
-  }) => {
+  test("with no token held for any owner, a 404 is 3.1's message", async ({ page, context }) => {
     await stubGithub(context, { answer: (url) => (url === API ? { status: 404 } : undefined) });
     await page.goto("/");
     await openUrl(page);
     await expect(page.locator("#message")).toHaveText(
-      "Not found or not public. Open the project as a local folder instead.",
+      "Not found or not public. If the repo is private, add a token for its owner.",
     );
   });
 

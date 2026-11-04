@@ -162,8 +162,9 @@ describe("loadRepo: failures", () => {
     const r = await loadRepo(ref, fetcher);
     expect(calls).toHaveLength(1);
     expect(r).toMatchObject({ ok: false, kind: "not-found", status: 404 });
+    // 3.1's message, word for word: since PBI-1.14 (3.11) no sentence follows it.
     expect(!r.ok && r.message).toBe(
-      "Not found or not public. Open the project as a local folder instead.",
+      "Not found or not public. If the repo is private, add a token for its owner.",
     );
   });
 
@@ -172,7 +173,11 @@ describe("loadRepo: failures", () => {
       [API]: { status: 200, body: JSON.stringify({ default_branch: "main" }) },
       [`${API}/git/trees/main?recursive=1`]: { status: 404 },
     });
-    expect(await loadRepo(ref, fetcher)).toMatchObject({ ok: false, kind: "not-found" });
+    const r = await loadRepo(ref, fetcher);
+    expect(r).toMatchObject({ ok: false, kind: "not-found" });
+    expect(!r.ok && r.message).toBe(
+      "Not found or not public. If the repo is private, add a token for its owner.",
+    );
   });
 
   it("shows any other HTTP status with the status, and does not retry", async () => {
@@ -430,9 +435,7 @@ describe("loadRepo with a token (3.8): the answers", () => {
     const { fetcher } = fakeWithInit(answers);
     const r = await loadRepo(ref, fetcher, TOKEN);
     expect(r).toMatchObject({ ok: false, kind: "not-found", status: 404 });
-    expect(!r.ok && r.message).toBe(
-      "Not found, or the token does not give access to this repo. Open the project as a local folder instead.",
-    );
+    expect(!r.ok && r.message).toBe("Not found, or the token does not give access to this repo.");
   });
 
   it("404 on a file request is shown as a status, as in 3.1", async () => {

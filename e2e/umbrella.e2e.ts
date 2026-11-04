@@ -35,6 +35,9 @@ const PROJECT = join(fixtures, "project");
 const read = (dir: string, path: string) => readFileSync(join(dir, path), "utf8");
 const TOKEN = "github_pat_TEST_umbrella_abcd1234";
 const HUB = "https://github.com/acme/hub";
+const HUB_BACKLOG = "https://github.com/acme/hub-backlog";
+const HUB_EMPTY = "https://github.com/acme/hub-empty";
+const WIDGETS = "https://github.com/acme/widgets";
 const API = "https://api.github.com/repos/acme";
 
 type Seen = { method: string; url: string; headers: Record<string, string> };
@@ -55,7 +58,11 @@ interface Stub {
   release: () => void;
 }
 
-/** The files of each synthetic repo: acme/hub (the umbrella), acme/widgets and acme/plain. */
+/**
+ * The files of each synthetic repo: acme/hub (the umbrella), acme/hub-backlog
+ * (e2e/fixtures/umbrella-backlog), acme/hub-empty (e2e/fixtures/umbrella-empty),
+ * acme/widgets and acme/plain.
+ */
 function repoFiles(repo: string, hubBacklog: boolean, cross = false): Record<string, string> {
   if (repo === "hub") {
     return {
@@ -67,6 +74,13 @@ function repoFiles(repo: string, hubBacklog: boolean, cross = false): Record<str
       ...(hubBacklog ? { "docs/BACKLOG.md": read(UMBRELLA_BACKLOG, "docs/BACKLOG.md") } : {}),
     };
   }
+  if (repo === "hub-backlog") {
+    return {
+      "PROJECTS.md": read(UMBRELLA_BACKLOG, "PROJECTS.md"),
+      "docs/BACKLOG.md": read(UMBRELLA_BACKLOG, "docs/BACKLOG.md"),
+    };
+  }
+  if (repo === "hub-empty") return { "PROJECTS.md": read(UMBRELLA_EMPTY, "PROJECTS.md") };
   if (repo === "widgets") {
     return {
       "docs/BACKLOG.md": read(PROJECT, "docs/BACKLOG.md"),
@@ -157,10 +171,6 @@ async function openUrl(page: Page, url: string) {
   await page.locator("#open-url").click();
 }
 
-async function pickFolder(page: Page, dir: string) {
-  await page.locator("#folder-input").setInputFiles(dir);
-}
-
 const pointer = (page: Page, text: string) =>
   page.locator(`[data-testid=pointer][data-pointer="${text}"]`).first();
 const showStatus = (page: Page, text: string) =>
@@ -206,21 +216,19 @@ const EXPECTED_TREE: Outline[] = [
 const umbrellaTab = (page: Page) => page.getByRole("tab", { name: "Umbrella" });
 
 test.describe("the Umbrella tab (3.9)", () => {
-  test("is not there without a PROJECTS.md, in either mode", async ({ page, context }) => {
+  test("is not there without a PROJECTS.md", async ({ page, context }) => {
     await stubGithub(context);
     await page.goto("/");
     await openUrl(page, "https://github.com/acme/plain");
     await expect(page.getByTestId("column").first()).toBeVisible();
     await expect(umbrellaTab(page)).toHaveCount(0);
-    await pickFolder(page, PROJECT);
-    await expect(page.locator("#project-name")).toHaveText("project");
-    await expect(page.getByTestId("column").first()).toBeVisible();
-    await expect(umbrellaTab(page)).toHaveCount(0);
   });
 
-  test("folder mode: opens on the tab when there is no backlog, shows the tree in file order, and reports under the Report tab", async ({
+  test("opens on the tab when there is no backlog, shows the tree in file order, and reports under the Report tab", async ({
     page,
+    context,
   }) => {
+    await stubGithub(context);
     const violations: string[] = [];
     await page.addInitScript(() => {
       document.addEventListener("securitypolicyviolation", (e) =>
@@ -229,7 +237,7 @@ test.describe("the Umbrella tab (3.9)", () => {
     });
     page.on("console", (m) => m.type() === "error" && violations.push(m.text()));
     await page.goto("/");
-    await pickFolder(page, UMBRELLA);
+    await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toHaveAttribute("aria-selected", "true");
     expect(await treeOutline(page)).toEqual(EXPECTED_TREE);
     // A heading is inline Markdown; a pointer is plain text.
@@ -256,11 +264,13 @@ test.describe("the Umbrella tab (3.9)", () => {
     expect(await page.evaluate(() => localStorage.length)).toBe(0);
   });
 
-  test("folder mode: a project with a backlog opens on the Board, and the Umbrella tab is still there", async ({
+  test("a project with a backlog opens on the Board, and the Umbrella tab is still there", async ({
     page,
+    context,
   }) => {
+    await stubGithub(context);
     await page.goto("/");
-    await pickFolder(page, UMBRELLA_BACKLOG);
+    await openUrl(page, HUB_BACKLOG);
     await expect(page.getByRole("tab", { name: "Board" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByTestId("column").first()).toBeVisible();
     await expect(umbrellaTab(page)).toBeVisible();
@@ -268,17 +278,20 @@ test.describe("the Umbrella tab (3.9)", () => {
     expect(await treeOutline(page)).toEqual([{ h: "Hub", p: ["acme/widgets"], c: [] }]);
   });
 
-  test("the tab comes after Report", async ({ page }) => {
+  test("the tab comes after Report", async ({ page, context }) => {
+    await stubGithub(context);
     await page.goto("/");
-    await pickFolder(page, UMBRELLA);
+    await openUrl(page, HUB);
+    await expect(umbrellaTab(page)).toBeVisible();
     const names = await page.getByRole("tab").allTextContents();
     expect(names.at(-1)).toBe("Umbrella");
     expect(names.at(-2)).toMatch(/^Report/);
   });
 
-  test("a file with no pointer gives an empty tree and an Info item", async ({ page }) => {
+  test("a file with no pointer gives an empty tree and an Info item", async ({ page, context }) => {
+    await stubGithub(context);
     await page.goto("/");
-    await pickFolder(page, UMBRELLA_EMPTY);
+    await openUrl(page, HUB_EMPTY);
     await expect(umbrellaTab(page)).toHaveAttribute("aria-selected", "true");
     await page.getByRole("tab", { name: /^Report/ }).click();
     await expect(page.getByTestId("report-count-info")).toHaveText("1");
@@ -327,9 +340,13 @@ test.describe("URL mode (3.9)", () => {
 });
 
 test.describe("the links of a repo pointer (3.9)", () => {
-  test("On GitHub opens the repo in a new tab, with rel noopener noreferrer", async ({ page }) => {
+  test("On GitHub opens the repo in a new tab, with rel noopener noreferrer", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context);
     await page.goto("/");
-    await pickFolder(page, UMBRELLA);
+    await openUrl(page, HUB);
     const link = pointer(page, "acme/lab-1").getByRole("link", { name: "On GitHub" });
     await expect(link).toHaveAttribute("href", "https://github.com/acme/lab-1");
     await expect(link).toHaveAttribute("target", "_blank");
@@ -395,7 +412,7 @@ test.describe("the links of a repo pointer (3.9)", () => {
   }) => {
     await stubGithub(context, { status: (url) => (url === `${API}/lab-1` ? 404 : undefined) });
     await page.goto("/");
-    await pickFolder(page, UMBRELLA);
+    await openUrl(page, HUB);
     await pointer(page, "acme/lab-1").getByRole("link", { name: "Open in vizi" }).click();
     await expect(page.locator("#message")).toContainText("Not found or not public");
     await expect(page.locator("#results")).toBeHidden();
@@ -403,11 +420,14 @@ test.describe("the links of a repo pointer (3.9)", () => {
 });
 
 test.describe("Show status of a folder pointer (3.9)", () => {
-  test("folder mode: the status is shown in the panel outside the tree, headed with the pointer, blockers waiting on the product owner highlighted; the tree holds no status", async ({
+  test("the status is shown in the panel outside the tree, headed with the pointer, blockers waiting on the product owner highlighted; the tree holds no status", async ({
     page,
+    context,
   }) => {
+    await stubGithub(context);
     await page.goto("/");
-    await pickFolder(page, UMBRELLA);
+    await openUrl(page, HUB);
+    await expect(umbrellaTab(page)).toBeVisible();
     await expect(panel(page)).toBeHidden();
     await showStatus(page, "projects/notes/").click();
     await expect(panel(page)).toBeVisible();
@@ -427,9 +447,10 @@ test.describe("Show status of a folder pointer (3.9)", () => {
     await expect(page.getByTestId("status-phase")).toHaveText("Umbrella phase.");
   });
 
-  test("what the status could not give is shown with it", async ({ page }) => {
+  test("what the status could not give is shown with it", async ({ page, context }) => {
+    await stubGithub(context);
     await page.goto("/");
-    await pickFolder(page, UMBRELLA);
+    await openUrl(page, HUB);
     await showStatus(page, "projects/odd/").click();
     await expect(panel(page).getByTestId("pstatus-focus")).toHaveText("Odd focus.");
     await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("not given");
@@ -447,13 +468,6 @@ test.describe("Show status of a folder pointer (3.9)", () => {
     await expect(panel(page)).toContainText("No STATUS.md in projects/bare/");
     await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 150)));
     expect(stub.seen.length).toBe(before);
-  });
-
-  test("folder mode: a folder without STATUS.md says so", async ({ page }) => {
-    await page.goto("/");
-    await pickFolder(page, UMBRELLA);
-    await showStatus(page, "projects/bare/").click();
-    await expect(panel(page)).toContainText("No STATUS.md in projects/bare/");
   });
 
   test("URL mode: one request for that path, none before it is used, and a fresh one each time", async ({
@@ -487,9 +501,10 @@ test.describe("Show status of a folder pointer (3.9)", () => {
 });
 
 test.describe("one panel, the newest wins (3.9)", () => {
-  test("the next Show status, for any pointer, replaces the panel", async ({ page }) => {
+  test("the next Show status, for any pointer, replaces the panel", async ({ page, context }) => {
+    await stubGithub(context);
     await page.goto("/");
-    await pickFolder(page, UMBRELLA);
+    await openUrl(page, HUB);
     await showStatus(page, "projects/notes/").click();
     await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("Notes phase.");
     await showStatus(page, "projects/odd/").click();
@@ -588,7 +603,7 @@ test.describe("one panel, the newest wins (3.9)", () => {
     await expect(page.locator("body")).not.toContainText("Notes phase");
   });
 
-  test("an answer that arrives after the page has opened another project (a folder) is dropped", async ({
+  test("an answer that arrives after the page has opened another project by its address is dropped", async ({
     page,
     context,
   }) => {
@@ -597,19 +612,21 @@ test.describe("one panel, the newest wins (3.9)", () => {
     await openUrl(page, HUB);
     await showStatus(page, "projects/notes/").click();
     await expect.poll(() => gets(stub).filter((s) => s.url === NOTES_RAW).length).toBe(1);
-    await pickFolder(page, PROJECT);
-    await expect(page.locator("#project-name")).toHaveText("project");
+    await openUrl(page, WIDGETS);
+    await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
     stub.release();
     await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 300)));
     await expect(page.locator("body")).not.toContainText("Notes phase");
   });
 
-  test("a new project starts with no panel", async ({ page }) => {
+  test("a new project starts with no panel", async ({ page, context }) => {
+    await stubGithub(context);
     await page.goto("/");
-    await pickFolder(page, UMBRELLA);
+    await openUrl(page, HUB);
     await showStatus(page, "projects/notes/").click();
     await expect(panel(page)).toBeVisible();
-    await pickFolder(page, UMBRELLA_BACKLOG);
+    await openUrl(page, HUB_BACKLOG);
+    await expect(page.locator("#project-name")).toHaveText("acme/hub-backlog (main)");
     await umbrellaTab(page).click();
     await expect(panel(page)).toBeHidden();
   });

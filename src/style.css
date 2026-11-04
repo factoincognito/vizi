@@ -100,10 +100,6 @@ button {
   color: var(--muted);
 }
 
-#folder-input {
-  width: 100%;
-}
-
 .inputs label {
   display: block;
   font-size: 0.85rem;

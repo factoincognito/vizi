@@ -148,7 +148,7 @@ test.describe("opening the help view (3.10)", () => {
     await expect(view(page)).toBeVisible();
     await expect(start(page)).toBeHidden();
     await expect(page.locator("#url-input")).toBeHidden();
-    await expect(page.locator("#folder-input")).toBeHidden();
+    await expect(page.locator("#token-input")).toBeHidden();
     await expect(page.locator("#results")).toBeHidden();
     await expect(control(page)).toBeHidden();
     expect(await focused(page)).toBe("help-title");

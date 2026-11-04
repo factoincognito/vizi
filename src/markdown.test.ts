@@ -235,30 +235,34 @@ describe("3.7 item 4: links", () => {
     const seen: string[] = [];
     const resolveFile = (p: string): LinkTarget | null => {
       seen.push(p);
-      return { kind: "file", path: p };
+      return { kind: "external", href: p, newTab: true };
     };
     expect(classifyTarget("other.md", { basePath: "docs/a.md", resolveFile })).toEqual({
-      kind: "file",
-      path: "docs/other.md",
+      kind: "external",
+      href: "docs/other.md",
+      newTab: true,
     });
     expect(classifyTarget("../README.md#top", { basePath: "docs/a.md", resolveFile })).toEqual({
-      kind: "file",
-      path: "README.md",
+      kind: "external",
+      href: "README.md",
+      newTab: true,
     });
     expect(classifyTarget("/docs/x.md", { basePath: "docs/a.md", resolveFile })).toEqual({
-      kind: "file",
-      path: "docs/x.md",
+      kind: "external",
+      href: "docs/x.md",
+      newTab: true,
     });
     expect(classifyTarget("./sub/y%20z.md?raw=1", { basePath: "a.md", resolveFile })).toEqual({
-      kind: "file",
-      path: "sub/y z.md",
+      kind: "external",
+      href: "sub/y z.md",
+      newTab: true,
     });
     expect(seen).toHaveLength(4);
   });
 
   it("shows a relative link as text when it escapes the project, is empty, or the file does not exist", () => {
     const resolveFile = (p: string): LinkTarget | null =>
-      p === "there.md" ? { kind: "file", path: p } : null;
+      p === "there.md" ? { kind: "external", href: p, newTab: true } : null;
     expect(classifyTarget("../../x.md", { basePath: "a.md", resolveFile })).toBeNull();
     expect(classifyTarget("missing.md", { basePath: "a.md", resolveFile })).toBeNull();
     expect(classifyTarget("there.md", { basePath: "a.md" })).toBeNull();
@@ -277,6 +281,15 @@ describe("3.7 item 4: links", () => {
     expect(
       links(renderInline('[a](https://example.com/a_(b) "title") [c](<https://example.com/c d>)')),
     ).toEqual([external("https://example.com/a_(b)"), external("https://example.com/c%20d")]);
+  });
+});
+
+describe("the link kinds (3.11)", () => {
+  it("has no kind for a file shown in the page: a link is to github.com, another site or an anchor", () => {
+    // tsc and ts-jest fail on this line while LinkTarget still has a "file" kind.
+    // @ts-expect-error the "file" kind went with the local folder (docs/SPEC.md 3.11)
+    const target: LinkTarget = { kind: "file", path: "a.md" };
+    expect(target).toEqual({ kind: "file", path: "a.md" });
   });
 });
 
@@ -339,12 +352,12 @@ describe("3.7 item 5: no loads from content", () => {
 describe("links to project files from code spans", () => {
   it("links a code span for which codePathLink answers, and leaves others", () => {
     const codePathLink = (c: string): LinkTarget | null =>
-      c === "docs/SPEC.md" ? { kind: "file", path: c } : null;
+      c === "docs/SPEC.md" ? { kind: "external", href: c, newTab: true } : null;
     expect(renderInline("see `docs/SPEC.md` and `other`", { codePathLink })).toEqual([
       { t: "text", text: "see " },
       {
         t: "link",
-        target: { kind: "file", path: "docs/SPEC.md" },
+        target: { kind: "external", href: "docs/SPEC.md", newTab: true },
         children: [{ t: "code", text: "docs/SPEC.md" }],
       },
       { t: "text", text: " and " },
@@ -479,25 +492,37 @@ describe("one length limit for both destination forms", () => {
 });
 
 describe("relative link targets are fully percent-decoded", () => {
-  const resolveFile = (p: string): LinkTarget | null => ({ kind: "file", path: p });
+  const resolveFile = (p: string): LinkTarget | null => ({
+    kind: "external",
+    href: p,
+    newTab: true,
+  });
   const path = (target: string, basePath = "docs/a.md") =>
     classifyTarget(target, { basePath, resolveFile });
 
   it("decodes the escapes of reserved characters", () => {
-    expect(path("sub%2Ffile.md")).toEqual({ kind: "file", path: "docs/sub/file.md" });
-    expect(path("a%23b.md")).toEqual({ kind: "file", path: "docs/a#b.md" });
-    expect(path("a%3Fb.md")).toEqual({ kind: "file", path: "docs/a?b.md" });
-    expect(path("a%3Ab.md")).toEqual({ kind: "file", path: "docs/a:b.md" });
+    expect(path("sub%2Ffile.md")).toEqual({
+      kind: "external",
+      href: "docs/sub/file.md",
+      newTab: true,
+    });
+    expect(path("a%23b.md")).toEqual({ kind: "external", href: "docs/a#b.md", newTab: true });
+    expect(path("a%3Fb.md")).toEqual({ kind: "external", href: "docs/a?b.md", newTab: true });
+    expect(path("a%3Ab.md")).toEqual({ kind: "external", href: "docs/a:b.md", newTab: true });
   });
 
   it("still decodes the ordinary escapes and still cuts at a literal ? or #", () => {
-    expect(path("y%20z%C3%96.md")).toEqual({ kind: "file", path: "docs/y zÖ.md" });
-    expect(path("x.md?raw=1")).toEqual({ kind: "file", path: "docs/x.md" });
-    expect(path("x.md#top")).toEqual({ kind: "file", path: "docs/x.md" });
+    expect(path("y%20z%C3%96.md")).toEqual({
+      kind: "external",
+      href: "docs/y zÖ.md",
+      newTab: true,
+    });
+    expect(path("x.md?raw=1")).toEqual({ kind: "external", href: "docs/x.md", newTab: true });
+    expect(path("x.md#top")).toEqual({ kind: "external", href: "docs/x.md", newTab: true });
   });
 
   it("resolves . and .. written as escapes, and refuses to leave the project", () => {
-    expect(path("%2E%2E/x.md")).toEqual({ kind: "file", path: "x.md" });
+    expect(path("%2E%2E/x.md")).toEqual({ kind: "external", href: "x.md", newTab: true });
     expect(path("..%2F..%2Fx.md")).toBeNull();
     expect(path("%2E%2E%2F%2E%2E%2Fx.md")).toBeNull();
   });

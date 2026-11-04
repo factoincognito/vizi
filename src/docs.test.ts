@@ -1,8 +1,8 @@
 /**
- * Tests for src/docs.ts: the documentation links of docs/SPEC.md 3.4 and
- * the folder input's file list of 3.1.
+ * Tests for src/docs.ts: the documentation links of docs/SPEC.md 3.4.
  */
-import { documentationList, folderFiles, isMarkdownPath, projectFilePath } from "./docs";
+import * as docs from "./docs";
+import { documentationList, projectFilePath } from "./docs";
 
 describe("documentationList", () => {
   it("lists README.md and every .md file under docs/, subfolders included, sorted by path", () => {
@@ -49,41 +49,8 @@ describe("projectFilePath", () => {
   });
 });
 
-describe("folderFiles", () => {
-  it("drops the chosen folder's name from each relative path", () => {
-    expect(folderFiles(["proj/BACKLOG.md", "proj/docs/a.md"])).toEqual(["BACKLOG.md", "docs/a.md"]);
-  });
-
-  it("skips files inside .git and node_modules only, so .github paths are kept", () => {
-    expect(
-      folderFiles([
-        "proj/.git/config",
-        "proj/node_modules/x/y.md",
-        "proj/sub/node_modules/z.md",
-        "proj/.github/w.yml",
-        "proj/.hidden/a.md",
-        "proj/ok.md",
-      ]),
-    ).toEqual([".github/w.yml", ".hidden/a.md", "ok.md"]);
-  });
-
-  it("keeps a path with no folder part as it is", () => {
-    expect(folderFiles(["BACKLOG.md"])).toEqual(["BACKLOG.md"]);
-  });
-});
-
-describe("isMarkdownPath", () => {
-  it("is true for a name ending in .md, in the root or a subfolder", () => {
-    expect(isMarkdownPath("README.md")).toBe(true);
-    expect(isMarkdownPath("docs/sub/guide.md")).toBe(true);
-  });
-
-  it("is false for every other file, so it is shown as code", () => {
-    expect(isMarkdownPath("src/index.ts")).toBe(false);
-    expect(isMarkdownPath("docs/notes.txt")).toBe(false);
-    expect(isMarkdownPath("Makefile")).toBe(false);
-    expect(isMarkdownPath("docs/guide.md.bak")).toBe(false);
-    expect(isMarkdownPath("md")).toBe(false);
-    expect(isMarkdownPath("docs/c.MD")).toBe(false);
+describe("the module's exports (3.11)", () => {
+  it("are the documentation links' helpers only: no file list of a picked folder, no in-page Markdown check", () => {
+    expect(Object.keys(docs).sort()).toEqual(["documentationList", "projectFilePath"]);
   });
 });

@@ -11,15 +11,8 @@ import {
   type ReportItem,
 } from "./backlog";
 import { boardColumns, descriptionForDisplay, listSections } from "./board";
-import { documentationList, folderFiles, isMarkdownPath, projectFilePath } from "./docs";
-import {
-  BACKLOG_PATHS,
-  blobUrl,
-  type Fetcher,
-  loadRepo,
-  parseGithubUrl,
-  readRepoFile,
-} from "./github";
+import { documentationList, projectFilePath } from "./docs";
+import { blobUrl, type Fetcher, loadRepo, parseGithubUrl, readRepoFile } from "./github";
 import {
   CLOSING_LINK,
   HELP_STEPS,
@@ -59,7 +52,7 @@ const storage = browserStorage();
 const tokens = createTokenStore(storage);
 /** Whether the results on the page were loaded with a token: Forget hides them (3.8). */
 let projectUsedToken = false;
-/** The owner (in lower case) of the project loaded by address, whose token a "Show status" read uses; null for a folder. */
+/** The owner (in lower case) of the project on the page, whose token a "Show status" read uses; null with no project. */
 let projectOwner: string | null = null;
 
 interface Project {
@@ -70,10 +63,8 @@ interface Project {
   status: StatusResult | null;
   /** Notes about the input itself (docs/SPEC.md 3.5): more than one backlog file, a truncated file list. */
   inputNotes: ReportItem[];
-  /** URL mode: links open the file on github.com. Folder mode: links open the file in the page. */
+  /** Links open the file on github.com (3.4). */
   link: (path: string) => LinkTarget | null;
-  /** Folder mode only: reads a file of the folder. */
-  readFile: ((path: string) => Promise<string>) | null;
   /** The root PROJECTS.md read as the umbrella view (3.9), or null without the file. */
   projects: ProjectsResult | null;
   /** 3.9, "Show status": reads `projects/<name>/STATUS.md` of this project, fresh each time. */
@@ -151,13 +142,7 @@ function linkElement(target: LinkTarget, children: Child[]): HTMLElement {
     }
     return a;
   }
-  if (target.kind === "anchor") return h("a", { href: `#${idPrefix}${target.id}` }, ...children);
-  const a = h("a", { href: "#", "data-path": target.path }, ...children);
-  a.addEventListener("click", (event) => {
-    event.preventDefault();
-    void showDoc(target.path);
-  });
-  return a;
+  return h("a", { href: `#${idPrefix}${target.id}` }, ...children);
 }
 
 function inlineNode(n: Inline): Node {
@@ -403,7 +388,6 @@ function fillMarkerFilter(p: Project): void {
 function renderDocs(p: Project): void {
   const ul = must("doc-list");
   ul.replaceChildren();
-  must("doc-view").replaceChildren();
   for (const path of documentationList(p.files)) {
     const target = p.link(path);
     if (!target) continue;
@@ -411,24 +395,6 @@ function renderDocs(p: Project): void {
     a.setAttribute("data-testid", "doc-link");
     ul.append(h("li", {}, a));
   }
-}
-
-async function showDoc(path: string): Promise<void> {
-  const p = project;
-  if (!p?.readFile) return;
-  selectTab("docs");
-  const view = must("doc-view");
-  try {
-    const text = await p.readFile(path);
-    // Only Markdown is rendered as Markdown; any other file is shown as it is written.
-    view.replaceChildren(
-      h("h2", {}, path),
-      isMarkdownPath(path) ? markdownEl(text, path) : h("pre", {}, h("code", {}, text)),
-    );
-  } catch {
-    view.replaceChildren(h("p", {}, `${path} could not be read.`));
-  }
-  view.scrollIntoView?.();
 }
 
 // ------------------------------------------------------------------- report
@@ -680,7 +646,6 @@ function build(
   statusText: string | null,
   truncated: boolean,
   link: Project["link"],
-  readFile: Project["readFile"],
   projectsText: string | null,
   readProjectStatus: Project["readProjectStatus"],
 ): Project {
@@ -692,7 +657,6 @@ function build(
     status: statusText === null ? null : parseStatus(statusText),
     inputNotes: inputNotes(backlogPaths, truncated),
     link,
-    readFile,
     projects: projectsText === null ? null : parseProjects(projectsText),
     readProjectStatus,
   };
@@ -704,22 +668,14 @@ function hideResults(): void {
   projectUsedToken = false;
   projectOwner = null;
   must("results").hidden = true;
-  for (const id of [
-    "status",
-    "board",
-    "list-body",
-    "doc-list",
-    "doc-view",
-    "report-body",
-    "umbrella-tree",
-  ]) {
+  for (const id of ["status", "board", "list-body", "doc-list", "report-body", "umbrella-tree"]) {
     must(id).replaceChildren();
   }
   clearProjectStatus();
 }
 
 /**
- * Counts the loads started (an address submitted, a folder picked). An
+ * Counts the loads started (an address submitted, or opened from the umbrella view). An
  * answer that arrives after a newer load started is dropped, so the
  * newest request always wins (docs/SPEC.md 3.1).
  */
@@ -757,11 +713,7 @@ async function openUrl(address: string): Promise<void> {
     if (result.kind === "token-refused" && token !== null && tokens.forgetIfCurrent(owner, token)) {
       renderTokens();
     }
-    const noToken =
-      result.kind === "not-found" && token === null && tokens.owners().length > 0
-        ? ` No token is held for ${owner}.`
-        : "";
-    say(result.message + noToken);
+    say(result.message);
     hideResults();
     return;
   }
@@ -774,7 +726,6 @@ async function openUrl(address: string): Promise<void> {
     result.statusText,
     result.truncated,
     (path) => ({ kind: "external", href: blobUrl(withBranch, path), newTab: true }),
-    null,
     result.projectsText,
     async (name, stale) => {
       const path = `projects/${name}/STATUS.md`;
@@ -804,63 +755,6 @@ async function openUrl(address: string): Promise<void> {
           "The file list from GitHub was truncated, so the documentation list and file links may be incomplete.",
         ]
       : [],
-  );
-}
-
-async function openFolder(input: HTMLInputElement): Promise<void> {
-  const picked = Array.from(input.files ?? []);
-  if (picked.length === 0) return;
-  const load = ++latestLoad;
-  const byPath = new Map<string, File>();
-  for (const f of picked) {
-    const [inner] = folderFiles([f.webkitRelativePath || f.name]);
-    if (inner !== undefined) byPath.set(inner, f);
-  }
-  const files = [...byPath.keys()];
-  const backlogPaths = BACKLOG_PATHS.filter((b) => byPath.has(b));
-  const read = async (path: string): Promise<string> => {
-    const file = byPath.get(path);
-    if (!file) throw new Error(`${path} is not in the folder.`);
-    return file.text();
-  };
-  const first = backlogPaths[0];
-  const backlogText = first === undefined ? null : await read(first);
-  const statusText = byPath.has("STATUS.md") ? await read("STATUS.md") : null;
-  const projectsText = byPath.has("PROJECTS.md") ? await read("PROJECTS.md") : null;
-  if (load !== latestLoad) return;
-  const name = (picked[0]?.webkitRelativePath ?? "").split("/")[0] || "folder";
-  const p = build(
-    name,
-    files,
-    backlogPaths,
-    backlogText,
-    statusText,
-    false,
-    (path) => (byPath.has(path) ? { kind: "file", path } : null),
-    read,
-    projectsText,
-    async (name) => {
-      const path = `projects/${name}/STATUS.md`;
-      if (!byPath.has(path)) return { kind: "missing", token: null };
-      try {
-        return { kind: "text", text: await read(path), token: null };
-      } catch {
-        return {
-          kind: "failed",
-          message: `${path} could not be read.`,
-          tokenRefused: false,
-          token: null,
-        };
-      }
-    },
-  );
-  show(p);
-  projectUsedToken = false;
-  projectOwner = null;
-  say(
-    p.backlog
-      ? ""
-      : "No backlog file was found (looked for BACKLOG.md, docs/BACKLOG.md and docs/PRODUCT_BACKLOG.md).",
   );
 }
 
@@ -1142,8 +1036,6 @@ function mount(): void {
     placeholder: "https://github.com/owner/repo",
     autocomplete: "off",
   });
-  const folderInput = h("input", { id: "folder-input", type: "file", multiple: "" });
-  folderInput.setAttribute("webkitdirectory", "");
   const form = h(
     "form",
     { id: "url-form" },
@@ -1156,7 +1048,6 @@ function mount(): void {
     event.preventDefault();
     void openUrl(urlInput.value);
   });
-  folderInput.addEventListener("change", () => void openFolder(folderInput));
 
   const search = h("input", { id: "search", type: "search", placeholder: "Search" });
   search.addEventListener("input", renderList);
@@ -1169,13 +1060,7 @@ function mount(): void {
   app.append(h("h1", {}, "Vizi - backlog visualizer"), help.view, start);
   start.append(
     help.control,
-    h(
-      "div",
-      { class: "inputs" },
-      form,
-      mountToken(),
-      h("div", {}, h("label", { for: "folder-input" }, "Or a local project folder"), folderInput),
-    ),
+    h("div", { class: "inputs" }, form, mountToken()),
     h("div", { id: "message", role: "status" }),
     h(
       "div",
@@ -1198,12 +1083,7 @@ function mount(): void {
         h("div", { class: "filters" }, search, filter),
         h("div", { id: "list-body" }),
       ),
-      h(
-        "div",
-        { id: "panel-docs", role: "tabpanel", hidden: "" },
-        h("ul", { id: "doc-list" }),
-        h("div", { id: "doc-view" }),
-      ),
+      h("div", { id: "panel-docs", role: "tabpanel", hidden: "" }, h("ul", { id: "doc-list" })),
       h(
         "div",
         { id: "panel-report", role: "tabpanel", hidden: "" },
