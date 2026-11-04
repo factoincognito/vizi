@@ -54,7 +54,7 @@ export function resolvePath(base: string, rel: string): string | null {
   const cut = rel.search(/[?#]/);
   let path = cut >= 0 ? rel.slice(0, cut) : rel;
   try {
-    path = decodeURI(path);
+    path = decodeURIComponent(path);
   } catch {
     return null;
   }
@@ -132,32 +132,78 @@ function matchBrackets(s: string): Map<number, number> {
   return pairs;
 }
 
-/** A link destination longer than this is not read, which keeps a hostile line from costing quadratic time. */
+/** A link destination longer than this is not read, for both forms, which keeps a hostile line from costing quadratic time. */
 const MAX_DESTINATION = 4096;
 
+/**
+ * Where a destination would end, for every start position of one inline
+ * text, found once in a linear pass. Without it every `](` on a hostile
+ * line would scan up to MAX_DESTINATION characters ahead: about 4 seconds
+ * for a megabyte of `[](`.
+ */
+interface DestinationIndex {
+  /** From each position, the first space, or the text's length. */
+  space: Int32Array;
+  /** From each position, the first `>`, or the text's length. */
+  angle: Int32Array;
+  /** From each position, the first `)` that no `(` since that position matches, or the text's length. */
+  paren: Int32Array;
+}
+
+function buildDestinationIndex(s: string): DestinationIndex {
+  const n = s.length;
+  const space = new Int32Array(n + 1);
+  const angle = new Int32Array(n + 1);
+  space[n] = n;
+  angle[n] = n;
+  for (let i = n - 1; i >= 0; i--) {
+    const c = s.charCodeAt(i);
+    space[i] = c === 0x20 ? i : (space[i + 1] ?? n);
+    angle[i] = c === 0x3e ? i : (angle[i + 1] ?? n);
+  }
+  // balance[k]: `(` minus `)` before position k. The first unmatched `)` from
+  // position p is the step that takes the balance below balance[p] for the first time.
+  const balance = new Int32Array(n + 1);
+  for (let i = 0; i < n; i++) {
+    const c = s.charCodeAt(i);
+    balance[i + 1] = (balance[i] ?? 0) + (c === 0x28 ? 1 : c === 0x29 ? -1 : 0);
+  }
+  const paren = new Int32Array(n + 1);
+  const stack = new Int32Array(n + 1);
+  let top = 0;
+  for (let k = n; k >= 0; k--) {
+    const here = balance[k] ?? 0;
+    while (top > 0 && (balance[stack[top - 1] ?? 0] ?? 0) >= here) top--;
+    paren[k] = top > 0 ? (stack[top - 1] ?? 0) - 1 : n;
+    stack[top++] = k;
+  }
+  return { space, angle, paren };
+}
+
 /** Reads `(destination "title")` starting at the `(`. Returns the destination and the index after `)`. */
-function readDestination(s: string, open: number): { dest: string; end: number } | null {
+function readDestination(
+  s: string,
+  open: number,
+  index: () => DestinationIndex,
+): { dest: string; end: number } | null {
   let i = open + 1;
   while (s.charAt(i) === " ") i++;
   let dest: string;
   if (s.charAt(i) === "<") {
-    const close = s.indexOf(">", i + 1);
-    if (close < 0 || close - i > MAX_DESTINATION || s.slice(i + 1, close).includes("\n"))
+    const close = index().angle[i + 1] ?? s.length;
+    if (
+      close >= s.length ||
+      close - i - 1 > MAX_DESTINATION ||
+      s.slice(i + 1, close).includes("\n")
+    )
       return null;
     dest = s.slice(i + 1, close);
     i = close + 1;
   } else {
     const start = i;
-    let depth = 0;
-    for (; i < s.length && i - start < MAX_DESTINATION; i++) {
-      const c = s.charAt(i);
-      if (c === " ") break;
-      if (c === "(") depth++;
-      else if (c === ")") {
-        if (depth === 0) break;
-        depth--;
-      }
-    }
+    const { space, paren } = index();
+    i = Math.min(space[start] ?? s.length, paren[start] ?? s.length);
+    if (i - start > MAX_DESTINATION) return null;
     dest = s.slice(start, i);
   }
   while (s.charAt(i) === " ") i++;
@@ -179,6 +225,11 @@ export function renderInline(src: string, opts: RenderOptions = {}): Inline[] {
 function parseInline(src: string, opts: RenderOptions, depth: number, inLink: boolean): Inline[] {
   const out: Inline[] = [];
   const brackets = matchBrackets(src);
+  let destinations: DestinationIndex | null = null;
+  const destinationIndex = () => {
+    destinations ??= buildDestinationIndex(src);
+    return destinations;
+  };
   /** For each delimiter, the position from which a closing search already failed. */
   const failedFrom = new Map<string, number>();
   const failed = (key: string, at: number) => {
@@ -243,7 +294,9 @@ function parseInline(src: string, opts: RenderOptions, depth: number, inLink: bo
       const open = image ? i + 1 : i;
       const close = brackets.get(open) ?? -1;
       const dest =
-        close >= 0 && src.charAt(close + 1) === "(" ? readDestination(src, close + 1) : null;
+        close >= 0 && src.charAt(close + 1) === "("
+          ? readDestination(src, close + 1, destinationIndex)
+          : null;
       if (dest) {
         const label = src.slice(open + 1, close);
         const target = classifyTarget(dest.dest, opts);
@@ -296,12 +349,32 @@ function parseInline(src: string, opts: RenderOptions, depth: number, inLink: bo
 
 const FENCE = /^( {0,3})(`{3,}|~{3,})(.*)$/;
 
-/** The id a heading gets and a `#anchor` link points at: lower case, runs of other characters become one hyphen. */
+/**
+ * The id a heading gets and a `#anchor` link points at: lower case, runs of
+ * characters other than letters, combining marks and digits (of any script)
+ * become one hyphen.
+ */
 export function slugify(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+/** Makes the slugs of one document differ: a repeat gets `-1`, `-2`, …, skipping any that is taken. Headings without a slug stay so. */
+function makeSlugsUnique(blocks: Block[], used: Set<string>): void {
+  for (const b of blocks) {
+    if (b.t === "heading" && b.slug !== "") {
+      let slug = b.slug;
+      for (let n = 1; used.has(slug); n++) slug = `${b.slug}-${n}`;
+      used.add(slug);
+      b.slug = slug;
+    } else if (b.t === "quote") {
+      makeSlugsUnique(b.children, used);
+    } else if (b.t === "list") {
+      for (const item of b.items) makeSlugsUnique(item, used);
+    }
+  }
 }
 
 function slugOf(inlines: Inline[]): string {
@@ -349,7 +422,9 @@ function startsBlock(line: string): boolean {
 export function render(text: string, opts: RenderOptions = {}): Block[] {
   // Comments are dropped once, at the top, by the same pass as in the parsers (R9).
   const lines = scan(text).lines.map((l) => l.text);
-  return parseBlocks(lines, opts, 0);
+  const blocks = parseBlocks(lines, opts, 0);
+  makeSlugsUnique(blocks, new Set());
+  return blocks;
 }
 
 function parseBlocks(lines: string[], opts: RenderOptions, depth: number): Block[] {

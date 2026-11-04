@@ -10,6 +10,7 @@ import {
   render,
   renderInline,
   resolvePath,
+  slugify,
 } from "./markdown";
 
 const lines = (...l: string[]) => l.join("\n");
@@ -371,8 +372,142 @@ describe("hostile input stays fast and does not throw", () => {
     expect(Date.now() - start).toBeLessThan(1500);
   });
 
+  // One megabyte on a single line. Every `](` used to scan up to 4096
+  // characters for its destination, so these took 1.5 to 7 seconds.
+  const mb = 1_000_000;
+  it.each([
+    ["empty labels", "[](".repeat(mb / 3)],
+    ["labels", "[a](".repeat(mb / 4)],
+    ["images", "![](".repeat(mb / 4)],
+    ["angle destinations", "[](<".repeat(mb / 4)],
+    ["angle destinations with a space", "[](<x ".repeat(mb / 6)],
+    ["nested parentheses", "[]((((".repeat(mb / 6)],
+    ["unclosed links", "[](a".repeat(mb / 4)],
+  ])("a 1 MB line of %s", (_name, input) => {
+    const start = Date.now();
+    expect(() => render(input)).not.toThrow();
+    expect(Date.now() - start).toBeLessThan(1500);
+  });
+
   it("nests deeply without a stack overflow", () => {
     const deep = `${"> ".repeat(5000)}x\n\n${"- ".repeat(5000)}y\n\n${"*a ".repeat(5000)}`;
     expect(() => render(deep)).not.toThrow();
+  });
+});
+
+describe("heading slugs keep Unicode letters and digits", () => {
+  it.each([
+    ["Översikt", "översikt"],
+    ["Привет, мир!", "привет-мир"],
+    ["日本語 メモ 2", "日本語-メモ-2"],
+    ["Café au lait", "café-au-lait"],
+    ["Cafe\u0301", "cafe\u0301"],
+    ["Ärende #4: Åtgärd", "ärende-4-åtgärd"],
+    ["Hello, World!", "hello-world"],
+    ["---", ""],
+    ["★ ✓", ""],
+  ])("slugify(%j) is %j", (text, slug) => {
+    expect(slugify(text)).toBe(slug);
+  });
+
+  it("gives a heading and an anchor the same slug", () => {
+    expect(render("## Översikt")).toMatchObject([{ t: "heading", slug: "översikt" }]);
+    expect(classifyTarget("#Översikt", {})).toEqual({ kind: "anchor", id: "översikt" });
+    expect(classifyTarget("#%C3%96versikt", {})).toEqual({ kind: "anchor", id: "översikt" });
+    expect(render("## Привет")).toMatchObject([{ t: "heading", slug: "привет" }]);
+  });
+});
+
+describe("heading slugs are unique within a document", () => {
+  const slugs = (src: string): string[] => {
+    const found: string[] = [];
+    const walk = (blocks: Block[]) => {
+      for (const b of blocks) {
+        if (b.t === "heading") found.push(b.slug);
+        else if (b.t === "quote") walk(b.children);
+        else if (b.t === "list") for (const item of b.items) walk(item);
+      }
+    };
+    walk(render(src));
+    return found;
+  };
+
+  it("numbers a repeated heading, and skips a number that is taken", () => {
+    expect(slugs(lines("# Foo", "# Foo", "# Foo 1", "# Foo"))).toEqual([
+      "foo",
+      "foo-1",
+      "foo-1-1",
+      "foo-2",
+    ]);
+  });
+
+  it("counts headings inside block quotes and list items", () => {
+    expect(slugs(lines("# Foo", "", "> # Foo", "", "- # Foo"))).toEqual(["foo", "foo-1", "foo-2"]);
+  });
+
+  it("leaves a heading without a slug without one", () => {
+    expect(slugs(lines("# ---", "# ---", "# a"))).toEqual(["", "", "a"]);
+  });
+
+  it("starts again for the next document", () => {
+    expect(slugs("# Foo")).toEqual(["foo"]);
+    expect(slugs("# Foo")).toEqual(["foo"]);
+  });
+});
+
+describe("one length limit for both destination forms", () => {
+  const url = (length: number) => `https://example.com/${"a".repeat(length - 20)}`;
+
+  it.each([
+    ["bare", (d: string) => `[a](${d})`],
+    ["angle", (d: string) => `[a](<${d}>)`],
+  ])("a %s destination of 4096 characters is read, of 4097 is not", (_form, wrap) => {
+    expect(links(renderInline(wrap(url(4096))))).toEqual([
+      { kind: "external", href: url(4096), newTab: true },
+    ]);
+    expect(links(renderInline(wrap(url(4097))))).toEqual([]);
+    expect(textOf(renderInline(wrap(url(4097))))).toContain("[a](");
+  });
+
+  it("does not read a bare destination of 4096 characters as ending at a quote", () => {
+    expect(links(renderInline(`[a](${url(4096)}"t")`))).toEqual([]);
+  });
+
+  it("still reads a title after a destination at the limit", () => {
+    expect(links(renderInline(`[a](${url(4096)} "t")`))).toHaveLength(1);
+  });
+});
+
+describe("relative link targets are fully percent-decoded", () => {
+  const resolveFile = (p: string): LinkTarget | null => ({ kind: "file", path: p });
+  const path = (target: string, basePath = "docs/a.md") =>
+    classifyTarget(target, { basePath, resolveFile });
+
+  it("decodes the escapes of reserved characters", () => {
+    expect(path("sub%2Ffile.md")).toEqual({ kind: "file", path: "docs/sub/file.md" });
+    expect(path("a%23b.md")).toEqual({ kind: "file", path: "docs/a#b.md" });
+    expect(path("a%3Fb.md")).toEqual({ kind: "file", path: "docs/a?b.md" });
+    expect(path("a%3Ab.md")).toEqual({ kind: "file", path: "docs/a:b.md" });
+  });
+
+  it("still decodes the ordinary escapes and still cuts at a literal ? or #", () => {
+    expect(path("y%20z%C3%96.md")).toEqual({ kind: "file", path: "docs/y zÖ.md" });
+    expect(path("x.md?raw=1")).toEqual({ kind: "file", path: "docs/x.md" });
+    expect(path("x.md#top")).toEqual({ kind: "file", path: "docs/x.md" });
+  });
+
+  it("resolves . and .. written as escapes, and refuses to leave the project", () => {
+    expect(path("%2E%2E/x.md")).toEqual({ kind: "file", path: "x.md" });
+    expect(path("..%2F..%2Fx.md")).toBeNull();
+    expect(path("%2E%2E%2F%2E%2E%2Fx.md")).toBeNull();
+  });
+
+  it("makes bad percent-encoding text", () => {
+    expect(path("%zz.md")).toBeNull();
+    expect(path("%E0%A4%A.md")).toBeNull();
+  });
+
+  it("resolvePath decodes fully", () => {
+    expect(resolvePath("a.md", "b%2Fc%23d.md")).toBe("b/c#d.md");
   });
 });
