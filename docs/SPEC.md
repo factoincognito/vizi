@@ -210,9 +210,12 @@ the points the text above it leaves open.
   file list as "GitHub's answer for the file list was not understood".
   After any failed load, and after a refused address, the previous
   project's results are cleared and hidden.
-- **Two loads at once.** When a second address is submitted before the
-  first load has ended, both run, and the one that ends last is shown.
-  Ignoring the older answer is PBI-1.5.
+- **Two loads at once.** The newest load is shown. Every submitted
+  address and every picked folder starts a load, and a refused address
+  counts as one. A load's answer that arrives after a newer load has
+  started is dropped, whether it succeeded or failed, so an older error
+  never replaces a newer project. A folder picker closed without a
+  folder starts no load.
 - **The file list in URL mode** holds every file (blob) of request 2's
   answer; none is left out.
 - **The folder.** It is picked with a folder input
@@ -325,11 +328,12 @@ named in entries.
   found". A code-span link is made only for a path in the file list.
 - **Folder mode:** a link to any file in the folder, from the
   documentation list, a relative link or a code span, opens that file in
-  the Documentation tab under its path. The file is read as text and
-  rendered as Markdown under 3.7, whatever its type; relative links in it
-  resolve against its own path. A file that cannot be read shows
-  "`<path>` could not be read." Showing non-`.md` files as code is
-  PBI-1.5.
+  the Documentation tab under its path. The file is read as text. A
+  file whose name ends in `.md` (case-sensitive, as for the
+  documentation list) is rendered as Markdown under 3.7, and relative
+  links in it resolve against its own path. Any other file is shown as
+  code, as written: no Markdown, no links. A file that cannot be read
+  shows "`<path>` could not be read."
 
 ### 3.5 Report of what could not be read
 
@@ -446,25 +450,24 @@ CommonMark. What it reads, beyond items 1 to 5:
     backslash does not count, and code spans are not skipped, so a `]`
     inside a code span ends a label. A `[` that is not a link is text
     and does not stop a later `[` from being one.
-  - A destination is `<…>` with no line break, at most 4095 characters,
-    or written bare, at most 4096 characters, ending at a space or an
-    unmatched `)`. A title in `"…"` or `'…'` may follow. A longer
+  - A destination is `<…>` with no line break, or written bare, ending
+    at a space or an unmatched `)`; either form holds at most 4096
+    characters. A title in `"…"` or `'…'` may follow. A longer
     destination is not read: the text is not a link, and its brackets
-    and parentheses are shown as text. One limit for both forms is
-    PBI-1.5.
+    and parentheses are shown as text.
   - A target with a scheme is a link only as `https://` or `http://`
     with a host, normalised by the browser's URL parser. Every such link
     opens in a new tab with `rel="noopener noreferrer"`.
   - A target that starts with `//`, holds a `\`, or has a `:` in its
-    first path segment is text.
-  - A relative target loses its `?…` or `#…` part and is decoded with
-    `decodeURI`: escapes such as `%20` and `%C3%96` are decoded, but the
-    escapes of reserved characters, such as `%2F`, `%23`, `%3F` and
-    `%3A`, stay as written, so `a%2Fb` names a file called `a%2Fb`, not
-    `a/b`. Full decoding is PBI-1.5. Bad percent-encoding makes the
-    target text. A target that starts with `/` resolves from the
-    project's root. `.` and `..`
-    segments are resolved, and a target that leaves the project is
+    first path segment is text. These checks, and the scheme check
+    above, run on the target as written, before any decoding.
+  - A relative target loses its `?…` or `#…` part, found in the text as
+    written, and the rest is then fully percent-decoded
+    (`decodeURIComponent`): `a%2Fb` names `a/b`, and `%23` or `%3F`
+    become part of the path. Bad percent-encoding makes the target text.
+    After decoding, a target that starts with `/` resolves from the
+    project's root, `.` and `..` segments are resolved, and a target
+    that leaves the project, also through decoded `%2E%2E%2F`, is
     text.
   - An anchor (`#…`) is percent-decoded (bad encoding is kept as
     written) and turned into a slug like a heading's. An anchor whose
@@ -474,15 +477,20 @@ CommonMark. What it reads, beyond items 1 to 5:
   - A link to a file in folder mode is `href="#"` with the file's path,
     opened in the page (3.4).
 - **Heading ids and anchors** (item 4): a heading gets the id
-  `md-<slug>` and an anchor link points at `#md-<slug>`, so a project's
-  text cannot reach the page's own ids. The slug is the heading's text in
-  lower case, with every run of characters other than `a` to `z` and
-  `0` to `9` made one `-`, and `-` dropped at both ends. Only ASCII
-  letters and digits are kept: `Översikt` gives `versikt`, and a heading
-  with no ASCII letter or digit gets no id (Unicode slugs are PBI-1.5).
-  Ids are not made unique: the same description open in a board card and
-  in a list row, or the same heading twice, gives the same id twice
-  (PBI-1.5).
+  `md-<n>-<slug>`, so a project's text cannot reach the page's own ids.
+  `<n>` numbers each text the page renders (a title, a status field, a
+  blocker, a description, a documentation file), counted from 1 since
+  the page was opened, so the same description open in a board card and
+  in a list row gets different ids. The slug is the heading's text in
+  lower case, with every run of characters other than letters,
+  combining marks and digits, of any script, made one `-`, and `-`
+  dropped at both ends: `Översikt` gives `översikt`. A heading gets no
+  id only when its text has no letter, mark or digit. Within one text, a
+  slug that is already taken gets `-1`, then `-2` and so on, skipping
+  any that is taken. An anchor link points at `#md-<n>-<slug>` of its
+  own text, with its slug made the same way and no suffix, so it reaches
+  the first heading of that text with that slug. An anchor in a text
+  with no headings (a title, a blocker) points at no heading.
 - **Images** (item 5): `![alt](url)` is a link whose text is the alt
   text, not read as Markdown, when its target is allowed under item 4;
   otherwise it is the alt text alone.
@@ -515,15 +523,22 @@ PBI-1.2's; their outcome after it (PR #9):
 4. **Open; PBI-1.4.** What an anonymous request for a private repo gets
    back. The page shows "not found or not public" for a 404 on request 1
    or 2, and any other status as that status (3.1).
-5. **Settled in part (PBI-1.2).** What the page does with a truncated
-   file list is in 3.1, "As built". Tested: the message under the
-   address names the truncation (browser test "tells that the file list
-   was truncated", which checks that the message contains "truncated"),
-   and `loadRepo` passes GitHub's `truncated` flag through (unit test in
-   `src/github.test.ts`). Not tested: the report's Info item, and that
-   the documentation list and code-span links are built from the files
-   GitHub did send. Those tests are PBI-1.5. When GitHub truncates a
-   list was not checked.
+5. **Settled (PBI-1.2, tests added in PBI-1.5).** What the page does
+   with a truncated file list is in 3.1, "As built". Tested:
+   - the message under the address names the truncation (browser test
+     "tells that the file list was truncated");
+   - the report holds one Info item for it, and the documentation list
+     and the code-span links hold only the files GitHub sent (browser
+     test "a truncated file list: the report says so, and the
+     documentation list and code-span links hold only the files GitHub
+     sent", which also checks that a relative link still goes to
+     github.com);
+   - a complete file list adds no such item (browser test "a complete
+     file list adds no truncation note to the report");
+   - `loadRepo` passes GitHub's `truncated` flag through (unit test in
+     `src/github.test.ts`).
+
+   When GitHub truncates a list was not checked.
 6. **Settled (PBI-1.2).** A synthetic backlog of 1500 lines (the
    template's `docs/BACKLOG.md` has about as many) loads in URL mode,
    with GitHub stubbed, and shows the board and over 400 list rows in
