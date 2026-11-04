@@ -375,7 +375,7 @@ describe("the token store: startup", () => {
     expect(store.owners()).toEqual(["good"]);
     expect(store.tokenFor("good")).toBe(T1);
     expect(store.isSaved("good")).toBe(true);
-    expect(stored(data)).toEqual({ tokens: { good: T1 }, forgot: ["gone"] });
+    expect(stored(data)).toEqual({ tokens: { good: T1 }, forgot: [] });
   });
 
   it("ignores forgot at startup, and writes nothing when the value is already clean", () => {

@@ -210,8 +210,11 @@ export function createTokenStore(storage: TokenStorage | null): TokenStore {
         const stored = clean(raw);
         if (stored !== null) {
           for (const [owner, token] of stored.tokens) held.set(owner, { token, saved: true });
-          const cleaned = serialize(stored.tokens, stored.forgot);
-          if (raw !== cleaned) storage.setItem(TOKENS_KEY, cleaned);
+          // Cleaning is needed when the value is not already in written form. The write forgets
+          // no owner: "forgot" is ignored at startup and never carried into a new write (3.8).
+          if (raw !== serialize(stored.tokens, stored.forgot)) {
+            storage.setItem(TOKENS_KEY, serialize(stored.tokens, []));
+          }
         } else if (raw !== null) {
           storage.removeItem(TOKENS_KEY);
         }
