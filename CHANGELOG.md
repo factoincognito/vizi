@@ -10,6 +10,8 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Spec: HTML comments in a backlog file are dropped (rule R9) (#4).
 - Backlog parser and report (`src/scan.ts`, `src/backlog.ts`) and `STATUS.md` reader (`src/status.ts`), tested with Jest on synthetic fixtures (PBI-1.1) (#6).
 - Spec: edge cases settled from the PBI-1.1 review, and the description indent rule for rendering (#7).
+- Backlog and changelog: PBI-1.1 done, PBI-1.2 started (#8).
+- The page (PBI-1.2): folder and public GitHub URL input, board and list, status, documentation links, report tab, and the rendering contract for untrusted content (`src/markdown.ts`, `src/github.ts`, `src/docs.ts`, `src/board.ts`, `src/main.ts`); browser tests with GitHub stubbed (#9).
 
 ## Project created
 
