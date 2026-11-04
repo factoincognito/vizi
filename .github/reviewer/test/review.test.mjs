@@ -32,14 +32,30 @@ function baseEnv(extra = {}) {
   };
 }
 
-function fakeFetch({ diff = DIFF, comments = [], diffStatus = 200, postStatus = 201 } = {}) {
+// The compare's changed files (GitHub's JSON shape): `filename`, `status`, and
+// `previous_filename` for a rename.
+const FILES = [{ filename: "x.txt", status: "modified" }];
+
+function fakeFetch({
+  diff = DIFF,
+  files = FILES,
+  comments = [],
+  diffStatus = 200,
+  filesStatus = 200,
+  postStatus = 201,
+} = {}) {
   const calls = [];
   const impl = async (url, init = {}) => {
     const method = init.method ?? "GET";
     calls.push({ url: String(url), method, body: init.body, headers: init.headers });
     const u = String(url);
     if (method === "GET" && /\/compare\/[0-9a-f]{40}\.\.\.[0-9a-f]{40}$/.test(u)) {
-      return new Response(diffStatus === 200 ? diff : "nope", { status: diffStatus });
+      if (init.headers?.Accept === "application/vnd.github.diff") {
+        return new Response(diffStatus === 200 ? diff : "nope", { status: diffStatus });
+      }
+      return new Response(filesStatus === 200 ? JSON.stringify({ files }) : "nope", {
+        status: filesStatus,
+      });
     }
     if (method === "GET" && /\/issues\/7\/comments/.test(u)) {
       const page = Number(new URL(u).searchParams.get("page") ?? "1");
@@ -425,13 +441,156 @@ test("only these GitHub calls are made: read the diff of base...head, list and p
     assert.ok(ok, `unexpected call: ${c.method} ${c.url}`);
     assert.ok(c.url.startsWith("https://api.github.com/"));
   }
-  const diffCall = fetchImpl.calls.find((c) => /\/compare\//.test(c.url));
-  assert.equal(
-    diffCall.url,
-    `https://api.github.com/repos/factoincognito/vizi/compare/${BASE}...${SHA}`,
+  const compareUrl = `https://api.github.com/repos/factoincognito/vizi/compare/${BASE}...${SHA}`;
+  const compares = fetchImpl.calls.filter((c) => /\/compare\//.test(c.url));
+  assert.deepEqual(
+    compares.map((c) => [c.url, c.headers.Accept]),
+    [
+      [compareUrl, "application/vnd.github+json"],
+      [compareUrl, "application/vnd.github.diff"],
+    ],
+    "the file list and the diff both come from the compare of the two SHAs",
   );
-  assert.equal(diffCall.headers.Accept, "application/vnd.github.diff");
-  assert.equal(diffCall.headers.Authorization, "Bearer ghs-test-token");
+  for (const c of compares) assert.equal(c.headers.Authorization, "Bearer ghs-test-token");
+});
+
+// ---- Skip for review-free PRs (product owner, 2026-11-04 23:02) -------------
+
+const REVIEW_FREE = ["docs/BACKLOG.md", "CHANGELOG.md", "STATUS.md", "docs/NEXT_SESSION.md"];
+
+function assertSkipped({ deps, query, fetchImpl, summary }, label) {
+  assert.equal(query.seen.params.length, 0, `no model call: ${label}`);
+  assert.equal(posts(fetchImpl).length, 0, `no comment: ${label}`);
+  const diffCalls = fetchImpl.calls.filter(
+    (c) => c.headers?.Accept === "application/vnd.github.diff",
+  );
+  assert.equal(diffCalls.length, 0, `the diff is not fetched: ${label}`);
+  assert.match(summary.join("\n"), /skipped/i, `the job summary says so: ${label}`);
+  assert.equal(deps.env.ANTHROPIC_API_KEY, "sk-test-key");
+}
+
+function assertReviewed({ query, fetchImpl }, label) {
+  assert.equal(query.seen.params.length, 1, `one model call: ${label}`);
+  assert.equal(posts(fetchImpl).length, 1, `one comment: ${label}`);
+}
+
+test("a PR that changes only review-free files is skipped: no comment, no model call, the job succeeds", async () => {
+  const cases = [
+    REVIEW_FREE.map((filename) => ({ filename, status: "modified" })),
+    [{ filename: "docs/BACKLOG.md", status: "modified" }],
+    [{ filename: "CHANGELOG.md", status: "modified" }],
+    [{ filename: "STATUS.md", status: "modified" }],
+    [{ filename: "docs/NEXT_SESSION.md", status: "added" }],
+  ];
+  for (const files of cases) {
+    const s = setup({ fetch: fakeFetch({ files }) });
+    await run(s.deps); // resolves: the job succeeds
+    assertSkipped(s, JSON.stringify(files));
+    for (const { filename } of files) {
+      assert.ok(s.summary.join("\n").includes(filename), `summary names ${filename}`);
+    }
+  }
+});
+
+test("one other file next to review-free files is reviewed as today", async () => {
+  for (const other of [
+    "src/app.ts",
+    "docs/SPEC.md",
+    "CLAUDE.md",
+    ".github/reviewer/review.mjs",
+    // Near misses: only the exact paths are review-free.
+    "BACKLOG.md",
+    "docs/backlog.md",
+    "docs/STATUS.md",
+    "CHANGELOG.md.bak",
+    "docs/NEXT_SESSION.md/x",
+  ]) {
+    const files = [
+      ...REVIEW_FREE.map((filename) => ({ filename, status: "modified" })),
+      { filename: other, status: "modified" },
+    ];
+    const s = setup({ fetch: fakeFetch({ files }) });
+    await run(s.deps);
+    assertReviewed(s, other);
+  }
+});
+
+test("renamed and deleted files count by both their old and their new path", async () => {
+  const reviewed = [
+    // Renamed from a code file into a review-free path: the old path counts.
+    [{ filename: "docs/NEXT_SESSION.md", previous_filename: "src/old.ts", status: "renamed" }],
+    // Renamed from a review-free path to another file: the new path counts.
+    [{ filename: "docs/old-backlog.md", previous_filename: "docs/BACKLOG.md", status: "renamed" }],
+    // A deleted code file.
+    [
+      { filename: "STATUS.md", status: "modified" },
+      { filename: "src/gone.ts", status: "removed" },
+    ],
+  ];
+  for (const files of reviewed) {
+    const s = setup({ fetch: fakeFetch({ files }) });
+    await run(s.deps);
+    assertReviewed(s, JSON.stringify(files));
+  }
+  const skipped = [
+    [{ filename: "CHANGELOG.md", previous_filename: "STATUS.md", status: "renamed" }],
+    [{ filename: "docs/NEXT_SESSION.md", status: "removed" }],
+  ];
+  for (const files of skipped) {
+    const s = setup({ fetch: fakeFetch({ files }) });
+    await run(s.deps);
+    assertSkipped(s, JSON.stringify(files));
+  }
+});
+
+test("an empty diff is not a skip: it stays an error, with no model call and no comment", async () => {
+  const s = setup({ fetch: fakeFetch({ files: [], diff: "" }) });
+  await assert.rejects(run(s.deps), /empty diff/i);
+  assert.equal(s.query.seen.params.length, 0);
+  assert.equal(posts(s.fetchImpl).length, 0);
+  assert.doesNotMatch(s.summary.join("\n"), /skipped/i);
+});
+
+test("a file list GitHub may have cut (300 files or more) is never skipped", async () => {
+  const files = Array.from({ length: 300 }, () => ({ filename: "STATUS.md", status: "modified" }));
+  const s = setup({ fetch: fakeFetch({ files }) });
+  await run(s.deps);
+  assertReviewed(s, "300 files");
+});
+
+test("a failing or malformed file-list request stops the run before any model call", async () => {
+  for (const over of [{ filesStatus: 404 }, { files: "not-a-list" }]) {
+    const s = setup({ fetch: fakeFetch(over) });
+    await assert.rejects(run(s.deps), /404|file list/i);
+    assert.equal(s.query.seen.params.length, 0, JSON.stringify(over));
+    assert.equal(posts(s.fetchImpl).length, 0, JSON.stringify(over));
+  }
+});
+
+// ---- 1-hour prompt cache (product owner, 2026-11-04 23:02) ------------------
+
+test("the model call asks for the 1-hour prompt cache, and the env cannot override it", async () => {
+  const { deps, query } = setup({ env: { CLAUDE_CODE_PROMPT_CACHE_TTL: "5m" } });
+  await run(deps);
+  const { options } = query.seen.params[0];
+  assert.deepEqual(options.settings, { promptCacheTtl: "1h" });
+  assert.equal(options.env.CLAUDE_CODE_PROMPT_CACHE_TTL, undefined);
+});
+
+test("the 1-hour cache write count reaches the job log line and the job summary", async () => {
+  const modelUsage = {
+    "claude-opus-5-5": usage({ cacheCreationEphemeral1hInputTokens: 7654 }),
+  };
+  const { deps, logs, summary } = setup({
+    query: fakeQuery("Crog review: APPROVE\nok", { modelUsage }),
+  });
+  await run(deps);
+  const line = logs.find((l) => l.startsWith("usage: "));
+  const data = JSON.parse(line.slice("usage: ".length));
+  assert.equal(data.models["claude-opus-5-5"].cacheCreationEphemeral1hInputTokens, 7654);
+  const text = summary.join("\n");
+  assert.match(text, /cache write 1h/i);
+  assert.match(text, /7,654/);
 });
 
 test("missing configuration stops the run before any network call", async () => {
