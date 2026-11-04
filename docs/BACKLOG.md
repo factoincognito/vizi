@@ -140,8 +140,10 @@ Build order: Clead's proposal, from the design the spec is taken from.
   GitHub's own documentation (with SPEC section 4, item 19). Spec
   merged in #57 (`4325ad3`); the code after PBI-1.14.
 - **[NEXT] PBI-1.18** (product owner, 2026-11-04 22:21) — A help text in
-  the umbrella view that explains what an umbrella is. The wording is
-  Clead's. A spec change first, then the code. In the unattended run of
+  the umbrella view that explains what an umbrella is, and what
+  "pre-projects" are: projects at an early stage with no repo of their own
+  yet, living in the umbrella repo for now (the `projects/<name>/`
+  pointers; product owner, 22:24). The wording is Clead's. A spec change first, then the code. In the unattended run of
   2026-11-04, after PBI-1.16.
 - **[NEXT] PBI-1.15** (product owner, 2026-11-04; intent approved 15:15) — A branch
   picker: after a repo loads, a list of its branches, and picking one
