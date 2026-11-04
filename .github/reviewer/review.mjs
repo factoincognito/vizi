@@ -24,7 +24,7 @@ const DEFAULT_MAX_BUDGET_USD = 3;
 const DEFAULT_MAX_DIFF_BYTES = 300_000;
 const COMMENT_LIMIT = 65_000; // GitHub allows 65,536 characters
 const API = "https://api.github.com";
-const VERDICT = /^Crog review: (APPROVE|CHANGES NEEDED)\b/;
+const VERDICT = /^Crog review: (APPROVE|CHANGES NEEDED)[ \t]*(?:\r?\n|$)/;
 
 // Environment the SDK's process may see. The GitHub token is not in it.
 const PASS_THROUGH_ENV = ["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TERM", "ANTHROPIC_API_KEY"];

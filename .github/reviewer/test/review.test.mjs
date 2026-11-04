@@ -32,7 +32,7 @@ function baseEnv(extra = {}) {
   };
 }
 
-function fakeFetch({ diff = DIFF, comments = [], diffStatus = 200 } = {}) {
+function fakeFetch({ diff = DIFF, comments = [], diffStatus = 200, postStatus = 201 } = {}) {
   const calls = [];
   const impl = async (url, init = {}) => {
     const method = init.method ?? "GET";
@@ -42,11 +42,14 @@ function fakeFetch({ diff = DIFF, comments = [], diffStatus = 200 } = {}) {
       return new Response(diffStatus === 200 ? diff : "nope", { status: diffStatus });
     }
     if (method === "GET" && /\/issues\/7\/comments/.test(u)) {
-      return new Response(JSON.stringify(comments), { status: 200 });
+      const page = Number(new URL(u).searchParams.get("page") ?? "1");
+      const perPage = Number(new URL(u).searchParams.get("per_page") ?? "30");
+      const slice = comments.slice((page - 1) * perPage, page * perPage);
+      return new Response(JSON.stringify(slice), { status: 200 });
     }
     if (method === "POST" && /\/issues\/7\/comments$/.test(u)) {
       return new Response(JSON.stringify({ id: 1, html_url: "https://example/c/1" }), {
-        status: 201,
+        status: postStatus,
       });
     }
     return new Response("unexpected", { status: 500 });
@@ -137,6 +140,8 @@ test("a reply that does not start with a verdict is not posted (no guessed verdi
     "Looks good to me",
     "Here is my review.\nCrog review: APPROVE",
     "Crog review: APPROVED",
+    "Crog review: APPROVE, mostly",
+    "Crog review: CHANGES NEEDED but fine",
     "crog review: approve",
     "",
   ]) {
@@ -173,6 +178,8 @@ test("cache order: instructions, then CLAUDE.md, standards, SPEC, boundary; diff
   const { prompt, options } = query.seen.params[0];
   const blocks = options.systemPrompt;
   assert.ok(Array.isArray(blocks));
+  assert.equal(typeof BOUNDARY_MARKER, "string");
+  assert.ok(BOUNDARY_MARKER.length > 0, "the SDK exports a boundary marker");
   const boundaryAt = blocks.indexOf(BOUNDARY_MARKER);
   assert.ok(boundaryAt > 0, "boundary marker present after the fixed block");
   const fixed = blocks.slice(0, boundaryAt).join("\n");
@@ -194,7 +201,7 @@ test("cache order: instructions, then CLAUDE.md, standards, SPEC, boundary; diff
   assert.ok(!prompt.includes("SPEC-TEXT"), "documents are not repeated in the user prompt");
 });
 
-test("the fixed block is identical for two different PRs (so the cache can hit)", async () => {
+test("the fixed block is identical for two different heads and diffs (so the cache can hit)", async () => {
   const a = setup();
   await run(a.deps);
   const b = setup({
@@ -327,6 +334,48 @@ test("the job summary has the token counts including the cache fields", async ()
   assert.ok(text.includes(SHA.slice(0, 12)));
 });
 
+test("a verdict on page 2 of the PR's comments is found, and paging stops when a page is short", async () => {
+  const filler = Array.from({ length: 100 }, (_, i) => ({
+    body: `chatter ${i}`,
+    user: { login: "someone", type: "User" },
+  }));
+  const verdict = {
+    body: `Crog review: APPROVE\n\nHead reviewed: ${SHA}`,
+    user: { login: "github-actions[bot]", type: "Bot" },
+  };
+  const f = fakeFetch({ comments: [...filler, verdict] });
+  const { deps, query, fetchImpl } = setup({ fetch: f });
+  await run(deps);
+  assert.equal(query.seen.params.length, 0, "already reviewed, found on page 2");
+  assert.equal(posts(fetchImpl).length, 0);
+  const pages = f.calls.filter((c) => /\/comments\?/.test(c.url)).length;
+  assert.equal(pages, 2, "stops after the short second page");
+});
+
+test("a result flagged is_error is not posted even when its subtype says success", async () => {
+  const query = () =>
+    (async function* () {
+      yield {
+        type: "result",
+        subtype: "success",
+        is_error: true,
+        result: "Crog review: APPROVE\nok",
+        num_turns: 1,
+        total_cost_usd: 0,
+        modelUsage: {},
+      };
+    })();
+  const { deps, fetchImpl } = setup({ query });
+  await assert.rejects(run(deps), /did not finish/);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+test("a failed post after the model call fails the job and still reports the usage", async () => {
+  const { deps, summary } = setup({ fetch: fakeFetch({ postStatus: 403 }) });
+  await assert.rejects(run(deps), /403/);
+  assert.match(summary.join("\n"), /cache read/i);
+});
+
 test("the usage is also written to the job log as one JSON line, cache fields included", async () => {
   const { deps, logs } = setup();
   await run(deps);
@@ -431,7 +480,7 @@ test("the real document reader returns a file as it is on the given commit", () 
   assert.throws(() => readDocFromGit("missing.md", first, dir));
 });
 
-test("turn and diff-size settings must be whole numbers of at least 1", async () => {
+test("numeric settings must be positive, and the turn and diff-size ones whole numbers", async () => {
   for (const [key, value] of [
     ["REVIEW_MAX_TURNS", "0.5"],
     ["REVIEW_MAX_TURNS", "0"],
