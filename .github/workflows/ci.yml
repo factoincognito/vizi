@@ -37,6 +37,11 @@ jobs:
       - name: Unit tests with coverage
         run: npx jest --coverage --coverageThreshold='{"global":{"lines":80}}'
 
+      - name: CI reviewer tests (PO-68 pilot)
+        run: |
+          npm ci --ignore-scripts --prefix .github/reviewer
+          npm test --prefix .github/reviewer
+
       - name: Install browser for end-to-end tests
         run: npx playwright install --with-deps chromium
 

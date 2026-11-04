@@ -21,6 +21,31 @@ with only the diff and `memory/standards.md` as input. Clead cannot
 reach a Crog session running in Adam's VS Code (tested 2026-09-30 with
 Remote Control from a cloud Clead session: not reachable).
 
+## CI review (PO-68 pilot, from PR #68)
+
+`.github/workflows/crog-review.yml` runs Crog's review on a pull request that
+is not a `[claim]` PR, not a draft and not from a fork, when it is opened,
+gets a new head, is edited or leaves draft. It is a script on the Claude Agent
+SDK (`.github/reviewer/`), not `anthropics/claude-code-action`, run with the
+repository secret `ANTHROPIC_API_KEY` on Opus 5.5 and paid by the Console
+organization's monthly API credits (product-office PO-68).
+
+- Input: the diff of base...head, and `CLAUDE.md`, `memory/standards.md` and
+  `docs/SPEC.md` as they are on the base commit. Nothing else: not the PR
+  description, comments or commit messages, and no tools.
+- Output: one comment that starts `Crog review: APPROVE` or
+  `Crog review: CHANGES NEEDED` and ends `Head reviewed: <SHA>`. A head that
+  already has such a comment from the Actions bot is not reviewed again.
+- Guards: at most 3 turns and a budget cap per run, a diff cap (over it the
+  comment says "Not reviewed" and the model is not called), prompt caching
+  (fixed instructions and documents first, the diff last), and the token use,
+  cache fields included, in the job summary.
+- Permissions: `contents: read` and `pull-requests: write`. The job never
+  merges, approves through GitHub's review API or pushes; merging stays with
+  the sessions.
+- Whether this verdict counts as Crog's required review is set in
+  `CLAUDE.md`, not here.
+
 ## Target state
 
 - PR opened: a workflow triggers Clead's review without Clead having to
