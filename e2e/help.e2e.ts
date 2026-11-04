@@ -261,6 +261,25 @@ test.describe("the view's structure and text (3.10)", () => {
     }
   });
 
+  test("the view's text holds none of 3.11's folder strings, and step 5 has only the token way", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await openView(page);
+    const text = ((await view(page).textContent()) ?? "").toLowerCase();
+    for (const words of [
+      "local project folder",
+      "local folder",
+      "as a folder",
+      "project's folder",
+    ]) {
+      expect(text, words).not.toContain(words);
+    }
+    const step5 = page.locator("#help ol > li").nth(4);
+    await expect(step5.locator("h3")).toHaveText("A private repo: with a token");
+    expect(((await step5.textContent()) ?? "").toLowerCase()).not.toContain("folder");
+  });
+
   test("every control label the text names exists on the start page", async ({ page }) => {
     await page.goto("/");
     const labels = await page.evaluate(() =>
@@ -268,7 +287,12 @@ test.describe("the view's structure and text (3.10)", () => {
         (el.textContent ?? "").trim(),
       ),
     );
-    for (const label of ["Owner", "Use", "Remember the token", "Or a local project folder"]) {
+    for (const label of [
+      "Owner",
+      "GitHub token (for private repos)",
+      "Use",
+      "Remember the token",
+    ]) {
       expect(labels, label).toContain(label);
     }
   });
@@ -529,6 +553,8 @@ test.describe("the help view and the page's rules (2.3, 3.10)", () => {
     expect(await page.evaluate(() => "__injected" in window)).toBe(false);
     // The browser fires securitypolicyviolation from a queued task, so it may come after evaluate returns.
     await expect.poll(violations).toContain("script-src-elem");
+    // Exactly that one: a late violation from opening the view would show here too.
+    expect(await violations()).toEqual(["script-src-elem"]);
   });
 
   test("the view works on the built page opened from disk (file://)", async ({ page }) => {

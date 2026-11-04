@@ -49,7 +49,7 @@ describe("the help view's text (3.10)", () => {
       "How an entry is written",
       "The STATUS.md headings",
       "PROJECTS.md for an umbrella",
-      "A private repo: with a token, or as a folder",
+      "A private repo: with a token",
     ]);
     expect(HELP_STEPS.map((s) => s.example)).toEqual([
       PATHS_EXAMPLE,
@@ -86,6 +86,25 @@ describe("the help view's text (3.10)", () => {
       ]),
     ).toBe("The STATUS.md headings");
     expect(plainText([])).toBe("");
+  });
+
+  test("no code part starts or ends with a space, so none is hard to see", () => {
+    for (const p of [
+      ...HELP_STEPS.flatMap((s) => [s.title, ...s.paragraphs]),
+      CLOSING_LINK.label,
+    ]) {
+      for (const part of p.filter((x) => x.kind === "code")) {
+        expect(part.text).toBe(part.text.trim());
+      }
+    }
+  });
+
+  test("step 2 shows the em dash as code on its own, and says it has a space on each side", () => {
+    const step = HELP_STEPS[1];
+    expect(step).toBeDefined();
+    if (!step) return;
+    expect(codeParts(step.paragraphs)).toContain("—");
+    expect(step.paragraphs.map(plainText).join(" ")).toContain("with a space on each side");
   });
 
   test("the step titles name STATUS.md and PROJECTS.md as code", () => {
@@ -252,7 +271,7 @@ describe("step 4: PROJECTS.md for an umbrella", () => {
   });
 });
 
-describe("step 5: a private repo, with a token or as a folder", () => {
+describe("step 5: a private repo, with a token", () => {
   test("its example is the token's format with a placeholder, which the token rule refuses", () => {
     expect(TOKEN_EXAMPLE).toBe("github_pat_<letters, digits and underscores>");
     expect(parseToken(TOKEN_EXAMPLE)).toBeNull();
@@ -269,16 +288,43 @@ describe("step 5: a private repo, with a token or as a folder", () => {
     expect(source).not.toMatch(/ghp_[A-Za-z0-9]{20,}/);
   });
 
-  test("its text names the controls of the start page, the permission, and that the token goes only to GitHub", () => {
+  test("its text names the controls of the start page by their labels, the permission, and that the token goes only to GitHub", () => {
     const text = (HELP_STEPS[4]?.paragraphs ?? []).map(plainText).join(" ");
-    for (const label of ["Owner", "Use", "Remember the token", "Or a local project folder"]) {
+    for (const label of [
+      "Owner",
+      "GitHub token (for private repos)",
+      "Use",
+      "Remember the token",
+    ]) {
       expect(text).toContain(`"${label}"`);
     }
     expect(text).toContain('"Contents"');
     expect(text).toContain("read-only");
     expect(text).toContain("fine-grained");
     expect(text).toContain("only to GitHub");
-    expect(text).toContain("Nothing is sent anywhere");
+  });
+
+  test("it has only the token way: no word of a folder, and its text ends with the sentence of 3.10", () => {
+    const paragraphs = (HELP_STEPS[4]?.paragraphs ?? []).map(plainText);
+    expect([plainText(HELP_STEPS[4]?.title ?? []), ...paragraphs].join(" ")).not.toMatch(/folder/i);
+    expect(paragraphs[paragraphs.length - 1]).toBe(
+      "vizi opens projects from GitHub, and a private one needs this token.",
+    );
+  });
+});
+
+describe("no local folder in the help (3.11)", () => {
+  // The strings 3.11 lists; the help's "folder pointer" and "a folder of the same project" are allowed.
+  const FOLDER_WORDS = ["local project folder", "local folder", "as a folder", "project's folder"];
+
+  test("no part of the help text holds any of 3.11's folder strings, in any case", () => {
+    const text = allText().join("\n").toLowerCase();
+    for (const words of FOLDER_WORDS) expect(text).not.toContain(words);
+  });
+
+  test("nor does the module's source", () => {
+    const source = readFileSync(join(__dirname, "help.ts"), "utf8").toLowerCase();
+    for (const words of FOLDER_WORDS) expect(source).not.toContain(words);
   });
 });
 
