@@ -10,10 +10,10 @@ and is not part of the built page or the root `package.json`.
 
 ## Files
 
-- `review.mjs`: reads the diff of base...head from the GitHub API (pinned to the
-  two SHAs) and three documents from the base commit, calls the model, posts one
-  comment. The only GitHub calls: read the compare diff, list the PR's comments,
-  post a comment.
+- `review.mjs`: reads the changed files and the diff of base...head from the
+  GitHub API (pinned to the two SHAs) and three documents from the base commit,
+  calls the model, posts one comment. The only GitHub calls: read the compare
+  (its file list, then its diff), list the PR's comments, post a comment.
 - `instructions.md`: the reviewer's fixed instructions (first in the cached
   prompt).
 - `test/`: `node --test`; the SDK and GitHub are faked, so no key and no cost.
@@ -28,13 +28,30 @@ and is not part of the built page or the root `package.json`.
 | `REVIEW_MAX_BUDGET_USD` | 3 | The SDK stops the run past this estimated cost. |
 | `REVIEW_MAX_DIFF_BYTES` | 300000 | Over this, the comment says "Not reviewed" and the model is not called. |
 
+## Skipped pull requests
+
+A pull request whose changed files are all review-free (`docs/BACKLOG.md`,
+`CHANGELOG.md`, `STATUS.md`, `docs/NEXT_SESSION.md`; exact paths, `REVIEW_FREE_FILES`
+in `review.mjs`) is not reviewed: no model call, no comment, and the job
+summary says "skipped" and names the files. The check runs on every event from
+the compare's file list of base...head, counting the old and the new path of a
+rename, so a later push that adds any other file is reviewed on that push. A
+compare with no files, or with 300 files or more (GitHub may cut the list
+there), is not skipped.
+
 ## Prompt caching
 
 The system prompt is `[instructions + CLAUDE.md + standards + SPEC, boundary
 marker, PR number and SHAs]`; the diff is the user message. The fixed block is
 the same for every review of the same base commit, so a second review within the
-cache lifetime (5 minutes by default) reads it from the cache. The job summary
-shows the cache read and cache write tokens of every run.
+cache lifetime reads it from the cache. The lifetime is 1 hour: `review.mjs`
+passes `settings: { promptCacheTtl: "1h" }` to the SDK (its `--settings` layer,
+which `settingSources: []` does not turn off). Without it an API key gets 5
+minutes. `CLAUDE_CODE_PROMPT_CACHE_TTL` would override it, and is not passed to
+the SDK's process. The SDK's documentation says 1-hour cache writes are billed at
+a higher rate. The job summary shows the cache read and cache write tokens of
+every run, and the 1-hour part of the writes (`cacheCreationEphemeral1hInputTokens`,
+also in the log's `usage:` line).
 
 ## Secrets and trust
 
