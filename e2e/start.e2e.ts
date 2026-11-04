@@ -95,6 +95,18 @@ test.describe("the header and the address section (3.12)", () => {
       page.getByRole("heading", { level: 1, name: "vizi backlog visualizer" }),
     ).toBeVisible();
     await expect(h1.locator("span")).toHaveText("backlog visualizer");
+    // "vizi" and the tagline on one baseline, 12 px apart on desktop and 10 px on a phone.
+    await page.evaluate(() => document.fonts.ready);
+    const gap = await h1.evaluate((el) => {
+      const r = document.createRange();
+      r.setStart(el.firstChild as Node, 0);
+      r.setEnd(el.firstChild as Node, 4);
+      return (
+        (el.querySelector("span") as HTMLElement).getBoundingClientRect().left -
+        r.getBoundingClientRect().right
+      );
+    });
+    expect(Math.abs(gap - (isPhone(page) ? 10 : 12))).toBeLessThanOrEqual(0.5);
     await expect(page.locator("header #help-open")).toBeVisible();
     await expect(page).toHaveTitle("Vizi - backlog visualizer");
     await expect(page.locator("main")).toHaveCount(1);
