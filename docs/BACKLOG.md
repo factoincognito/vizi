@@ -94,6 +94,16 @@ Build order: Clead's proposal, from the design the spec is taken from.
   only to GitHub, never shown. Reason: a fine-grained token belongs to one
   owner. A spec change first (records the approval), then the code. After
   PBI-1.9.
+- **[NEXT] PBI-1.13** (product owner, 2026-11-04; intent approved 12:43) — A help view, "How
+  to make your project vizi compatible": a link on the start page opens
+  it inside the page. Short steps with one example each: where the
+  backlog file goes (`BACKLOG.md`, `docs/BACKLOG.md`,
+  `docs/PRODUCT_BACKLOG.md`); how an entry is written and which markers
+  are shown; the `STATUS.md` headings; `PROJECTS.md` for an umbrella;
+  opening a private repo with a token or as a folder. A link at the end
+  to `docs/BACKLOG-FORMAT.md` on GitHub. The text ships in the page, and
+  a test checks that its examples read as stated. A spec change first,
+  then the code. Before PBI-1.12.
 - **[NEXT] PBI-1.12** (product owner, 2026-11-04; intent approved 11:59) — A "Saved repos"
   quick-access list on the start page: "Save" adds the open address, an
   entry loads on click (with the right token if private), "×" removes it.
