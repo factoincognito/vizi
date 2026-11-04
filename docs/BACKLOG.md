@@ -94,7 +94,7 @@ Build order: Clead's proposal, from the design the spec is taken from.
   only to GitHub, never shown. Reason: a fine-grained token belongs to one
   owner. A spec change first (records the approval), then the code. After
   PBI-1.9.
-- **[NOW] PBI-1.13** (product owner, 2026-11-04; intent approved 12:43) — A help view, "How
+- **[DONE] PBI-1.13** (2026-11-04: PR #45, merge `ae9ab60`, Clead-role review approved in round 3; live on Pages) (product owner, 2026-11-04; intent approved 12:43; spec PRs #44 and #51) — A help view, "How
   to make your project vizi compatible": a link on the start page opens
   it inside the page. Early in the text it says vizi is a read-only tool
   (product owner, 2026-11-04 16:13). Short steps with one example each: where the
@@ -113,13 +113,12 @@ Build order: Clead's proposal, from the design the spec is taken from.
   `/tree/<branch>`, still works, and the token is still picked by the
   owner. A spec change first, then the code. Right after PBI-1.13,
   before PBI-1.14.
-- **[NEXT] PBI-1.14** (product owner, 2026-11-04 15:15, on Clead's recommendation) — Remove
+- **[NOW] PBI-1.14** (product owner, 2026-11-04 15:15, on Clead's recommendation) — Remove
   opening a local project folder: vizi opens projects from GitHub only
   (public by address, private with the saved token). The folder input, its
   code and tests go, and the folder step of the help view (PBI-1.13). This
-  replaces the 2026-11-03 decision that local mode opens a folder. A spec
-  change first, then the code; the help text in #45 follows the spec
-  before #45 merges.
+  replaces the 2026-11-03 decision that local mode opens a folder. Spec merged in #47 (`1a84c1a`); the help
+  text in #45 followed it before #45 merged. The code is next.
 - **[NEXT] PBI-1.16** (product owner, 2026-11-04; intent approved 15:48, on
   Clead's mockup, recorded in the product office's decisions) — Redesign
   the start page: "Open a project from GitHub" with the address and
@@ -137,8 +136,8 @@ Build order: Clead's proposal, from the design the spec is taken from.
   a shared computer the token is better used for the page only, without
   saving it (16:18); the
   steps checked against
-  GitHub's own documentation (with SPEC section 4, item 19). A spec
-  change first, then the code. After PBI-1.14.
+  GitHub's own documentation (with SPEC section 4, item 19). Spec
+  merged in #57 (`4325ad3`); the code after PBI-1.14.
 - **[NEXT] PBI-1.15** (product owner, 2026-11-04; intent approved 15:15) — A branch
   picker: after a repo loads, a list of its branches, and picking one
   opens that branch. The `/tree/<branch>` address keeps working. A spec
