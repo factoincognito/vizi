@@ -378,42 +378,6 @@ test.describe("report tab (3.5)", () => {
   });
 });
 
-test.describe("rendering contract (3.7)", () => {
-  test("shows script and img markup as text, runs nothing, links nothing dangerous, loads no image", async ({
-    page,
-    baseURL,
-  }) => {
-    const requested = await stubGithub(page);
-    const stray = watchRequests(
-      page,
-      (u) =>
-        u === `${baseURL}/` ||
-        requested.includes(u) ||
-        /^https:\/\/(api\.github\.com|raw\.githubusercontent\.com)\//.test(u),
-    );
-    await page.goto("/");
-    await openUrl(page);
-    const card = page.locator('[data-testid="card"][data-id="WG-3"]');
-    await card.locator("summary").click();
-    const description = card.getByTestId("description");
-    await expect(description).toContainText("<script>window.__pwned = 1</script>");
-    await expect(description).toContainText('<img src=x onerror="window.__pwned = 2">');
-    await expect(description.locator("script, img")).toHaveCount(0);
-    await expect(description).toContainText("bad link");
-    await expect(description.locator('a[href^="javascript" i]')).toHaveCount(0);
-    await expect(description.getByRole("link", { name: "bad link" })).toHaveCount(0);
-    await expect(description.getByRole("link", { name: "mixed" })).toHaveCount(0);
-    await expect(description.getByRole("link", { name: "remote" })).toHaveAttribute(
-      "href",
-      "https://example.com/tracker.png",
-    );
-    expect(
-      await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned),
-    ).toBeUndefined();
-    expect(stray, "the image and nothing else was requested").toEqual([]);
-  });
-});
-
 test.describe("heading ids and anchors (3.7 item 4)", () => {
   const backlog = [
     "# Backlog",
@@ -477,6 +441,42 @@ test.describe("heading ids and anchors (3.7 item 4)", () => {
       expect(id).toBe(inRow);
       await expect(page.locator(`[id="${id}"]`)).toHaveCount(1);
     }
+  });
+});
+
+test.describe("rendering contract (3.7)", () => {
+  test("shows script and img markup as text, runs nothing, links nothing dangerous, loads no image", async ({
+    page,
+    baseURL,
+  }) => {
+    const requested = await stubGithub(page);
+    const stray = watchRequests(
+      page,
+      (u) =>
+        u === `${baseURL}/` ||
+        requested.includes(u) ||
+        /^https:\/\/(api\.github\.com|raw\.githubusercontent\.com)\//.test(u),
+    );
+    await page.goto("/");
+    await openUrl(page);
+    const card = page.locator('[data-testid="card"][data-id="WG-3"]');
+    await card.locator("summary").click();
+    const description = card.getByTestId("description");
+    await expect(description).toContainText("<script>window.__pwned = 1</script>");
+    await expect(description).toContainText('<img src=x onerror="window.__pwned = 2">');
+    await expect(description.locator("script, img")).toHaveCount(0);
+    await expect(description).toContainText("bad link");
+    await expect(description.locator('a[href^="javascript" i]')).toHaveCount(0);
+    await expect(description.getByRole("link", { name: "bad link" })).toHaveCount(0);
+    await expect(description.getByRole("link", { name: "mixed" })).toHaveCount(0);
+    await expect(description.getByRole("link", { name: "remote" })).toHaveAttribute(
+      "href",
+      "https://example.com/tracker.png",
+    );
+    expect(
+      await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned),
+    ).toBeUndefined();
+    expect(stray, "the image and nothing else was requested").toEqual([]);
   });
 });
 
