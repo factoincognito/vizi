@@ -154,9 +154,10 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
     without `/tree/<branch>`, still works, and the token is still picked
     by the owner. It replaces his decision of 16:36 to prefill
     `https://github.com/`. He put it in the unattended run of that night
-    at 19:18 ("All"; recorded in this repo's backlog and
-    `docs/NEXT_SESSION.md` by PR #64), built after PBI-1.14 and before
-    PBI-1.16. How vizi does it is 3.1, "The Repository field".
+    at 19:18 ("All"; recorded in the product office's `DECISIONS.md`,
+    and in this repo's backlog and `docs/NEXT_SESSION.md` by PR #64),
+    built after PBI-1.14 and before PBI-1.16. How vizi does it is 3.1,
+    "The Repository field".
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -513,23 +514,32 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
 - **What it accepts.** The text is trimmed at both ends. Then it is
   read as one of these, and nothing else:
   1. `<owner>/<repo>`;
-  2. `https://github.com/<owner>/<repo>` (`https`, the host `github.com`
-     exactly, as 3.1 reads an address today);
+  2. `<host>/<owner>/<repo>`, where `<host>` is `github.com` or
+     `www.github.com`, with or without `https://` in front: so
+     `https://github.com/<owner>/<repo>` (as 3.1 reads an address
+     today), `github.com/<owner>/<repo>`,
+     `https://www.github.com/<owner>/<repo>` and
+     `www.github.com/<owner>/<repo>`. People copy addresses without the
+     scheme (Clead's call). The host is matched in lower case as
+     written; `http://` is not accepted;
 
   each optionally followed by `/tree/<branch>`, and then by one `/`.
   Owner and repo follow 3.1's name rule: letters, digits, `.`, `_` and
   `-`, and neither is `.` or `..`. The branch is everything after
   `/tree/`, one trailing `/` dropped, non-empty, as 3.1 reads it; the
-  text holds no `?` or `#` anywhere.
+  text holds no `?` or `#` anywhere. A text that starts with
+  `github.com/`, `www.github.com/` or `https://` is read only as form
+  2, never as form 1, so `github.com/acme` is refused (no repo), and is
+  not taken for an owner named `github.com`.
   - **`<owner>/<repo>/tree/<branch>` without the host is accepted**
     (Clead's call): it is the same grammar with or without the host, a
     repo name cannot hold `/`, so the form cannot mean anything else, and
     a user who types the short form and a branch gets what the long form
     gives.
-  - Not accepted (Clead's call, so that one host form stays): `http://`,
-    `github.com/…` without the scheme, `www.github.com`, other hosts, a
-    leading `/`, anything after the repo but `/tree/<branch>` (such as
-    `/issues` or `/blob/…`), and `?` or `#`.
+  - Not accepted (Clead's call): `http://`, any other scheme, any other
+    host (`gist.github.com`, `example.com`, …), a leading `/`, anything
+    after the repo but `/tree/<branch>` (such as `/issues` or
+    `/blob/…`), and `?` or `#`.
   - The owner is used as written in the requests (GitHub reads it
     without regard to case, section 4, item 18) and in lower case to
     pick the token (3.8).
@@ -537,7 +547,7 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
   "Two loads at once": the results are cleared and hidden, and an older
   load's answer is dropped), and `#message` says: "Type the repository
   as owner/repo, for example fomo-t/fomo-f, or paste its GitHub address
-  (https://github.com/owner/repo, optionally with /tree/<branch>)." An
+  (github.com/owner/repo, optionally with /tree/<branch>)." An
   empty field gives the same message. This replaces today's "Enter a
   public repo address like https://github.com/<owner>/<repo>, optionally
   followed by /tree/<branch>.".
@@ -567,18 +577,22 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
     `acme/widgets/`; `  acme/widgets  `; `acme/widgets/tree/main`;
     `acme/widgets/tree/feat/new-thing/` (branch `feat/new-thing`);
     `https://github.com/acme/widgets`, with `/tree/<branch>`, with a
-    trailing `/`, and with spaces around; `Acme/Widgets` kept as
+    trailing `/`, and with spaces around; `github.com/acme/widgets`,
+    `www.github.com/acme/widgets` and
+    `https://www.github.com/acme/widgets/tree/main`, each the same
+    reference as the `https://github.com` form; `Acme/Widgets` kept as
     written. Refused: empty; `acme`; `acme/`; `/acme/widgets`;
     `acme/widgets/tree/`; `acme/widgets/issues`;
     `acme/widgets/blob/main/x`; `acme/widgets?x=1`; `acme/widgets#x`;
     `ac me/widgets`; `../..`; `./widgets`; `acme/..`;
-    `http://github.com/acme/widgets`; `github.com/acme/widgets`;
-    `www.github.com/acme/widgets`; `https://example.com/acme/widgets`;
+    `http://github.com/acme/widgets`; `http://www.github.com/acme/widgets`;
+    `https://example.com/acme/widgets`; `gist.github.com/acme/widgets`;
+    `github.com/acme`; `github.com/acme/widgets/issues`;
     `javascript:alert(1)`. Today's refused case `acme/widgets` moves to
     the accepted cases;
   - browser: the label "Repository" for `#url-input` and the
-    placeholder "owner/repo"; `acme/widgets` and
-    `https://github.com/acme/widgets` make the same requests; the short
+    placeholder "owner/repo"; `acme/widgets`, `github.com/acme/widgets`
+    and `https://github.com/acme/widgets` make the same requests; the short
     form with `/tree/<branch>` makes no request 1; a refused text makes
     no request and shows the message; with a token held for `acme`,
     `ACME/widgets` uses it; the Owner prefill follows both forms;
