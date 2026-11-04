@@ -64,9 +64,14 @@ Build order: Clead's proposal, from the design the spec is taken from.
   repos by address: a fine-grained, read-only GitHub token, limited to
   chosen repos and with an expiry, pasted into vizi and, behind a
   "Remember the token" box, saved in the browser's storage, with a
-  "Forget the token" button. A spec change: needs the product owner's
-  intent approval before it is built. Check first that GitHub accepts
-  such a token from the published page.
+  "Forget the token" button. Intent approval given by the product owner
+  on 2026-11-04 (09:27, in chat); it replaces "no token, no private repos
+  by address" (2026-11-03). Expiry chosen by the product owner. A spec
+  change first (records the approval), then the code. Check first that
+  GitHub accepts such a token from the published page. Consider a
+  Content-Security-Policy that limits where the page may send data, since
+  the token sits in storage shared by all factoincognito Pages sites
+  (Clead-role review of PR #22).
 - **[LATER] PBI-1.6** (Clead, 2026-11-04, from the code reviews of PRs #16 and #17) — Optional points, none a defect: check a link target again for control characters and backslashes after percent-decoding (today `%00`, `%0A` and `%5C` survive; SPEC 3.7 says a target with control characters is text); normalise heading text to NFC before making its slug, so a precomposed `Ö` and `O` plus a combining mark give the same anchor; a ~900k-character line of nested brackets takes about 1.4 s, close to the tests' 1.5 s limit; in `e2e/page.e2e.ts` two "no link" checks (around lines 207 and 370) run before the description renders, so they prove nothing — check after rendering; `showDoc` does not check after its `await` that the project is still the current one; a test for an older slow success arriving after a newer fast error.
 
 ---
