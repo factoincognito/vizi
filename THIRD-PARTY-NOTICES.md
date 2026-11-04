@@ -53,8 +53,49 @@ Not shipped as such; they build, lint and test the page. Licences read with
 | `yaml` | 2.9.1 | ISC |
 
 Their transitive dependencies (root `package-lock.json`) have not been checked
-licence by licence. Open: `docs/NEXT_SESSION.md`, entry 3 (Vite's own code
-inside the built page has no entry here yet).
+licence by licence. Vite's own code that ships in the built page has its entry
+below.
+
+## Vite (code in the built page)
+
+The build copies one piece of Vite's own code into `dist/index.html`: its
+module-preload polyfill, at the start of the page's inline script (`docs/SPEC.md`
+section 4, item 22). So that piece ships to every user of the page. Use:
+shipped, in the published page. Mode: depend, unmodified (the build tool emits
+it; nothing in vizi copies or changes it).
+
+- **Component:** Vite 8.3.1 (`node_modules/vite/package.json`, read
+  2026-11-04), https://github.com/vitejs/vite, npm `vite@8.3.1`.
+- **Licence:** MIT, from `node_modules/vite/LICENSE.md` ("Vite core
+  license"), word for word:
+
+```
+MIT License
+
+Copyright (c) 2019-present, VoidZero Inc. and Vite contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+The polyfill was found by reading the built page for Vite's `modulepreload`
+code. The rest of the inline script is vizi's own code, bundled; it was not
+checked line by line for other code of Vite's own dependencies.
 
 ## Inter (the page's font, `src/fonts/`)
 
