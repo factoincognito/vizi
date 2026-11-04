@@ -40,12 +40,12 @@ const isName = (s: string) => NAME.test(s) && s !== "." && s !== "..";
 
 /** The Repository field's message for a text it cannot read (docs/SPEC.md 3.1, "The Repository field"). */
 export const REPOSITORY_MESSAGE =
-  "Type the repository as owner/repo, for example fomo-t/fomo-f, or paste its GitHub address (github.com/owner/repo, optionally with /tree/<branch>).";
+  "Type the repository as <owner>/<repo>, for example fomo-t/fomo-f, or paste its GitHub address (github.com/<owner>/<repo>, optionally with /tree/<branch>).";
 /** A branch whose name, decoded, holds #, % or ?, or that does not decode. */
 export const BRANCH_MESSAGE = "vizi cannot open this branch: its name holds #, % or ?.";
 /** A repo name ending in .git: a clone address. */
 export const CLONE_MESSAGE =
-  "That is a clone address. Type the repository as owner/repo, without .git.";
+  "That is a clone address. Type the repository as <owner>/<repo>, without .git.";
 
 export type RepositoryRead =
   | { ok: true; ref: RepoRef }

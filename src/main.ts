@@ -1033,7 +1033,7 @@ function mount(): void {
   const urlInput = h("input", {
     id: "url-input",
     type: "text",
-    placeholder: "owner/repo",
+    placeholder: "<owner>/<repo>",
     autocomplete: "off",
     spellcheck: "false",
     // A phone would capitalise the owner.
