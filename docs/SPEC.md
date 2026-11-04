@@ -2796,9 +2796,10 @@ has open, whatever was typed to open it.
   high, padding 0 6 px 0 14 px, holding:
   - a button (`data-testid="saved-open"`), the row's width but the last
     40 px, its text "`<owner>/<repo>`", or
-    "`<owner>/<repo>` (`<branch>`)" for an entry with a branch, as the project's heading reads (3.13),
-    16 px, `--fg`, left-aligned, styled as a row, not a link; the text
-    set with `textContent`, wrapping (`overflow-wrap: anywhere`);
+    "`<owner>/<repo>` (`<branch>`)" for an entry with a branch, as the
+    project's heading reads (3.13), 16 px, `--fg`, left-aligned,
+    styled as a row, not a link; the text set with `textContent`,
+    wrapping (`overflow-wrap: anywhere`);
   - a button "×" (`data-testid="saved-remove"`), 40 × 40 px, the
     secondary style without its border, with the accessible name
     "Remove `<owner>/<repo>` from Saved repos" (with " (`<branch>`)"
@@ -2833,20 +2834,36 @@ has open, whatever was typed to open it.
   as 3.8 keeps owners; `repo` as the load had it; `branch` the branch
   the load named (a pick, 3.13, or an address with `/tree/<branch>`),
   or `null` when the load used the default branch, so the entry then
-  follows the repo's default branch when it is opened.
+  follows the repo's default branch when it is opened. A pick of the
+  default branch is a load with that branch named (3.13), so it is
+  saved by its name, not as `null`: that entry stays on the named
+  branch even if the repo's default branch changes later.
 - **The rules an entry must meet** (Clead's design):
   - `owner` and `repo` match 3.1's name rule (letters, digits, `.`, `_`
     and `-`, not `.` or `..`), each at most 100 characters;
-  - `branch` is `null`, or a string of 1 to 255 characters with no
-    `?`, `#` or `%`, no control character (U+0000 to U+001F, U+007F),
-    and no `/` at its start or end. Those are names the page can open
-    (3.13, "Names the page cannot open"), so an entry never holds one
-    a pick would disable.
+  - `branch` is `null`, or a string of 1 to 255 characters that is a
+    name git allows for a branch and the page can open:
+    - none of what `git check-ref-format --branch` refuses: a control
+      character (U+0000 to U+001F, U+007F), a space, `~`, `^`, `:`,
+      `?`, `*`, `[` or `\`; `..` or `@{` anywhere; `//`; a `/` at the
+      start or end; a `.` at the end; a `/`-separated part that starts
+      with `.` or ends with `.lock`;
+    - and no `#` or `%`, which the page cannot open (3.13, "Names the
+      page cannot open"), so an entry never holds one a pick would
+      disable.
+
+    Checked with `git check-ref-format --branch` on 2026-11-04: it
+    refuses a name with each of those, and accepts names with `<`,
+    `>`, `=` and `/` inside, such as `<img/src=x/onerror=alert(1)>`.
+    So a stored branch can still hold markup, which is why the list
+    sets its text with `textContent` and a test plants such a name.
 
   A load whose reference breaks them (not expected, since loads use the
   same rules) is not saved, and "Save" says "This address cannot be
   saved." in `#message`.
-- **At most 50 entries** (Clead's choice; about 20 KB at most). "Save"
+- **At most 50 entries** (Clead's choice; at most about 25,000
+  characters of JSON, about 49 KB as `localStorage` counts UTF-16, more
+  with characters outside the BMP). "Save"
   with 50 entries saves nothing and says "Saved repos holds at most 50
   repos. Remove one to save another." in `#message`.
 - **One entry per reference.** Two entries are the same when their
@@ -2865,8 +2882,13 @@ As 3.8 does for tokens (Clead's design):
 - **Reading.** `JSON.parse`, then only own properties are read: the
   top-level object's own `repos` (`Object.hasOwn`), and each entry's own
   `owner`, `repo` and `branch`. Nothing is looked up by name on a plain
-  object, and the de-duplication uses a `Map` keyed by the entry's
-  lower-cased owner, repo and branch, so an owner or repo named
+  object, and the de-duplication uses a `Map` whose key is exactly: the
+  lower-cased owner, `/`, the lower-cased repo, then `@` and the branch
+  as written for an entry with a branch, or `!` for one with `null`
+  (for example `acme/widgets@Main` and `acme/widgets!`). An owner or
+  repo holds none of `/`, `@` and `!` (3.1's name rule), so each part
+  is found without doubt: `null` is never taken for a branch named
+  `null`, and the branch is never lower-cased. An owner or repo named
   `__proto__`, `constructor`, `toString` or `hasOwnProperty`, which the
   name rule allows, is read as text and finds nothing an object
   inherits. A top-level `"__proto__"` key in the stored JSON is an own
@@ -2887,11 +2909,18 @@ As 3.8 does for tokens (Clead's design):
   no entry left, the key is removed.
 - **The list is drawn from storage.** The page keeps no list of its own:
   it draws the section from the stored value after its own writes and
-  on every `storage` event, so every tab shows what is stored.
+  on every `storage` event, so every tab shows what is stored. When it
+  draws the list again, the focus stays on the same control (the open
+  button or "×") of the same entry, as 3.12 sets for the token rows; an
+  entry is the same by the de-duplication key below. Only when that
+  entry is gone does the focus rule of "Removing an entry" apply.
 - **Storage refused.** When `localStorage` cannot be used (3.8,
   `browserStorage()` gives `null`) or a write throws, nothing is saved
   and "Save" says "The browser would not save the repo." in `#message`;
-  the section shows what could be read, or is hidden.
+  the section shows what could be read, or is hidden. A read
+  (`getItem`) is made inside the same `try`: some browsers throw on it
+  when storage is blocked after the page opened. A read that throws
+  counts as no entries, and nothing is written back.
 
 #### Other open vizi tabs
 
@@ -2936,8 +2965,10 @@ As 3.8 does for tokens (Clead's design):
   it moves to the address section's heading `h2` "Open a project from
   GitHub" (`tabindex="-1"`), not to the field, which is PBI-1.17's. An
   entry removed in another tab moves the focus here only if the focus
-  was on that entry's buttons, by the same rule. Nothing else in the
-  list moves the focus; opening an entry leaves it on the open button,
+  was on that entry's buttons, by the same rule. When the list is drawn
+  again and the focused entry is still there, the focus stays on the
+  same control of it ("Reading and writing"). Nothing else in the list
+  moves the focus; opening an entry leaves it on the open button,
   which stays while the load runs. While the help view (3.10) is open
   the list is hidden in the wrapper, and the focus is left alone.
 
@@ -2992,7 +3023,7 @@ Test first (2.2), with GitHub stubbed and synthetic data.
 - **Unit (Jest), `src/saved.test.ts`:**
   - the rules: owners and repos that pass and fail 3.1's rule and the
     100-character limit; branches `null`, valid, empty, 256 characters,
-    with `?`, `#`, `%`, a control character, or a `/` at either end;
+    with `#` or `%`, and each form git refuses (below);
   - reading: not JSON, an array, no `repos`, `repos` not an array, an
     entry that is not an object, an entry with a bad field, extra keys
     dropped on writing, entries past the 50th dropped; a top-level
@@ -3011,7 +3042,14 @@ Test first (2.2), with GitHub stubbed and synthetic data.
     both; store A removes X, store B then adds Z, and X stays removed;
   - storage that throws on writing: nothing saved, the refusal
     returned;
-  - the display text and the "×" name, with and without a branch.
+  - the display text and the "×" name, with and without a branch;
+  - the de-duplication key: `Acme/Widgets` and `acme/widgets` with
+    the same branch are one entry, the branches `Main` and `main` two,
+    and `null` and a branch named `null` two;
+  - the branch rule against `git check-ref-format --branch`: each
+    refused form above is refused, and `<img/src=x/onerror=alert(1)>`,
+    `a=b` and `feature/x` pass;
+  - a storage whose `getItem` throws: no entries, and nothing written.
 - **Browser (Playwright),** in light and dark, at 375 px and 1280 px,
   projects opened with a full address (which PBI-1.17's field accepts
   too):
@@ -3037,15 +3075,23 @@ Test first (2.2), with GitHub stubbed and synthetic data.
   - the cap: 50 stored entries, "Save" refused with its message and no
     write;
   - startup: a planted malformed value is cleaned and written back; a
-    planted entry with an `<img src=x onerror=…>`-like repo is dropped
-    by the rules, and nothing runs;
+    planted entry whose repo holds markup is dropped by the name rule;
+  - a planted entry whose **branch** is `<img/src=x/onerror=alert(1)>`
+    (a name git allows, which passes the cleaning) is drawn: the open
+    button's text and the "×" accessible name hold that string as text,
+    no `img` element is created anywhere in the page, and nothing runs
+    (`window.__pwned`-style check, and no console error);
+  - the focus kept on a redraw: the focus on entry B's open button,
+    another tab saves X, and the focus is still on B's open button; the
+    same with the focus on B's "×";
   - a second tab: an entry saved, removed, and storage cleared in one
     tab are shown in the other, which writes nothing on the event;
   - drawing the list makes no request (the page's requests at startup
     stay as in 2.3, with entries stored);
   - no `localStorage` value under `vizi.savedRepos` holds `github_pat_`
-    after saving a private repo opened with a token; a Forget and
-    "Forget all tokens" leave the list as it was;
+    after saving a private repo opened with a token; a Forget, "Forget
+    all tokens" and a 401 that forgets the token leave the list as it
+    was;
   - storage refused: "Save" shows its message and the section stays
     hidden;
   - accessibility: the section's name, the entries as a list, the "×"
