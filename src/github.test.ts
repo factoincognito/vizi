@@ -238,3 +238,257 @@ describe("loadRepo: failures", () => {
     expect(r.ok && r.files).toEqual(["a.md"]);
   });
 });
+
+// ---------------------------------------------------------------- with a token (3.8)
+
+const TOKEN = "github_pat_TEST_unit_abcd1234";
+type Sent = { url: string; init: Parameters<Fetcher>[1] };
+type TokenAnswer = { status: number; body?: string; headers?: Record<string, string> };
+
+/** A fetcher that records each request with its options, and answers by URL. */
+function fakeWithInit(answers: Record<string, TokenAnswer>): { fetcher: Fetcher; sent: Sent[] } {
+  const sent: Sent[] = [];
+  const fetcher: Fetcher = async (url, init) => {
+    sent.push({ url, init });
+    const a = answers[url];
+    if (!a) throw new Error(`unexpected request ${url}`);
+    const headers = new Map(Object.entries(a.headers ?? {}).map(([k, v]) => [k.toLowerCase(), v]));
+    return {
+      status: a.status,
+      text: async () => a.body ?? "",
+      headers: { get: (name: string) => headers.get(name.toLowerCase()) ?? null },
+    };
+  };
+  return { fetcher, sent };
+}
+const TREE = `${API}/git/trees/main?recursive=1`;
+const okRepo = { status: 200, body: JSON.stringify({ default_branch: "main" }) };
+const contents = (path: string, branch = "main") =>
+  `${API}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`;
+
+describe("loadRepo with a token (3.8): the requests", () => {
+  const answers = {
+    [API]: okRepo,
+    [TREE]: { status: 200, body: tree(["docs/BACKLOG.md", "STATUS.md"]) },
+    [contents("docs/BACKLOG.md")]: { status: 200, body: "backlog text" },
+    [contents("STATUS.md")]: { status: 200, body: "status text" },
+  };
+
+  it("sends every request to api.github.com, request 3 through the contents API", async () => {
+    const { fetcher, sent } = fakeWithInit(answers);
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(sent.map((s) => s.url)).toEqual([
+      API,
+      TREE,
+      contents("docs/BACKLOG.md"),
+      contents("STATUS.md"),
+    ]);
+    expect(sent.every((s) => new URL(s.url).host === "api.github.com")).toBe(true);
+    expect(r).toMatchObject({
+      ok: true,
+      backlogPath: "docs/BACKLOG.md",
+      backlogText: "backlog text",
+      statusText: "status text",
+    });
+  });
+
+  it("sends the token as a Bearer header, with no cookies and no caching, and never in a URL", async () => {
+    const { fetcher, sent } = fakeWithInit(answers);
+    await loadRepo(ref, fetcher, TOKEN);
+    for (const s of sent) {
+      expect(s.init?.headers?.Authorization).toBe(`Bearer ${TOKEN}`);
+      expect(s.init?.credentials).toBe("omit");
+      expect(s.init?.cache).toBe("no-store");
+      expect(s.url).not.toContain(TOKEN);
+      expect(s.url).not.toContain("github_pat_");
+    }
+  });
+
+  it("asks for the raw media type on the file requests only", async () => {
+    const { fetcher, sent } = fakeWithInit(answers);
+    await loadRepo(ref, fetcher, TOKEN);
+    const accepts = sent.map((s) => s.init?.headers?.Accept);
+    expect(accepts).toEqual([
+      undefined,
+      undefined,
+      "application/vnd.github.raw+json",
+      "application/vnd.github.raw+json",
+    ]);
+  });
+
+  it("encodes the branch and each path segment", async () => {
+    const { fetcher, sent } = fakeWithInit({
+      [`${API}/git/trees/feat%2Fx?recursive=1`]: { status: 200, body: tree(["BACKLOG.md"]) },
+      [`${API}/contents/BACKLOG.md?ref=feat%2Fx`]: { status: 200, body: "b" },
+    });
+    const r = await loadRepo({ ...ref, branch: "feat/x" }, fetcher, TOKEN);
+    expect(r.ok).toBe(true);
+    expect(sent).toHaveLength(2);
+  });
+
+  it("makes no request to raw.githubusercontent.com", async () => {
+    const { fetcher, sent } = fakeWithInit(answers);
+    await loadRepo(ref, fetcher, TOKEN);
+    expect(sent.some((s) => s.url.includes("raw.githubusercontent.com"))).toBe(false);
+  });
+
+  it("with no token, nothing changes: raw requests, and no options at all", async () => {
+    const { fetcher, sent } = fakeWithInit({
+      [API]: okRepo,
+      [TREE]: { status: 200, body: tree(["docs/BACKLOG.md"]) },
+      [`${RAW}/docs/BACKLOG.md`]: { status: 200, body: "b" },
+    });
+    await loadRepo(ref, fetcher);
+    await loadRepo(ref, fetcher, null);
+    expect(sent.every((s) => s.init === undefined)).toBe(true);
+    expect(sent.some((s) => s.url.startsWith("https://raw.githubusercontent.com/"))).toBe(true);
+  });
+});
+
+describe("loadRepo with a token (3.8): the answers", () => {
+  const repoThenTree = (second: TokenAnswer) => ({ [API]: okRepo, [TREE]: second });
+
+  it.each([
+    ["request 1", { [API]: { status: 401 } }],
+    ["request 2", repoThenTree({ status: 401 })],
+    [
+      "request 3",
+      {
+        ...repoThenTree({ status: 200, body: tree(["BACKLOG.md"]) }),
+        [contents("BACKLOG.md")]: { status: 401 },
+      },
+    ],
+  ])(
+    "401 on %s: the token was refused, and the message says it is forgotten",
+    async (_n, answers) => {
+      const { fetcher } = fakeWithInit(answers);
+      const r = await loadRepo(ref, fetcher, TOKEN);
+      expect(r).toMatchObject({ ok: false, kind: "token-refused", status: 401 });
+      expect(!r.ok && r.message).toBe(
+        "GitHub refused the token: it may have expired. It has been forgotten; enter a new one.",
+      );
+    },
+  );
+
+  it("401 without a token is an ordinary HTTP status, as in 3.1", async () => {
+    const { fetcher } = fakeWithInit({ [API]: { status: 401 } });
+    expect(await loadRepo(ref, fetcher)).toMatchObject({ ok: false, kind: "http", status: 401 });
+  });
+
+  it("403 with no requests left: the rate limit is reached, and when it resets", async () => {
+    const { fetcher } = fakeWithInit({
+      [API]: {
+        status: 403,
+        headers: { "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "1793700000" },
+      },
+    });
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(r).toMatchObject({ ok: false, kind: "rate-limit", status: 403 });
+    expect(!r.ok && r.message).toBe(
+      "GitHub's rate limit is reached. It resets at 2026-11-03 10:00:00 UTC.",
+    );
+  });
+
+  it("403 at the rate limit without a reset header still says the limit is reached", async () => {
+    const { fetcher } = fakeWithInit({
+      [API]: { status: 403, headers: { "X-RateLimit-Remaining": "0" } },
+    });
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(r).toMatchObject({ ok: false, kind: "rate-limit" });
+    expect(!r.ok && r.message).toBe("GitHub's rate limit is reached.");
+  });
+
+  it.each([
+    ["requests left", { "X-RateLimit-Remaining": "42" }],
+    ["no rate limit header", {}],
+    ["a rate limit header that is not a number", { "X-RateLimit-Remaining": "soon" }],
+  ])("403 with %s: the token may not read this repo", async (_n, headers) => {
+    const { fetcher } = fakeWithInit({ [API]: { status: 403, headers } });
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(r).toMatchObject({ ok: false, kind: "forbidden", status: 403 });
+    expect(!r.ok && r.message).toBe(
+      'GitHub says the token may not read this repo: it may lack the "Contents: read" permission, or an organisation\'s token policy may stop it.',
+    );
+  });
+
+  it.each([
+    ["request 1", { [API]: { status: 404 } }],
+    ["request 2", { [API]: okRepo, [TREE]: { status: 404 } }],
+  ])("404 on %s: not found, or the token does not give access", async (_n, answers) => {
+    const { fetcher } = fakeWithInit(answers);
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(r).toMatchObject({ ok: false, kind: "not-found", status: 404 });
+    expect(!r.ok && r.message).toBe(
+      "Not found, or the token does not give access to this repo. Open the project as a local folder instead.",
+    );
+  });
+
+  it("404 on a file request is shown as a status, as in 3.1", async () => {
+    const { fetcher } = fakeWithInit({
+      [API]: okRepo,
+      [TREE]: { status: 200, body: tree(["BACKLOG.md"]) },
+      [contents("BACKLOG.md")]: { status: 404 },
+    });
+    expect(await loadRepo(ref, fetcher, TOKEN)).toMatchObject({
+      ok: false,
+      kind: "http",
+      status: 404,
+    });
+  });
+
+  it("any other status is shown with the status, and does not retry", async () => {
+    const { fetcher, sent } = fakeWithInit({ [API]: { status: 502 } });
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(sent).toHaveLength(1);
+    expect(r).toMatchObject({ ok: false, kind: "http", status: 502 });
+  });
+});
+
+describe("loadRepo with a token (3.8): the token is never in a message", () => {
+  it("a fetcher that throws an error quoting the token gives a message with the host only", async () => {
+    const fetcher: Fetcher = async () => {
+      throw new TypeError(`Failed to execute 'fetch': Invalid value 'Bearer ${TOKEN}'`);
+    };
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(r).toMatchObject({ ok: false, kind: "network", status: null });
+    expect(!r.ok && r.message).toBe("The request to api.github.com failed.");
+    expect(JSON.stringify(r)).not.toContain(TOKEN);
+  });
+
+  it("an error that is not an Error object is not shown either", async () => {
+    const fetcher: Fetcher = async () => {
+      throw `Bearer ${TOKEN}`;
+    };
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(JSON.stringify(r)).not.toContain(TOKEN);
+  });
+
+  it("a failure to read the answer quotes nothing", async () => {
+    const fetcher: Fetcher = async () => ({
+      status: 200,
+      text: async () => {
+        throw new Error(`stream broke near ${TOKEN}`);
+      },
+    });
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(r).toMatchObject({ ok: false, kind: "network" });
+    expect(JSON.stringify(r)).not.toContain(TOKEN);
+  });
+
+  it("no failure of any kind carries the token", async () => {
+    for (const status of [400, 401, 403, 404, 429, 500]) {
+      const { fetcher } = fakeWithInit({
+        [API]: { status, headers: { "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "1" } },
+      });
+      expect(JSON.stringify(await loadRepo(ref, fetcher, TOKEN))).not.toContain(TOKEN);
+    }
+  });
+
+  it("without a token the network message is as before (3.1)", async () => {
+    const fetcher: Fetcher = async () => {
+      throw new TypeError("Failed to fetch");
+    };
+    const r = await loadRepo(ref, fetcher);
+    expect(!r.ok && r.message).toContain("Failed to fetch");
+  });
+});
