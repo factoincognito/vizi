@@ -100,7 +100,8 @@ Build order: Clead's proposal, from the design the spec is taken from.
   backlog file goes (`BACKLOG.md`, `docs/BACKLOG.md`,
   `docs/PRODUCT_BACKLOG.md`); how an entry is written and which markers
   are shown; the `STATUS.md` headings; `PROJECTS.md` for an umbrella;
-  opening a private repo with a token or as a folder. A link at the end
+  opening a private repo with a token (the folder way was dropped with
+  PBI-1.14, product owner, 2026-11-04 15:15). A link at the end
   to `docs/BACKLOG-FORMAT.md` on GitHub. The text ships in the page, and
   a test checks that its examples read as stated. A spec change first,
   then the code. Before PBI-1.12.
@@ -128,11 +129,14 @@ Build order: Clead's proposal, from the design the spec is taken from.
 
 ## Explicitly out of scope
 
-- Editing a backlog: vizi only reads; the backlog file is the only
-  source of truth (product owner, 2026-11-03).
-- Reading private repos by URL, or any GitHub token (product owner,
-  2026-11-03). Private projects are opened as a local folder. Planned
-  next as PBI-1.8 (product owner, 2026-11-04).
+- Editing a backlog, moving or reordering cards included: vizi only
+  reads; the backlog file is the only source of truth (product owner,
+  2026-11-03, as the first version's scope). Kept for now on
+  2026-11-04 15:31: changes go through Clead, or by hand in GitHub; may
+  change later if there is a reason.
+- Opening a local project folder (product owner, 2026-11-04 15:15;
+  PBI-1.14 removes it). Private repos open with a saved token (PBI-1.8,
+  PBI-1.11).
 - In the first version: a command-line lint for CI (product owner,
   2026-11-03). Deployment was out of scope in the first version too;
   publishing on GitHub Pages is PBI-1.7 (product owner, 2026-11-04).
