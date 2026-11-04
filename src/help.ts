@@ -46,6 +46,10 @@ function names(list: readonly string[]): Part[] {
 
 export const HELP_TITLE = "How to make your project vizi compatible";
 
+/** Shown right under the title, before step 1 (docs/SPEC.md 3.10, "The read-only sentence"). */
+export const READ_ONLY_SENTENCE =
+  "vizi is a read-only tool: it reads your project's files on GitHub and never changes anything there.";
+
 /** Step 2: the markers that get a column each, in board order (docs/SPEC.md 3.2). */
 export const COLUMN_MARKERS: readonly string[] = ["NOW", "NEXT", "BLOCKED", "LATER", "IDEA"];
 

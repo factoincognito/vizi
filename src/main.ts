@@ -20,7 +20,14 @@ import {
   parseGithubUrl,
   readRepoFile,
 } from "./github";
-import { CLOSING_LINK, HELP_STEPS, HELP_TITLE, type Paragraph, plainText } from "./help";
+import {
+  CLOSING_LINK,
+  HELP_STEPS,
+  HELP_TITLE,
+  type Paragraph,
+  plainText,
+  READ_ONLY_SENTENCE,
+} from "./help";
 import {
   type Block,
   type Inline,
@@ -1091,6 +1098,7 @@ function mountHelp(start: HTMLElement): { control: HTMLElement; view: HTMLElemen
     { id: "help", class: "md help", "aria-labelledby": "help-title", hidden: "" },
     back("help-back-top"),
     title,
+    h("p", { id: "help-read-only" }, READ_ONLY_SENTENCE),
     steps,
     h("p", {}, formatLink),
     back("help-back-end"),
