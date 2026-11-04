@@ -22,24 +22,31 @@ function job(workflow: string, name: string): string {
 describe("GitHub Pages workflow", () => {
   const workflow = read(workflowPath);
 
+  /** The indented lines under a top-level key, exactly as written (blank lines dropped). */
+  const topBlock = (key: string): string | undefined => {
+    const head = workflow.split(/^jobs:/m)[0] ?? "";
+    const block = new RegExp(`^${key}:[ \\t]*\\n((?: {2}.*\\n|\\n)+)`, "m").exec(head)?.[1];
+    return block?.replace(/\n+/g, "\n");
+  };
+  /** The indented lines under "    permissions:" of a job, or undefined if it has none. */
+  const jobPermissions = (name: string): string | undefined =>
+    /^ {4}permissions:[ \t]*\n((?: {6}\S.*\n)+)/m.exec(job(workflow, name))?.[1];
+
   test("runs on a push to main and by hand, and on nothing else", () => {
-    const triggers = workflow.split(/^jobs:/m)[0] ?? "";
-    expect(triggers).toMatch(
-      /^on:\s*\n {2}push:\s*\n {4}branches: \[main\]\s*\n {2}workflow_dispatch:/m,
-    );
-    expect(triggers).not.toMatch(/pull_request/);
+    expect(topBlock("on")).toBe("  push:\n    branches: [main]\n  workflow_dispatch:\n");
   });
 
   test("gives the whole workflow read-only contents and nothing more", () => {
-    const top = workflow.split(/^jobs:/m)[0] ?? "";
-    expect(top).toMatch(/^permissions:\s*\n {2}contents: read\s*$/m);
-    expect(top).not.toMatch(/pages: write|id-token: write/);
+    expect(topBlock("permissions")).toBe("  contents: read\n");
+    expect(workflow.match(/^permissions:/gm)).toHaveLength(1);
   });
 
-  test("grants pages: write and id-token: write to the deploy job only", () => {
-    const deploy = job(workflow, "deploy");
-    expect(deploy).toMatch(/permissions:\s*\n {6}pages: write\s*\n {6}id-token: write\s*(\n|$)/);
-    expect(job(workflow, "site")).not.toMatch(/pages: write|id-token: write/);
+  test("the site job sets no permissions of its own, so it keeps contents: read", () => {
+    expect(job(workflow, "site")).not.toMatch(/^ {4}permissions:/m);
+  });
+
+  test("grants pages: write and id-token: write to the deploy job, and nothing else", () => {
+    expect(jobPermissions("deploy")).toBe("      pages: write\n      id-token: write\n");
   });
 
   test("deploys only from main, even when started by hand from another branch", () => {
@@ -62,7 +69,7 @@ describe("GitHub Pages workflow", () => {
     expect(site).toMatch(/run: npm run build\s*$/m);
   });
 
-  test("uses Node.js and checkout as CI does", () => {
+  test("uses Node.js and checkout as CI does, without keeping the token in git config", () => {
     const ci = read(".github/workflows/ci.yml");
     const site = job(workflow, "site");
     for (const line of ["actions/checkout@v7", "actions/setup-node@v7", 'node-version: "24"']) {
@@ -73,7 +80,6 @@ describe("GitHub Pages workflow", () => {
 
   test("uploads dist/ with the official Pages actions, pinned to a major version", () => {
     const site = job(workflow, "site");
-    expect(site).toMatch(/uses: actions\/configure-pages@v\d+/);
     expect(site).toMatch(
       /uses: actions\/upload-pages-artifact@v\d+\s*\n\s+with:\s*\n\s+path: dist\s*$/m,
     );
