@@ -20,6 +20,7 @@ import {
   parseGithubUrl,
   readRepoFile,
 } from "./github";
+import { CLOSING_LINK, HELP_STEPS, HELP_TITLE, type Paragraph, plainText } from "./help";
 import {
   type Block,
   type Inline,
@@ -1030,6 +1031,88 @@ function mountToken(): HTMLElement {
   );
 }
 
+// --------------------------------------------------------------------- help
+
+/** A paragraph of the help text: its code parts in `<code>`, all set as text. */
+function helpParts(paragraph: Paragraph): Node[] {
+  return paragraph.map((part) =>
+    part.kind === "code" ? h("code", {}, part.text) : document.createTextNode(part.text),
+  );
+}
+
+/**
+ * The help view of docs/SPEC.md 3.10: static text from src/help.ts, built
+ * with calls that set text. Opening it hides the start wrapper only; a load
+ * under way carries on and fills the wrapper unseen, and closing shows the
+ * wrapper as it is by then. No address, no history entry.
+ */
+function mountHelp(start: HTMLElement): { control: HTMLElement; view: HTMLElement } {
+  const control = h(
+    "button",
+    { id: "help-open", type: "button", class: "link-button" },
+    HELP_TITLE,
+  );
+  const title = h("h2", { id: "help-title", tabindex: "-1" }, HELP_TITLE);
+  const back = (id: string) => {
+    const b = h("button", { id, type: "button" }, "Back to vizi");
+    b.addEventListener("click", close);
+    return b;
+  };
+  const steps = h(
+    "ol",
+    { class: "help-steps" },
+    ...HELP_STEPS.map((step) =>
+      h(
+        "li",
+        {},
+        h("h3", {}, ...helpParts(step.title)),
+        ...step.paragraphs.map((p) => h("p", {}, ...helpParts(p))),
+        // A block that may scroll takes the focus, so a keyboard user can scroll it; a <pre> takes no label without a role.
+        h(
+          "pre",
+          { tabindex: "0", role: "region", "aria-label": `Example: ${plainText(step.title)}` },
+          h("code", {}, step.example),
+        ),
+      ),
+    ),
+  );
+  const formatLink = h(
+    "a",
+    {
+      id: "help-format-link",
+      href: CLOSING_LINK.href,
+      target: "_blank",
+      rel: "noopener noreferrer",
+    },
+    ...helpParts(CLOSING_LINK.label),
+  );
+  const view = h(
+    "section",
+    { id: "help", class: "md help", "aria-labelledby": "help-title", hidden: "" },
+    back("help-back-top"),
+    title,
+    steps,
+    h("p", {}, formatLink),
+    back("help-back-end"),
+  );
+
+  function open(): void {
+    start.hidden = true;
+    view.hidden = false;
+    title.focus();
+  }
+  function close(): void {
+    view.hidden = true;
+    start.hidden = false;
+    control.focus();
+  }
+  control.addEventListener("click", open);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !view.hidden) close();
+  });
+  return { control, view };
+}
+
 // --------------------------------------------------------------------- page
 
 function mount(): void {
@@ -1072,8 +1155,12 @@ function mount(): void {
   const filter = h("select", { id: "marker-filter", "aria-label": "Marker" });
   filter.addEventListener("change", renderList);
 
-  app.append(
-    h("h1", {}, "Vizi - backlog visualizer"),
+  // The start content sits in one wrapper, which the help view hides while it is open (3.10).
+  const start = h("div", { id: "start" });
+  const help = mountHelp(start);
+  app.append(h("h1", {}, "Vizi - backlog visualizer"), help.view, start);
+  start.append(
+    help.control,
     h(
       "div",
       { class: "inputs" },

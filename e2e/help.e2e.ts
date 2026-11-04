@@ -171,6 +171,8 @@ test.describe("opening the help view (3.10)", () => {
   }) => {
     await page.goto("/");
     const before = page.url();
+    // The tab starts at about:blank, so compare the history's length before and after opening.
+    const entries = await page.evaluate(() => history.length);
     await openView(page);
     await expect(page.getByRole("region", { name: HELP_TITLE })).toHaveId("help");
     expect(
@@ -182,7 +184,8 @@ test.describe("opening the help view (3.10)", () => {
       ]),
     ).toEqual(["SECTION", "help-title", true, "app"]);
     expect(page.url()).toBe(before);
-    expect(await page.evaluate(() => history.length)).toBe(1);
+    expect(await page.evaluate(() => history.length)).toBe(entries);
+    expect(await page.evaluate(() => location.hash)).toBe("");
   });
 
   test("the page opens on the start page, not the view, after a reload", async ({ page }) => {
