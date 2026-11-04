@@ -22,7 +22,22 @@ import {
   renderInline,
 } from "./markdown";
 import { parse as parseStatus, type StatusResult } from "./status";
+import { createTokenStore, maskToken } from "./token";
 import "./style.css";
+
+/** The browser's local storage, or null where it cannot be used at all (docs/SPEC.md 3.8). */
+function browserStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+const storage = browserStorage();
+const tokens = createTokenStore(storage);
+/** Whether the results on the page were loaded with a token: Forget hides them (3.8). */
+let projectUsedToken = false;
 
 interface Project {
   name: string;
@@ -463,6 +478,7 @@ function build(
 /** After a failed load the previous project's results are not left under the error message. */
 function hideResults(): void {
   project = null;
+  projectUsedToken = false;
   must("results").hidden = true;
   for (const id of ["status", "board", "list-body", "doc-list", "doc-view", "report-body"]) {
     must(id).replaceChildren();
@@ -487,9 +503,20 @@ async function openUrl(address: string): Promise<void> {
     return;
   }
   say("Loading…");
-  const result = await loadRepo(ref, (url) => fetch(url));
+  const token = tokens.current();
+  const result = await loadRepo(
+    ref,
+    (url, init) => {
+      // A load that Forget or a newer load has replaced sends nothing more with the token.
+      if (token !== null && load !== latestLoad) throw new Error("replaced by a newer load");
+      return fetch(url, init);
+    },
+    token,
+  );
   if (load !== latestLoad) return;
   if (!result.ok) {
+    // GitHub refused the token: it is dead, so it is forgotten and cannot break later public loads.
+    if (result.kind === "token-refused") dropToken();
     say(result.message);
     hideResults();
     return;
@@ -506,6 +533,7 @@ async function openUrl(address: string): Promise<void> {
     null,
   );
   show(p);
+  projectUsedToken = token !== null;
   say(
     p.backlog
       ? ""
@@ -550,10 +578,98 @@ async function openFolder(input: HTMLInputElement): Promise<void> {
     read,
   );
   show(p);
+  projectUsedToken = false;
   say(
     p.backlog
       ? ""
       : "No backlog file was found (looked for BACKLOG.md, docs/BACKLOG.md and docs/PRODUCT_BACKLOG.md).",
+  );
+}
+
+// -------------------------------------------------------------------- token
+
+/** Shows or hides the "Token in use" line; the token itself is shown only in its masked form. */
+function renderToken(): void {
+  const token = tokens.current();
+  must("token-status").hidden = token === null;
+  must("token-line").textContent =
+    token === null
+      ? ""
+      : `Token in use: ${maskToken(token)}, ${tokens.isSaved() ? "saved in this browser" : "for this page only"}.`;
+  if (token !== null) must<HTMLInputElement>("token-remember").checked = tokens.isSaved();
+}
+
+/** Drops the token from memory and storage (3.8). Whether results or loads go with it is the caller's call. */
+function dropToken(): void {
+  tokens.forget();
+  must<HTMLInputElement>("token-remember").checked = false;
+  must<HTMLInputElement>("token-input").value = "";
+  renderToken();
+}
+
+/**
+ * What "Forget the token" does, here and when another tab removed the key:
+ * the token goes, the results loaded with it are hidden, and it counts as a
+ * newer load, so the answer of a load still running is dropped (3.1, 3.8).
+ */
+function forgetEverything(message: string): void {
+  latestLoad += 1;
+  if (projectUsedToken) hideResults();
+  must("token-message").textContent = "";
+  say(message);
+}
+
+function useToken(): void {
+  const input = must<HTMLInputElement>("token-input");
+  const remember = must<HTMLInputElement>("token-remember").checked;
+  const result = tokens.use(input.value, remember);
+  input.value = "";
+  const message = must("token-message");
+  if (!result.ok) message.textContent = result.message;
+  else if (remember && !result.saved)
+    message.textContent = "The browser would not save the token; it is kept for this page only.";
+  else message.textContent = "";
+  renderToken();
+}
+
+function mountToken(): HTMLElement {
+  const input = h("input", {
+    id: "token-input",
+    type: "password",
+    autocomplete: "off",
+    spellcheck: "false",
+  });
+  const remember = h("input", { id: "token-remember", type: "checkbox" });
+  const use = h("button", { id: "token-use", type: "button" }, "Use");
+  use.addEventListener("click", useToken);
+  remember.addEventListener("change", () => {
+    tokens.setRemember(remember.checked);
+    renderToken();
+  });
+  const forget = h("button", { id: "token-forget", type: "button" }, "Forget the token");
+  forget.addEventListener("click", () => {
+    dropToken();
+    forgetEverything("The token has been forgotten.");
+  });
+  // Not a <form>: a browser has no form to offer to save the field from (3.8).
+  return h(
+    "div",
+    { id: "token-box" },
+    h("label", { for: "token-input" }, "GitHub token (for private repos)"),
+    h("div", { class: "token-row" }, input, use),
+    h("label", { class: "check" }, remember, " Remember the token"),
+    h(
+      "p",
+      { id: "token-note", class: "muted", "data-testid": "token-note" },
+      "Use a read-only token limited to the repos you need, with an expiry. Other factoincognito Pages sites share this page's storage and can reach the token.",
+    ),
+    h("p", { id: "token-message", role: "status", "data-testid": "token-message" }),
+    h(
+      "div",
+      { id: "token-status", hidden: "" },
+      h("p", { id: "token-line", "data-testid": "token-line" }),
+      forget,
+    ),
   );
 }
 
@@ -602,6 +718,7 @@ function mount(): void {
       "div",
       { class: "inputs" },
       form,
+      mountToken(),
       h("div", {}, h("label", { for: "folder-input" }, "Or a local project folder"), folderInput),
     ),
     h("div", { id: "message", role: "status" }),
@@ -641,3 +758,16 @@ function mount(): void {
 }
 
 mount();
+tokens.start();
+renderToken();
+// Another open tab saved, changed or removed the token (3.8).
+window.addEventListener("storage", (event) => {
+  if (storage === null || (event.storageArea !== null && event.storageArea !== storage)) return;
+  const outcome = tokens.onStorage(event.key, event.newValue);
+  if (outcome === "forgotten") {
+    dropToken();
+    forgetEverything("The token was removed in another tab, so it has been forgotten.");
+  } else if (outcome === "adopted") {
+    renderToken();
+  }
+});

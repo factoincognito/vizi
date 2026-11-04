@@ -73,6 +73,33 @@ button {
   gap: 12px;
 }
 
+.token-row {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+#token-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.inputs label.check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#token-note,
+#token-message {
+  margin: 4px 0;
+  font-size: 0.85rem;
+}
+
+#token-note {
+  color: var(--muted);
+}
+
 #folder-input {
   width: 100%;
 }

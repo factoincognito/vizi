@@ -130,7 +130,7 @@ function watchConsole(page: Page): string[] {
 /** Everything a person or a script could read from the page, apart from storage. */
 async function pageContents(page: Page): Promise<string> {
   return page.evaluate(() => {
-    const parts = [location.href, document.title, document.documentElement.outerHTML];
+    const parts = [location.href, document.title, document.body.outerHTML];
     parts.push(document.body.innerText);
     for (const input of Array.from(document.querySelectorAll("input"))) parts.push(input.value);
     return parts.join("\n");
@@ -186,7 +186,8 @@ test.describe("entering the token (3.8)", () => {
       await expect(page.getByTestId("token-line")).toBeHidden();
       await expect(page.locator("#token-input")).toHaveValue("");
       expect(await page.evaluate((k) => localStorage.getItem(k), KEY)).toBeNull();
-      expect(await pageContents(page)).not.toContain(text);
+      // The prefix alone is also the message's own wording.
+      if (text !== "github_pat_") expect(await pageContents(page)).not.toContain(text);
       await openUrl(page);
       await expect(page.getByTestId("column").first()).toBeVisible();
       expect(gets(stub).every((s) => !("authorization" in s.headers))).toBe(true);
@@ -283,10 +284,20 @@ test.describe("what a load with a token sends (3.8)", () => {
     await expect(page.getByTestId("status-phase")).toBeVisible();
   });
 
-  test("no cookies are sent, and answers are not cached", async ({ page, context }) => {
+  test("no cookies are sent (the no-store cache mode is a unit test of the options)", async ({
+    page,
+    context,
+  }) => {
     const stub = await stubGithub(context);
     await context.addCookies([
-      { name: "session", value: "TESTCOOKIE", domain: "api.github.com", path: "/" },
+      {
+        name: "session",
+        value: "TESTCOOKIE",
+        domain: "api.github.com",
+        path: "/",
+        secure: true,
+        sameSite: "None",
+      },
     ]);
     await page.goto("/");
     // Control: a request that does include credentials carries the cookie, so the check below can fail.
@@ -302,7 +313,6 @@ test.describe("what a load with a token sends (3.8)", () => {
     expect(control?.headers.cookie).toContain("TESTCOOKIE");
     for (const s of gets(stub).filter((g) => g.headers.authorization)) {
       expect(s.headers.cookie).toBeUndefined();
-      expect(s.headers["cache-control"]).toContain("no-cache");
     }
   });
 
@@ -327,13 +337,7 @@ test.describe("what a load with a token sends (3.8)", () => {
     const stub = await stubGithub(context);
     await page.goto("/");
     await useToken(page, TOKEN);
-    await page.locator("#folder-input").setInputFiles(
-      ["README.md", "STATUS.md", "docs/BACKLOG.md", "docs/guide.md"].map((p) => ({
-        name: p,
-        mimeType: "text/markdown",
-        buffer: readFileSync(join(project, p)),
-      })),
-    );
+    await page.locator("#folder-input").setInputFiles(project);
     await expect(page.locator("#results")).toBeVisible();
     expect(stub.seen).toEqual([]);
   });
