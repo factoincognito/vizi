@@ -41,8 +41,8 @@ const isName = (s: string) => NAME.test(s) && s !== "." && s !== "..";
 /** The Repository field's message for a text it cannot read (docs/SPEC.md 3.1, "The Repository field"). */
 export const REPOSITORY_MESSAGE =
   "Type the repository as <owner>/<repo>, for example fomo-t/fomo-f, or paste its GitHub address (github.com/<owner>/<repo>, optionally with /tree/<branch>).";
-/** A branch whose name, decoded, holds #, % or ?, or that does not decode. */
-export const BRANCH_MESSAGE = "vizi cannot open this branch: its name holds #, % or ?.";
+/** A branch whose name, decoded, holds #, % or ?, or that does not decode: 3.1's text, also for a decoded ?. */
+export const BRANCH_MESSAGE = "vizi cannot open this branch: its name holds # or %.";
 /** A repo name ending in .git: a clone address. */
 export const CLONE_MESSAGE =
   "That is a clone address. Type the repository as <owner>/<repo>, without .git.";
@@ -80,14 +80,18 @@ export function readRepository(input: string): RepositoryRead {
   if (host) rest = rest.slice(host.length);
   else if (withScheme) return refused("form", REPOSITORY_MESSAGE);
 
-  const m = /^([^/]+)\/([^/]+)(?:\/tree\/(.+?))?\/?$/.exec(rest);
+  // After the repo: nothing, one "/", or "/tree/" and the branch.
+  const m = /^([^/]+)\/([^/]+)(?:\/tree\/(.*)|\/)?$/.exec(rest);
   const owner = m?.[1];
   const repo = m?.[2];
   if (!owner || !repo || !isName(owner) || !isName(repo)) {
     return refused("form", REPOSITORY_MESSAGE);
   }
+  const afterTree = m[3];
+  // The branch is everything after /tree/, one trailing / dropped, and is not empty (3.1).
+  const written = afterTree?.endsWith("/") ? afterTree.slice(0, -1) : afterTree;
+  if (written === "") return refused("form", REPOSITORY_MESSAGE);
   if (repo.toLowerCase().endsWith(".git")) return refused("clone", CLONE_MESSAGE);
-  const written = m[3];
   if (written === undefined) return { ok: true, ref: { owner, repo, branch: null } };
   let branch: string;
   try {
