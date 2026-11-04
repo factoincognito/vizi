@@ -529,19 +529,29 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
   each optionally followed by `/tree/<branch>`, and then by one `/`.
   Owner and repo follow 3.1's name rule: letters, digits, `.`, `_` and
   `-`, and neither is `.` or `..`. The branch is everything after
-  `/tree/`, one trailing `/` dropped, non-empty, as 3.1 reads it; the
-  text holds no `?` or `#` anywhere. A text that starts with
-  `github.com/`, `www.github.com/` or `https://`, in any case, is read
-  only as form 2, never as form 1, so `github.com/acme` is refused (no
-  repo), and is not taken for an owner named `github.com`.
-  - **The branch is not decoded**, and a `%` in it is refused, with its
-    own message (below). GitHub's own tree addresses percent-encode a
-    branch's `#` and `%` (for example `/tree/a%23b` for the branch
-    `a#b`). Taken as written, such an address would load a branch named
-    `a%23b` and fail with a 404. Decoding it would give a name with `#`
-    or `%`, which the page cannot open (3.13, "Names the page cannot
-    open"), and which 3.14 does not save. So one rule holds across the
-    page: a branch with `#` or `%` is not opened.
+  `/tree/`, one trailing `/` dropped, non-empty, as 3.1 reads it, then
+  decoded (below); the text holds no `?` or `#` anywhere. A text that
+  starts with `github.com/`, `www.github.com/` or `https://`, in any
+  case, is read only as form 2, never as form 1, so `github.com/acme` is
+  refused (no repo), and is not taken for an owner named `github.com`.
+  - **The branch is decoded once** with `decodeURIComponent`, and the
+    decoded name is the branch. A copied address percent-encodes every
+    character outside ASCII, and characters such as `<`, `>`, `"`, `{`
+    and `}`, which git allows in a branch name; GitHub's own links do
+    so, and so does the address bar's copy. So a branch `fix-å` arrives
+    as `/tree/fix-%C3%A5`, and `feat/x` may arrive as `/tree/feat%2Fx`;
+    decoded, they are `fix-å` and `feat/x`, which the page opens (the
+    requests encode them again, 3.1 "Encoding"). A branch typed
+    unencoded, such as `fix-å`, has no `%` and decodes to itself.
+  - **The branch is refused**, with its own message (below), when
+    decoding fails (a malformed `%`, such as `a%E0`, or a lone `%`, such
+    as `50%`), or when the decoded name holds `#`, `%` or `?` (from
+    `%23`, `%25` or `%3F`). Those are the names the page cannot open:
+    3.13 disables them in the picker ("Names the page cannot open"; `?`
+    as a defence, since git refuses it), and 3.14 does not save them.
+    So one rule holds across the page: a branch whose name holds `#`,
+    `%` or `?` is not opened, and every other name the picker lists or
+    the saved list holds can also be opened by this field.
   - **A repo ending in `.git` is refused**, without regard to case, with
     its own message (below). `github.com/acme/widgets.git` is a clone
     address, which people copy from GitHub's "Code" button; it passes
@@ -568,8 +578,9 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
   (github.com/owner/repo, optionally with /tree/<branch>)." An
   empty field gives the same message. Two cases have their own message,
   with the same effect (no request, counted as a load):
-  - a `%` in the branch: "vizi cannot open this branch: its name holds
-    # or %, which an address writes as %23 or %25.";
+  - a branch refused as above: "vizi cannot open this branch: its name
+    holds # or %.". (A decoded `?` gets the same message; it comes only
+    from `%3F` and git refuses it, so no real branch meets it.)
   - a repo ending in `.git`: "That is a clone address. Type the
     repository as owner/repo, without .git."
 
@@ -605,6 +616,9 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
   - unit (`src/github.test.ts`), the reader: `acme/widgets`;
     `acme/widgets/`; `  acme/widgets  `; `acme/widgets/tree/main`;
     `acme/widgets/tree/feat/new-thing/` (branch `feat/new-thing`);
+    `acme/widgets/tree/fix-%C3%A5` (branch `fix-å`);
+    `github.com/acme/widgets/tree/feat%2Fx` (branch `feat/x`);
+    `acme/widgets/tree/fix-å`, typed unencoded (branch `fix-å`);
     `https://github.com/acme/widgets`, with `/tree/<branch>`, with a
     trailing `/`, and with spaces around; `github.com/acme/widgets`,
     `www.github.com/acme/widgets` and
@@ -620,15 +634,21 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
     `https://example.com/acme/widgets`; `gist.github.com/acme/widgets`;
     `github.com/acme`; `github.com/acme/widgets/issues`;
     `javascript:alert(1)`; and, with their own messages,
-    `acme/widgets/tree/a%23b`, `github.com/acme/widgets/tree/50%25`,
-    `acme/widgets.git`, `github.com/acme/widgets.GIT` and
+    `acme/widgets/tree/a%23b`, `acme/widgets/tree/50%25`,
+    `acme/widgets/tree/a%E0`, `acme/widgets/tree/50%`,
+    `acme/widgets/tree/a%3Fb`, `acme/widgets.git`,
+    `github.com/acme/widgets.GIT` and
     `https://github.com/acme/widgets.git/tree/main`. Today's refused
     case `acme/widgets` moves to the accepted cases;
   - browser: the label "Repository" for `#url-input` and the
     placeholder "owner/repo"; `acme/widgets`, `github.com/acme/widgets`
     and `https://github.com/acme/widgets` make the same requests; the short
     form with `/tree/<branch>` makes no request 1; a refused text makes
-    no request and shows the message; with a token held for `acme`,
+    no request and shows the message; `acme/widgets/tree/fix-%C3%A5`
+    makes request 2 for the branch `fix-å` (sent encoded once, as
+    `fix-%C3%A5`) and the heading reads `acme/widgets (fix-å)`;
+    `acme/widgets/tree/a%23b` makes no request and shows the branch
+    message; with a token held for `acme`,
     `ACME/widgets` uses it; the Owner prefill follows both forms;
     "Open in vizi" writes `owner/repo` into the field; the token, CSP
     and umbrella tests that open a project by address pass with either
