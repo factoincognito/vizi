@@ -632,7 +632,9 @@ test.describe("a second tab (3.8)", () => {
     );
     await expect(line(page, "fomo")).toBeVisible();
     await other.evaluate((k) => localStorage.removeItem(k), KEY);
-    await expect(anyLine(page)).toBeHidden();
+    // Two lines show until the event arrives, and toBeHidden fails at once on two
+    // matches (strict mode) instead of waiting: count them instead.
+    await expect(anyLine(page)).toHaveCount(0);
   });
 
   test("clearing all of storage there counts as the key removed", async ({ page, context }) => {
@@ -645,7 +647,8 @@ test.describe("a second tab (3.8)", () => {
     const other = await context.newPage();
     await other.goto("/");
     await other.evaluate(() => localStorage.clear());
-    await expect(anyLine(page)).toBeHidden();
+    // Two lines until the event arrives: toHaveCount waits, toBeHidden would fail on two matches.
+    await expect(anyLine(page)).toHaveCount(0);
     await expect(page.locator("#results")).toBeHidden();
   });
 
