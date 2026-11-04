@@ -133,8 +133,9 @@ Adam's change-control model (stated 2026-07-23, updated 2026-09-30):
      only touch docs or memory files: reviewed by Crog.
    - Architectural specs also need Adam's explicit intent approval,
      given in chat and recorded by Clead as a comment on the PR.
-   - Everything else (backlog, changelog, notes, wording): Clead's own
-     call, no review gate, still through a PR.
+   - Everything else (backlog, changelog, `STATUS.md`,
+     `docs/NEXT_SESSION.md`, notes, wording): Clead's own call, no
+     review gate, still through a PR.
 4. **Merging is delegated.** Crog merges once CI is green and any
    required review (and intent approval) is in place: verdict comment
    first, then squash-merge. Clead reports merges to Adam. Adam keeps
@@ -175,6 +176,14 @@ Adam's change-control model (stated 2026-07-23, updated 2026-09-30):
      rule 5. In these cases a manual Crog verdict on a head prevails over
      any CI verdict on it. A verdict is not redone when the base branch
      only moves on.
+   - **Skipped.** The workflow posts no review on a head whose changed
+     files, compared with the PR's base branch, are only
+     `docs/BACKLOG.md`, `CHANGELOG.md`, `STATUS.md` and
+     `docs/NEXT_SESSION.md` (`.github/reviewer/review.mjs`, #78; Adam,
+     2026-11-04 23:02). Such a head needs no review under rule 3, and no
+     manual Crog agent is started for it, unless the change is of a kind
+     rule 3 sends to review; then it is reviewed as under **Not
+     reviewed**.
    - **Disagreement.** The workflow reads only the diff and the review
      documents, so it cannot read an author's reply, and the inputs of
      `memory/standards.md` section 7 stay as they are. An author who
