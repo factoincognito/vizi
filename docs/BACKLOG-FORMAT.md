@@ -4,7 +4,8 @@ The format of the backlog file that vizi reads, and of the `STATUS.md`
 it reads next to it. `docs/SPEC.md` is the spec of the page itself.
 
 **Date:** 2026-11-04
-**Status:** in review with `docs/SPEC.md` (PR #3).
+**Status:** in effect with `docs/SPEC.md` (merged in PR #3); read by
+`src/backlog.ts` and `src/status.ts`.
 
 ## What is decided, and what is Clead's design
 
@@ -332,10 +333,14 @@ and lines outside list items are ignored. Otherwise each paragraph
 read after its list marker and any spaces.
 
 **S4. None.** A blocker whose text is `None` on its own, or starts with
-`None.`, is not a blocker: the page shows "None", and the rest of its
-text, if any, as a remark under it, not highlighted. Any other text that
+`None.`, is not a blocker: the page shows "None", followed by ` — ` and
+the rest of its text, if any, as a remark, not highlighted (the remarks
+of several such items are joined with a space). Any other text that
 starts with `None`, such as `None of the CI runners start.`, is a
-blocker. Other blockers in the same section are still read.
+blocker. Other blockers in the same section are still read, and shown
+after the "None". A `## Blockers` section with neither a `None` item
+nor a blocker shows "No blockers listed"; a missing `## Blockers`
+heading shows "not given" (S2).
 
 **S5. Waiting on the product owner.** A blocker waits on the product
 owner, and is highlighted, when its text starts with one of the prefixes
@@ -382,7 +387,8 @@ More Blockers sections, and how they are read:
 
 | Blockers text | Read as |
 |---|---|
-| `None.` | no blockers |
+| `None.` | no blockers; the page shows "None" |
+| (nothing under the heading) | no blockers; the page shows "No blockers listed" |
 | `None. The release waits until the next test run passes.` | no blockers; the remark "The release waits until the next test run passes." (S4) |
 | `None of the CI runners start.` | one blocker, not highlighted (S4) |
 | `CI: red on main.` | one blocker, not highlighted (S5) |
