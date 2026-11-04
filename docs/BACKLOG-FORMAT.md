@@ -220,16 +220,21 @@ How each line comes out:
 Clead's design. The parser of PBI-1.1 read these cases this way, its
 code review accepted each reading, and they are the rule from now on.
 
-1. **Text after `-->`** keeps the line's own indent and is read by every
-   rule except R7 and R9: it never opens a fence or a comment. So
-   `<!-- x --> - **[NOW] AB-1** — a.` is an indented marked item, Not
-   read (section 3), and `<!-- a --><!-- b --> - **[NOW] AB-1** — a.`
-   leaves the text `<!-- b --> - **[NOW] AB-1** — a.`, which is not a
-   list item: AB-1 is not shown and not reported. A comment that should
-   hide an entry is best written on its own line.
-2. **Other text inside the bold** (R2) gives one warning for it. The ID
-   after such a bold is not read, and the dash check (R3) applies as
-   usual, so the entry usually also has no separator.
+1. **Text after `-->`** keeps the indent of the line the `-->` stands
+   on, whether the comment opened on that line or on an earlier one, and
+   is read by every rule except R7 and R9: it never opens a fence or a
+   comment. So `<!-- x --> - **[NOW] AB-1** — a.` is an indented marked
+   item, Not read (section 3); so is the last line of `<!--`,
+   `  hidden`, `  -->- **[NOW] AB-1** — a.`, which keeps that line's two
+   spaces. `<!-- a --><!-- b --> - **[NOW] AB-1** — a.` leaves the text
+   `<!-- b --> - **[NOW] AB-1** — a.`, which is not a list item: AB-1 is
+   not shown and not reported.
+2. **Other text inside the bold** (R2) gives one warning for it, and
+   no ID is read from the bold. The dash check (R3) applies as usual:
+   `- **[NOW] ABC-12 urgent** — Fix it.` has its separator right after
+   the bold and gets only this warning, while
+   `- **[NOW] urgent** AB-9 — Fix it.` has `AB-9` between the bold and
+   the dash, so it also has no separator.
 3. **A bold marker that never closes** (`**[NOW]` with no closing `**`
    on the head) is Not read (section 3): the line is not bold.
 4. **An indented fence line directly under the entry line** ends the
@@ -237,9 +242,10 @@ code review accepted each reading, and they are the rule from now on.
 5. **A dash at the very end of the head** (` —` with nothing after it)
    is not a separator: the separator needs a space on both sides (R3).
 6. **Description lines keep their indent** as read (R4). When a
-   description is shown, its common leading indent is removed first, so
-   lines indented four or more spaces under an entry are not shown as
-   code (`docs/SPEC.md` 3.7).
+   description is shown, the smallest indent of its non-blank lines below
+   the head (not counting the rest of the head, which has none) is
+   removed from those lines first, so lines indented four or more spaces
+   under an entry are not shown as code (`docs/SPEC.md` 3.7, item 2).
 7. **Notes that never close** give only that warning (section 3), not a
    missing-separator warning as well.
 
@@ -248,7 +254,8 @@ In `STATUS.md`:
 8. **A field heading that appears twice:** the first one is read, the
    second is ignored.
 9. **A fence inside a blocker's list item** (S3): a line at column 0
-   inside that fence ends the blocker, as any column-0 line does.
+   inside that fence ends the blocker, as any column-0 line does; the
+   fence lines after it belong to no blocker and are dropped.
 
 ---
 
@@ -287,7 +294,8 @@ inside a fence (R7) are never report items.
   - an HTML comment that never closes (R9);
   - what `STATUS.md` could not give (S2).
 
-Further recommendations, which the report does not check: a legend of
+Further recommendations, which the report does not check: a comment
+that hides an entry written on its own line (edge case 1); a legend of
 the file's markers near the top, as the template has; one entry per
 item, not nested; a short first sentence after the dash, since it is
 the card's title.

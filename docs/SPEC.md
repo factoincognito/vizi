@@ -265,9 +265,11 @@ the tests check:
    into elements: it is shown as text, escaped. HTML comments
    (`<!-- … -->`) are dropped. No script, style, event handler or
    element from the source ever reaches the page.
-2. **Indent.** A description's common leading indent is removed before
-   it is rendered, so an entry's indented description lines are not
-   turned into indented code (`docs/BACKLOG-FORMAT.md`, edge case 6).
+2. **Indent.** Before a description is rendered, the smallest indent
+   of its non-blank lines below the head (not counting the rest of the
+   head, which has none) is removed from those lines, so an entry's
+   indented description lines are not turned into indented code
+   (`docs/BACKLOG-FORMAT.md`, edge case 6).
 3. **What Markdown becomes.** Headings, paragraphs, lists, emphasis and
    strong emphasis, code spans, fenced code, block quotes and links.
    Anything else (tables, footnotes, and so on) is shown as its plain
@@ -287,7 +289,7 @@ the tests check:
    link's text with no link. Links to other sites open in a new tab with
    `rel="noopener noreferrer"`; opening one is the user's own action.
 5. **No loads from content.** Images are never loaded: `![alt](url)` is
-   shown as a link with the alt text, under rule 3, or as the alt text.
+   shown as a link with the alt text, under item 4, or as the alt text.
    Nothing in the content makes the page request anything: no images,
    frames, styles, fonts or scripts. The page's only requests are those
    of 3.1, after the user enters a URL (2.3).
