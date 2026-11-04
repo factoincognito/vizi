@@ -63,6 +63,8 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Spec: the branch picker (PBI-1.15) (#59).
 - Backlog: PBI-1.10 gains the markdown timing test (#60).
 - Spec: the saved repos list (PBI-1.12) (#61).
+- PO-68 pilot, part A: Crog's pull request review runs in CI as a script on the Claude Agent SDK (`.github/workflows/crog-review.yml`, `.github/reviewer/`), with `THIRD-PARTY-NOTICES.md` (#68).
+- PO-68 pilot, part B: the CI reviewer is Crog for this repo's PRs during the pilot (`CLAUDE.md` rule 7, `memory/standards.md` section 7) (#70).
 
 ## Project created
 
