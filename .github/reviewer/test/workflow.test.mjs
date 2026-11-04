@@ -43,7 +43,10 @@ test("permissions: read code, write PR comments, nothing else", () => {
 
 test("one review per PR at a time", () => {
   assert.match(wf.concurrency.group, /pull_request\.number/);
-  assert.equal(wf.concurrency["cancel-in-progress"], true);
+  // A new push replaces a running review; an edit of the title or description
+  // does not cancel a review whose model call may already be paid for.
+  const cancel = String(wf.concurrency["cancel-in-progress"]);
+  assert.match(cancel, /github\.event\.action == 'synchronize'/);
 });
 
 test("does not use the Claude Code GitHub Action, and never merges, approves or pushes", () => {

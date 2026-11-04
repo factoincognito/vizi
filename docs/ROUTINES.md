@@ -45,6 +45,13 @@ organization's monthly API credits (product-office PO-68).
   the sessions.
 - Whether this verdict counts as Crog's required review is set in
   `CLAUDE.md`, not here.
+- Known limit: the script and `instructions.md` come from the PR's own
+  checkout (only the three documents come from the base commit), so a PR
+  that changes `.github/reviewer/**` or the workflow is reviewed by its own
+  changed reviewer. Such a PR needs a review outside CI.
+- A run that fails after its model call (no verdict line, the budget cap)
+  posts nothing, so the next `synchronize` or `edited` event runs it again,
+  each up to the budget cap. Acceptable for the pilot; watch the spend.
 
 ## Target state
 
@@ -62,6 +69,9 @@ The review Routine must receive **only**:
 - The PR diff
 - `docs/SPEC.md`
 - `memory/standards.md`
+- `CLAUDE.md` (added for the CI reviewer, PO-68 pilot, by the product owner's
+  brief of 2026-11-04; `memory/standards.md` section 7 still lists three inputs
+  and changes in the PR that makes the CI verdict count)
 
 It must **not** receive:
 - The implementation conversation history

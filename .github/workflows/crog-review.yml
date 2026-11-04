@@ -18,10 +18,12 @@ permissions:
   contents: read
   pull-requests: write
 
-# One review per pull request at a time; a newer push cancels the older run.
+# One review per pull request at a time. A newer push cancels the older run; an
+# edit of the title or description does not, because the older run's model call
+# may already be paid for (the edit's run waits, and finds the verdict posted).
 concurrency:
   group: crog-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event.action == 'synchronize' }}
 
 jobs:
   review:

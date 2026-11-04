@@ -53,5 +53,5 @@ Not shipped as such; they build, lint and test the page. Licences read with
 | `yaml` | 2.9.1 | ISC |
 
 Their transitive dependencies (root `package-lock.json`) have not been checked
-licence by licence. Open: `docs/NEXT_SESSION.md`, entry 3 (this also covers
-Vite's code that ends up inside the built page).
+licence by licence. Open: `docs/NEXT_SESSION.md`, entry 3 (Vite's own code
+inside the built page has no entry here yet).
