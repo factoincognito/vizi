@@ -144,6 +144,20 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
     it; kept in the browser, addresses only, never tokens; other
     factoincognito Pages sites (trusted, under the Pages rule) could
     read the repo names, not their contents. How vizi does it is 3.14.
+14. His decision of 2026-11-04 (17:07, in chat, "Apyr", on Clead's
+    recommendation, after his 17:04 "wouldn't it be better to just have
+    a GitHub repo name field where the user puts <owner>/<reponame>";
+    recorded in the product office's `DECISIONS.md`, PR #399, and as
+    PBI-1.17 in `docs/BACKLOG.md`): the address field becomes one
+    "Repository" field where the user types `owner/repo` (for example
+    `fomo-t/fomo-f`); a full GitHub address pasted into it, with or
+    without `/tree/<branch>`, still works, and the token is still picked
+    by the owner. It replaces his decision of 16:36 to prefill
+    `https://github.com/`. He put it in the unattended run of that night
+    at 19:18 ("All"; recorded in the product office's `DECISIONS.md`,
+    and in this repo's backlog and `docs/NEXT_SESSION.md` by PR #64),
+    built after PBI-1.14 and before PBI-1.16. How vizi does it is 3.1,
+    "The Repository field".
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -184,6 +198,9 @@ project's documentation.
   - Replaced on 2026-11-04 (15:15; item 9), the sentence above on
     local files and the folder: no local files and no folder. vizi
     opens projects from GitHub only, by address.
+  - Added on 2026-11-04 (17:07; item 14): the address is typed into one
+    "Repository" field as `owner/repo`, or pasted as the URL (3.1, "The
+    Repository field"; PBI-1.17).
 - A project's status is read from its `STATUS.md`.
 - It is a generated web page, built with the template's web pack
   (`languages/web/`).
@@ -437,7 +454,8 @@ the points the text above it leaves open.
 
 **As built (PBI-1.2).**
 
-- **The address.** The input is trimmed. Only
+- **The address** (replaced from PBI-1.17 by "The Repository field"
+  below). The input is trimmed. Only
   `https://github.com/<owner>/<repo>` is read (`https`, the host
   `github.com` exactly), optionally followed by `/tree/<branch>` and a
   trailing `/`, with no `?` or `#`. Owner and repo are letters, digits,
@@ -468,6 +486,180 @@ the points the text above it leaves open.
   truncated, the page reads the files it got, says so under the address,
   and adds an Info item to the report: the documentation list and the
   code-span links may be incomplete.
+
+**The Repository field (PBI-1.17).** The product owner's decision of
+2026-11-04 (17:07; see "What is decided", item 14): one "Repository"
+field where the user types `owner/repo`, for example `fomo-t/fomo-f`; a
+full GitHub address pasted into it, with or without `/tree/<branch>`,
+still works, and the token is still picked by the owner. It replaces
+the 16:36 prefill of `https://github.com/`, which is not built. Clead's
+design, within that decision; it replaces "The address" of "As built"
+above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
+(`docs/BACKLOG.md`).
+
+- **The field.** The address field keeps its id `#url-input`, its form
+  `#url-form`, its "Open" button `#open-url`, `type="text"` and
+  `autocomplete="off"`, and gains `spellcheck="false"` and
+  `autocapitalize="none"` (a phone would capitalise the owner).
+  - Its label, a `<label for="url-input">`, reads "Repository".
+  - Its placeholder reads "owner/repo".
+  - It starts empty, and the page never fills it at startup.
+  - Placement before PBI-1.16: where today's label "Public GitHub repo"
+    is, which it replaces. From PBI-1.16 (3.12): under the section's
+    heading `h2` "Open a project from GitHub", the label "Repository"
+    (13 px, muted, as the field labels of "Add a token" are) sits above
+    the row of the field and "Open", 4 px above it, and the heading 10
+    px above the label. The heading names the section; the label names
+    the field.
+- **What it accepts.** The text is trimmed at both ends. Then it is
+  read as one of these, and nothing else:
+  1. `<owner>/<repo>`;
+  2. `<host>/<owner>/<repo>`, where `<host>` is `github.com` or
+     `www.github.com`, with or without `https://` in front: so
+     `https://github.com/<owner>/<repo>` (as 3.1 reads an address
+     today), `github.com/<owner>/<repo>`,
+     `https://www.github.com/<owner>/<repo>` and
+     `www.github.com/<owner>/<repo>`. People copy addresses without the
+     scheme (Clead's call). The scheme and the host are compared
+     without regard to case: they are lower-cased, then compared, so
+     `GitHub.com/acme/widgets` and `HTTPS://GITHUB.COM/acme/widgets`
+     are accepted, as a browser reads a host. `http://` is not
+     accepted;
+
+  each optionally followed by `/tree/<branch>`, and then by one `/`.
+  Owner and repo follow 3.1's name rule: letters, digits, `.`, `_` and
+  `-`, and neither is `.` or `..`. The branch is everything after
+  `/tree/`, one trailing `/` dropped, non-empty, as 3.1 reads it, then
+  decoded (below); the text holds no `?` or `#` anywhere. A text that
+  starts with `github.com/`, `www.github.com/` or `https://`, in any
+  case, is read only as form 2, never as form 1, so `github.com/acme` is
+  refused (no repo), and is not taken for an owner named `github.com`.
+  - **The branch is decoded once** with `decodeURIComponent`, and the
+    decoded name is the branch. A copied address percent-encodes every
+    character outside ASCII, and characters such as `<`, `>`, `"`, `{`
+    and `}`, which git allows in a branch name; GitHub's own links do
+    so, and so does the address bar's copy. So a branch `fix-å` arrives
+    as `/tree/fix-%C3%A5`, and `feat/x` may arrive as `/tree/feat%2Fx`;
+    decoded, they are `fix-å` and `feat/x`, which the page opens (the
+    requests encode them again, 3.1 "Encoding"). A branch typed
+    unencoded, such as `fix-å`, has no `%` and decodes to itself.
+  - **The branch is refused**, with its own message (below), when
+    decoding fails (a malformed `%`, such as `a%E0`, or a lone `%`, such
+    as `50%`), or when the decoded name holds `#`, `%` or `?` (from
+    `%23`, `%25` or `%3F`). Those are the names the page cannot open:
+    3.13 disables them in the picker ("Names the page cannot open"; `?`
+    as a defence, since git refuses it), and 3.14 does not save them.
+    So one rule holds across the page: a branch whose name holds `#`,
+    `%` or `?` is not opened, and every other name the picker lists or
+    the saved list holds can also be opened by this field.
+  - **A repo ending in `.git` is refused**, without regard to case, with
+    its own message (below). `github.com/acme/widgets.git` is a clone
+    address, which people copy from GitHub's "Code" button; it passes
+    the name rule as the repo `widgets.git`, and would make requests
+    that end in a 404. Whether GitHub allows a repo name that ends in
+    `.git` at all was not checked; if one exists, vizi cannot open it
+    by this field.
+  - **`<owner>/<repo>/tree/<branch>` without the host is accepted**
+    (Clead's call): it is the same grammar with or without the host, a
+    repo name cannot hold `/`, so the form cannot mean anything else, and
+    a user who types the short form and a branch gets what the long form
+    gives.
+  - Not accepted (Clead's call): `http://`, any other scheme, any other
+    host (`gist.github.com`, `example.com`, …), a leading `/`, anything
+    after the repo but `/tree/<branch>` (such as `/issues` or
+    `/blob/…`), and `?` or `#`.
+  - The owner is used as written in the requests (GitHub reads it
+    without regard to case, section 4, item 18) and in lower case to
+    pick the token (3.8).
+- **Errors.** Any other text makes no request, counts as a load (3.1,
+  "Two loads at once": the results are cleared and hidden, and an older
+  load's answer is dropped), and `#message` says: "Type the repository
+  as owner/repo, for example fomo-t/fomo-f, or paste its GitHub address
+  (github.com/owner/repo, optionally with /tree/<branch>)." An
+  empty field gives the same message. Two cases have their own message,
+  with the same effect (no request, counted as a load):
+  - a branch refused as above: "vizi cannot open this branch: its name
+    holds # or %.". (A decoded `?` gets the same message; it comes only
+    from `%3F` and git refuses it, so no real branch meets it.)
+  - a repo ending in `.git`: "That is a clone address. Type the
+    repository as owner/repo, without .git."
+
+  These replace today's "Enter a public repo address like
+  https://github.com/<owner>/<repo>, optionally followed by
+  /tree/<branch>.". The tests that assert today's message change with
+  it: `e2e/csp.e2e.ts` (lines 97 and 109) and `e2e/page.e2e.ts` (lines
+  603 and 607, at `main` `90405fb`) check "Enter a public repo address";
+  they check the new message instead, with the same input, `not an
+  address`, which stays refused.
+- **The load.** Accepted text gives the reference `{owner, repo,
+  branch}` (branch `null` without `/tree/`), and the load is the one of
+  3.1, unchanged: its requests, messages, the newest-wins rule, and the
+  token held for the owner, compared in lower case (3.8, "Which token a
+  load uses"). The short form and the long form of one repo load the
+  same way.
+- **Where other parts set or read the field.**
+  - The umbrella view's "Open in vizi" (3.9) puts `<owner>/<repo>`,
+    the field's own form, into the field (in place of
+    `https://github.com/<owner>/<repo>`), then loads that repo as it
+    does today.
+  - The token Owner prefill (3.8, "Which owner a token is for") reads
+    the field with the same reader: while the user has not typed in the
+    Owner field, it holds the owner of the field's text whenever that
+    text is accepted, in either form.
+  - The branch picker (3.13) and the saved repos list (3.14) neither
+    read nor write the field, so they are not affected.
+- **One reader.** `src/github.ts` exports one function that reads the
+  field's text into a reference, used for submitting the form, for the
+  Owner prefill and nowhere else; the old `parseGithubUrl` is replaced
+  by it.
+- **Tests** (test first):
+  - unit (`src/github.test.ts`), the reader: `acme/widgets`;
+    `acme/widgets/`; `  acme/widgets  `; `acme/widgets/tree/main`;
+    `acme/widgets/tree/feat/new-thing/` (branch `feat/new-thing`);
+    `acme/widgets/tree/fix-%C3%A5` (branch `fix-å`);
+    `github.com/acme/widgets/tree/feat%2Fx` (branch `feat/x`);
+    `acme/widgets/tree/fix-å`, typed unencoded (branch `fix-å`);
+    `https://github.com/acme/widgets`, with `/tree/<branch>`, with a
+    trailing `/`, and with spaces around; `github.com/acme/widgets`,
+    `www.github.com/acme/widgets` and
+    `https://www.github.com/acme/widgets/tree/main`, each the same
+    reference as the `https://github.com` form; `GitHub.com/acme/widgets`
+    and `HTTPS://GITHUB.COM/acme/widgets` accepted, the same reference;
+    `Acme/Widgets` kept as written. Refused: empty; `acme`; `acme/`;
+    `/acme/widgets`; `acme/widgets/tree/`; `acme/widgets/issues`;
+    `acme/widgets/blob/main/x`; `acme/widgets?x=1`; `acme/widgets#x`;
+    `ac me/widgets`; `../..`; `./widgets`; `acme/..`;
+    `http://github.com/acme/widgets`;
+    `http://www.github.com/acme/widgets`;
+    `https://example.com/acme/widgets`; `gist.github.com/acme/widgets`;
+    `github.com/acme`; `github.com/acme/widgets/issues`;
+    `javascript:alert(1)`; and, with their own messages,
+    `acme/widgets/tree/a%23b`, `acme/widgets/tree/50%25`,
+    `acme/widgets/tree/a%E0`, `acme/widgets/tree/50%`,
+    `acme/widgets/tree/a%3Fb`, `acme/widgets.git`,
+    `github.com/acme/widgets.GIT` and
+    `https://github.com/acme/widgets.git/tree/main`. Today's refused
+    case `acme/widgets` moves to the accepted cases;
+  - browser: the label "Repository" for `#url-input` and the
+    placeholder "owner/repo"; `acme/widgets`, `github.com/acme/widgets`
+    and `https://github.com/acme/widgets` make the same requests; the short
+    form with `/tree/<branch>` makes no request 1; a refused text makes
+    no request and shows the message; `acme/widgets/tree/fix-%C3%A5`
+    makes request 2 for the branch `fix-å` (sent encoded once, as
+    `fix-%C3%A5`) and the heading reads `acme/widgets (fix-å)`;
+    `acme/widgets/tree/a%23b` makes no request and shows the branch
+    message; with a token held for `acme`,
+    `ACME/widgets` uses it; the Owner prefill follows both forms;
+    "Open in vizi" writes `owner/repo` into the field; the token, CSP
+    and umbrella tests that open a project by address pass with either
+    form.
+- **The help view.** 3.10's step 5 places the token fields "under the
+  address" (in the help text: "Under the address, type the owner…").
+  That stays true with the Repository field, so the help text does not
+  change for PBI-1.17. The changes 3.12 lists for the PBI-1.16 build
+  are not affected.
+- The Content-Security-Policy (2.3) does not change: the requests are
+  those of 3.1.
 
 ### 3.2 Views
 
@@ -806,15 +998,16 @@ forgets the token held at that moment.
   owners in lower case and compares them without regard to case. While
   the user has not typed in the Owner field, it is filled with the owner
   of the address in the address field, whenever that is an address vizi
-  can read; once the user has typed in it, the page leaves it alone, and
-  an emptied field is filled again. Why the user names
-  it, and vizi does not ask GitHub: the page knows of no GitHub request
-  that answers which owner a fine-grained token's repos belong to (not
-  checked, section 4, item 17), asking would send the token before the
-  user has used it for anything, and the owner the user means is the
-  one in the addresses the user opens. A token named for the wrong owner
-  is simply not used for the right one: loads of that owner's repos go
-  without it, and GitHub's 404 says so.
+  can read (from PBI-1.17, the Repository field's text in either of its
+  forms, 3.1, "The Repository field"); once the user has typed in it,
+  the page leaves it alone, and an emptied field is filled again. Why
+  the user names it, and vizi does not ask GitHub: the page knows of no
+  GitHub request that answers which owner a fine-grained token's repos
+  belong to (not checked, section 4, item 17), asking would send the
+  token before the user has used it for anything, and the owner the user
+  means is the one in the addresses the user opens. A token named for
+  the wrong owner is simply not used for the right one: loads of that
+  owner's repos go without it, and GitHub's 404 says so.
 - **Where it is entered.** Under the address field: an "Owner" field;
   a "GitHub token (for private repos)" field of type `password`, with
   `autocomplete="off"` and spellcheck off; a "Remember the token" box;
@@ -1152,15 +1345,15 @@ format of `PROJECTS.md`, and what counts as a pointer, is
   digits, `_`, `.`, `-` and `/`).
 - **A repo pointer** (`<owner>/<repo>`) has two links:
   - "Open in vizi" puts `https://github.com/<owner>/<repo>` into the
-    address field and loads it in the same page, as a newer load (3.1,
-    "Two loads at once"): an answer still due for the umbrella project,
-    or for any older load, is dropped. The new project's results replace
-    the umbrella's. The load uses the token held for that repo's owner,
-    if any (3.8, "Which token a load uses"); a private repo with no
-    token for its owner, or one the token does not cover, gets 3.8's 404
-    message. The page keeps
-    no history: to go back, the umbrella project is opened again, by its
-    address.
+    address field (from PBI-1.17, `<owner>/<repo>`, the Repository
+    field's own form; 3.1) and loads it in the same page, as a newer
+    load (3.1, "Two loads at once"): an answer still due for the
+    umbrella project, or for any older load, is dropped. The new
+    project's results replace the umbrella's. The load uses the token
+    held for that repo's owner, if any (3.8, "Which token a load uses");
+    a private repo with no token for its owner, or one the token does
+    not cover, gets 3.8's 404 message. The page keeps no history: to go
+    back, the umbrella project is opened again, by its address.
   - "On GitHub" links to `https://github.com/<owner>/<repo>` in a new
     tab, with `rel="noopener noreferrer"`.
 - **A folder pointer** (`projects/<name>/`) has one link, "Show status".
@@ -1615,21 +1808,23 @@ panels' folded or opened state is not kept.
 
 **Not in this item.**
 
-- The address field's input. PBI-1.17 (the product owner's decision
-  of 2026-11-04, 17:07, "Apyr", on Clead's recommendation, recorded in
-  the product office's `DECISIONS.md`, #399) makes it one "Repository"
-  field, where the user types `owner/repo`; a full GitHub address
-  pasted into it, with or without `/tree/<branch>`, still works, and
-  the token is still picked by the owner. It replaces the 16:36
-  decision to prefill `https://github.com/`. PBI-1.17 has its own spec
-  change and is built before this item (`docs/BACKLOG.md`: right after
-  PBI-1.13, before PBI-1.14). The field's label text, value,
-  placeholder and input behaviour are PBI-1.17's: this item leaves them
-  as PBI-1.17 has built them, and does not test them. It sets only the
-  row (the field and "Open") and its layout.
+- The address field's input. PBI-1.17 (the product owner's decision of
+  2026-11-04, 17:07, "Apyr", on Clead's recommendation, recorded in the
+  product office's `DECISIONS.md`, #399) makes it one "Repository"
+  field, where the user types `owner/repo`; a full GitHub address pasted
+  into it, with or without `/tree/<branch>`, still works, and the token
+  is still picked by the owner. It replaces the 16:36 decision to
+  prefill `https://github.com/`. PBI-1.17 has its own spec change (3.1,
+  "The Repository field") and is built before this item
+  (`docs/BACKLOG.md`: after PBI-1.14, before PBI-1.16). The field's
+  label text, value, placeholder and input behaviour are PBI-1.17's:
+  this item leaves them as PBI-1.17 has built them, and does not test
+  them. It sets only the row (the field and "Open") and its layout.
 - "Open a project from GitHub" stays as approved copy: it is the
   section's heading (below). The "Repository" field's label, and how
-  it sits under that heading, are PBI-1.17's to settle in its spec.
+  it sits under that heading, are PBI-1.17's, settled in 3.1, "The
+  Repository field": the label "Repository" above the row, under the
+  heading.
 - A local folder: the page has none (PBI-1.14, 3.11), which is built
   before this item. The redesign has no folder input.
 - The branch picker (PBI-1.15) and the saved repos list (PBI-1.12) come
