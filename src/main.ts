@@ -77,6 +77,19 @@ function renderOptions(basePath: string): RenderOptions {
   };
 }
 
+/**
+ * Every rendered Markdown text gets its own id prefix, so heading ids stay
+ * unique when one text is on the page twice (a description in a board card
+ * and in a list row), and an anchor reaches the heading of its own text.
+ */
+let documents = 0;
+let idPrefix = "md-0-";
+function inDocument<T>(build: () => T): T {
+  documents += 1;
+  idPrefix = `md-${documents}-`;
+  return build();
+}
+
 function linkElement(target: LinkTarget, children: Child[]): HTMLElement {
   if (target.kind === "external") {
     const a = h("a", { href: target.href }, ...children);
@@ -86,7 +99,7 @@ function linkElement(target: LinkTarget, children: Child[]): HTMLElement {
     }
     return a;
   }
-  if (target.kind === "anchor") return h("a", { href: `#md-${target.id}` }, ...children);
+  if (target.kind === "anchor") return h("a", { href: `#${idPrefix}${target.id}` }, ...children);
   const a = h("a", { href: "#", "data-path": target.path }, ...children);
   a.addEventListener("click", (event) => {
     event.preventDefault();
@@ -110,7 +123,11 @@ function inlineNodes(nodes: Inline[]): Node[] {
 function blockNode(b: Block): Node {
   if (b.t === "heading") {
     const level = Math.min(Math.max(b.level + 2, 3), 6);
-    return h(`h${level}` as "h3", b.slug ? { id: `md-${b.slug}` } : {}, ...inlineNodes(b.children));
+    return h(
+      `h${level}` as "h3",
+      b.slug ? { id: `${idPrefix}${b.slug}` } : {},
+      ...inlineNodes(b.children),
+    );
   }
   if (b.t === "paragraph") return h("p", {}, ...inlineNodes(b.children));
   if (b.t === "list")
@@ -128,11 +145,13 @@ function blockNodes(blocks: Block[]): Node[] {
 }
 
 function markdownEl(text: string, basePath: string): HTMLElement {
-  return h("div", { class: "md" }, ...blockNodes(render(text, renderOptions(basePath))));
+  return inDocument(() =>
+    h("div", { class: "md" }, ...blockNodes(render(text, renderOptions(basePath)))),
+  );
 }
 
 function inlineEl(text: string, basePath: string): Node[] {
-  return inlineNodes(renderInline(text, renderOptions(basePath)));
+  return inDocument(() => inlineNodes(renderInline(text, renderOptions(basePath))));
 }
 
 // ------------------------------------------------------------------- status
