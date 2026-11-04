@@ -181,8 +181,9 @@ header h1 {
   letter-spacing: -0.01em;
 }
 
+/* With the space before it, 12 px between "vizi" and the tagline. */
 header h1 .tagline {
-  margin-left: 6px;
+  margin-left: 6.5px;
   font-size: 15px;
   font-weight: 400;
   letter-spacing: normal;
@@ -750,7 +751,7 @@ footer {
   }
 
   header h1 .tagline {
-    margin-left: 4px;
+    margin-left: 5px;
     font-size: 14px;
   }
 
