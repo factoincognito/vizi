@@ -12,13 +12,13 @@ all projects reads them.
 Last update: 2026-11-04
 
 ## Phase
-Build.
+Build: the first version is built (PBI-1.1 parser, PBI-1.2 page, PBI-1.3 template link, all merged 2026-11-04).
 
 ## Current focus
-The page (PBI-1.2, PR #9): folder and GitHub URL input, board, list, status, documentation links, report tab, `src/markdown.ts`.
+The first version in the product owner's hands: open the built page (`npm run build`, then `dist/index.html`) and load a project folder.
 
 ## Next step
-Clead reviews PR #9; once it merges, the link from the template (PBI-1.3).
+The product owner tries the first version and says what to change; then PBI-1.4 (the known unknowns, checked in a real browser) and PBI-1.5 (review follow-ups).
 
 ## Blockers
-None.
+- Product Owner: the definition of done for this phase (`docs/NEXT_SESSION.md`, entry 1).
