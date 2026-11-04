@@ -1,0 +1,3 @@
+# Hub
+
+- acme/widgets

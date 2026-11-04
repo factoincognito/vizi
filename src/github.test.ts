@@ -2,7 +2,7 @@
  * Tests for src/github.ts: the GitHub input of docs/SPEC.md 3.1.
  * A fake fetcher stands in for the network; no test reaches it.
  */
-import { blobUrl, type Fetcher, loadRepo, parseGithubUrl } from "./github";
+import { blobUrl, type Fetcher, loadRepo, parseGithubUrl, readRepoFile } from "./github";
 
 describe("parseGithubUrl", () => {
   it("reads owner and repo", () => {
@@ -100,6 +100,7 @@ describe("loadRepo: the requests of 3.1, in order", () => {
       backlogPath: "docs/BACKLOG.md",
       backlogText: "backlog text",
       statusText: "status text",
+      projectsText: null,
     });
   });
 
@@ -490,5 +491,156 @@ describe("loadRepo with a token (3.8): the token is never in a message", () => {
     };
     const r = await loadRepo(ref, fetcher);
     expect(!r.ok && r.message).toContain("Failed to fetch");
+  });
+});
+
+// ------------------------------------------------------- PROJECTS.md and one file (3.9)
+
+describe("loadRepo: PROJECTS.md (3.9)", () => {
+  const withProjects = {
+    [API]: okRepo,
+    [TREE]: { status: 200, body: tree(["docs/BACKLOG.md", "STATUS.md", "PROJECTS.md"]) },
+  };
+
+  it("reads it with one more request 3, after the backlog file and STATUS.md, only if the file list has it", async () => {
+    const { fetcher, calls } = fake({
+      [API]: withProjects[API],
+      [`${API}/git/trees/main?recursive=1`]: withProjects[TREE],
+      [`${RAW}/docs/BACKLOG.md`]: { status: 200, body: "b" },
+      [`${RAW}/STATUS.md`]: { status: 200, body: "s" },
+      [`${RAW}/PROJECTS.md`]: { status: 200, body: "# P\n- acme/a\n" },
+    });
+    const r = await loadRepo(ref, fetcher);
+    expect(calls).toEqual([
+      API,
+      `${API}/git/trees/main?recursive=1`,
+      `${RAW}/docs/BACKLOG.md`,
+      `${RAW}/STATUS.md`,
+      `${RAW}/PROJECTS.md`,
+    ]);
+    expect(r.ok && r.projectsText).toBe("# P\n- acme/a\n");
+  });
+
+  it("reads only the root file: a PROJECTS.md in a folder is not requested", async () => {
+    const { fetcher, calls } = fake({
+      [API]: okRepo,
+      [`${API}/git/trees/main?recursive=1`]: {
+        status: 200,
+        body: tree(["docs/PROJECTS.md", "projects/x/PROJECTS.md"]),
+      },
+    });
+    const r = await loadRepo(ref, fetcher);
+    expect(calls).toHaveLength(2);
+    expect(r.ok && r.projectsText).toBeNull();
+  });
+
+  it("a project with PROJECTS.md and no backlog file still reads PROJECTS.md", async () => {
+    const { fetcher, calls } = fake({
+      [API]: okRepo,
+      [`${API}/git/trees/main?recursive=1`]: { status: 200, body: tree(["PROJECTS.md"]) },
+      [`${RAW}/PROJECTS.md`]: { status: 200, body: "p" },
+    });
+    const r = await loadRepo(ref, fetcher);
+    expect(calls).toHaveLength(3);
+    expect(r.ok && [r.backlogPath, r.projectsText]).toEqual([null, "p"]);
+  });
+
+  it("a failed PROJECTS.md request fails the load with its status, as for the other files", async () => {
+    const { fetcher } = fake({
+      [API]: okRepo,
+      [`${API}/git/trees/main?recursive=1`]: { status: 200, body: tree(["PROJECTS.md"]) },
+      [`${RAW}/PROJECTS.md`]: { status: 500 },
+    });
+    expect(await loadRepo(ref, fetcher)).toMatchObject({ ok: false, kind: "http", status: 500 });
+  });
+
+  it("with a token it goes through the contents API with the raw media type, and no request leaves api.github.com", async () => {
+    const { fetcher, sent } = fakeWithInit({
+      [API]: okRepo,
+      [TREE]: withProjects[TREE],
+      [contents("docs/BACKLOG.md")]: { status: 200, body: "b" },
+      [contents("STATUS.md")]: { status: 200, body: "s" },
+      [contents("PROJECTS.md")]: { status: 200, body: "p" },
+    });
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(r.ok && r.projectsText).toBe("p");
+    const last = sent[sent.length - 1];
+    expect(last?.url).toBe(contents("PROJECTS.md"));
+    expect(last?.init?.headers?.Accept).toBe("application/vnd.github.raw+json");
+    expect(last?.init?.headers?.Authorization).toBe(`Bearer ${TOKEN}`);
+    expect(sent.every((s) => new URL(s.url).host === "api.github.com")).toBe(true);
+  });
+
+  it("with a token, a 401 for PROJECTS.md is the refused-token failure", async () => {
+    const { fetcher } = fakeWithInit({
+      [API]: okRepo,
+      [TREE]: { status: 200, body: tree(["PROJECTS.md"]) },
+      [contents("PROJECTS.md")]: { status: 401 },
+    });
+    expect(await loadRepo(ref, fetcher, TOKEN)).toMatchObject({ ok: false, kind: "token-refused" });
+  });
+});
+
+describe("readRepoFile: one file of a repo (3.9, Show status)", () => {
+  const at = { owner: "acme", repo: "widgets", branch: "main" };
+  const PATH = "projects/notes/STATUS.md";
+
+  it("without a token: one raw request, no options, the text back", async () => {
+    const { fetcher, sent } = fakeWithInit({
+      [`${RAW}/${PATH}`]: { status: 200, body: "status text" },
+    });
+    expect(await readRepoFile(at, PATH, fetcher, null)).toEqual({ ok: true, text: "status text" });
+    expect(sent).toEqual([{ url: `${RAW}/${PATH}`, init: undefined }]);
+  });
+
+  it("with a token: the contents API, encoded, the raw media type, Bearer, no cookies, no store", async () => {
+    const { fetcher, sent } = fakeWithInit({
+      [`${API}/contents/projects/notes/STATUS.md?ref=feat%2Fx`]: { status: 200, body: "t" },
+    });
+    const r = await readRepoFile({ ...at, branch: "feat/x" }, PATH, fetcher, TOKEN);
+    expect(r).toEqual({ ok: true, text: "t" });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.init).toEqual({
+      headers: { Authorization: `Bearer ${TOKEN}`, Accept: "application/vnd.github.raw+json" },
+      credentials: "omit",
+      cache: "no-store",
+    });
+    expect(sent[0]?.url).not.toContain(TOKEN);
+  });
+
+  it.each([
+    [404, "http"],
+    [500, "http"],
+  ])(
+    "a %i answer is a failure shown with its status (kind %s), not a not-found for the repo",
+    async (status, kind) => {
+      const { fetcher } = fakeWithInit({ [`${RAW}/${PATH}`]: { status } });
+      expect(await readRepoFile(at, PATH, fetcher, null)).toMatchObject({
+        ok: false,
+        kind,
+        status,
+      });
+    },
+  );
+
+  it("with a token: 401 is token-refused, 403 is forbidden, and no message holds the token", async () => {
+    for (const [status, kind] of [
+      [401, "token-refused"],
+      [403, "forbidden"],
+    ] as const) {
+      const { fetcher } = fakeWithInit({ [contents(PATH)]: { status } });
+      const r = await readRepoFile(at, PATH, fetcher, TOKEN);
+      expect(r).toMatchObject({ ok: false, kind, status });
+      expect(JSON.stringify(r)).not.toContain(TOKEN);
+    }
+  });
+
+  it("a thrown fetch error is a network failure; with a token its text is never shown", async () => {
+    const fetcher: Fetcher = async () => {
+      throw new TypeError(`bad Bearer ${TOKEN}`);
+    };
+    const r = await readRepoFile(at, PATH, fetcher, TOKEN);
+    expect(r).toMatchObject({ ok: false, kind: "network" });
+    expect(JSON.stringify(r)).not.toContain(TOKEN);
   });
 });
