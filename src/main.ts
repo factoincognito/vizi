@@ -11,7 +11,7 @@ import {
   type ReportItem,
 } from "./backlog";
 import { boardColumns, descriptionForDisplay, listSections } from "./board";
-import { documentationList, folderFiles, projectFilePath } from "./docs";
+import { documentationList, folderFiles, isMarkdownPath, projectFilePath } from "./docs";
 import { BACKLOG_PATHS, blobUrl, loadRepo, parseGithubUrl } from "./github";
 import {
   type Block,
@@ -173,7 +173,7 @@ function renderStatus(p: Project): void {
         h("p", { "data-testid": "blockers-none" }, "None", s.remark ? ` — ${s.remark}` : ""),
       );
     } else if (s.blockers.length === 0) {
-      blockers.append(h("p", { "data-testid": "blockers-none" }, "No blockers listed"));
+      blockers.append(h("p", { "data-testid": "blockers-empty" }, "No blockers listed"));
     }
     if (s.blockers.length > 0) {
       blockers.append(
@@ -311,7 +311,11 @@ async function showDoc(path: string): Promise<void> {
   const view = must("doc-view");
   try {
     const text = await p.readFile(path);
-    view.replaceChildren(h("h2", {}, path), markdownEl(text, path));
+    // Only Markdown is rendered as Markdown; any other file is shown as it is written.
+    view.replaceChildren(
+      h("h2", {}, path),
+      isMarkdownPath(path) ? markdownEl(text, path) : h("pre", {}, h("code", {}, text)),
+    );
   } catch {
     view.replaceChildren(h("p", {}, `${path} could not be read.`));
   }
@@ -446,7 +450,15 @@ function hideResults(): void {
   }
 }
 
+/**
+ * Counts the loads started (an address submitted, a folder picked). An
+ * answer that arrives after a newer load started is dropped, so the
+ * newest request always wins (docs/SPEC.md 3.1).
+ */
+let latestLoad = 0;
+
 async function openUrl(address: string): Promise<void> {
+  const load = ++latestLoad;
   const ref = parseGithubUrl(address);
   if (!ref) {
     say(
@@ -457,6 +469,7 @@ async function openUrl(address: string): Promise<void> {
   }
   say("Loading…");
   const result = await loadRepo(ref, (url) => fetch(url));
+  if (load !== latestLoad) return;
   if (!result.ok) {
     say(result.message);
     hideResults();
@@ -489,6 +502,7 @@ async function openUrl(address: string): Promise<void> {
 async function openFolder(input: HTMLInputElement): Promise<void> {
   const picked = Array.from(input.files ?? []);
   if (picked.length === 0) return;
+  const load = ++latestLoad;
   const byPath = new Map<string, File>();
   for (const f of picked) {
     const [inner] = folderFiles([f.webkitRelativePath || f.name]);
@@ -504,6 +518,7 @@ async function openFolder(input: HTMLInputElement): Promise<void> {
   const first = backlogPaths[0];
   const backlogText = first === undefined ? null : await read(first);
   const statusText = byPath.has("STATUS.md") ? await read("STATUS.md") : null;
+  if (load !== latestLoad) return;
   const name = (picked[0]?.webkitRelativePath ?? "").split("/")[0] || "folder";
   const p = build(
     name,

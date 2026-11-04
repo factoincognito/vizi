@@ -510,7 +510,7 @@ test.describe("a late answer from an older load (3.1)", () => {
     await settle(page);
     await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
     await expect(page.getByTestId("card").filter({ hasText: "SL-1" })).toHaveCount(0);
-    await expect(page.getByTestId("card").filter({ hasText: "WG-1" })).toHaveCount(1);
+    await expect(page.locator('[data-testid="card"][data-id="WG-1"]')).toHaveCount(1);
   });
 
   test("does not show its error over the newer load's results", async ({ page }) => {

@@ -8,7 +8,6 @@
 export function isAllowedRequest(url: string, ownDocuments: string[]): boolean {
   return (
     ownDocuments.includes(url) ||
-    url.startsWith("file:") ||
     url.startsWith("https://api.github.com/") ||
     url.startsWith("https://raw.githubusercontent.com/")
   );
