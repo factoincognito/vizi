@@ -31,7 +31,7 @@ proposal is a question in `docs/NEXT_SESSION.md`, entry 1.
 
 Build order: Clead's proposal, from the design the spec is taken from.
 
-- **[NEXT] PBI-1.1** (waits on PR #3 merging, after Crog's review) — The
+- **[DONE] PBI-1.1** (2026-11-04: PR #6, merge `e758085`, Clead-role code review approved in round 2; edge cases recorded in the spec by #7) — The
   backlog parser and its report, as a pure module with tests.
   `src/backlog.ts` reads a backlog file by the rules in
   `docs/BACKLOG-FORMAT.md` and returns the entries, their groups and the
@@ -39,7 +39,7 @@ Build order: Clead's proposal, from the design the spec is taken from.
   `src/status.ts` reads `STATUS.md`. No DOM. Tested with Jest, test
   first, on synthetic fixtures only (`docs/SPEC.md` 2.2).
 
-- **[LATER] PBI-1.2** — The page. Folder and GitHub URL input, the board
+- **[NOW] PBI-1.2** (2026-11-04: started after PBI-1.1) — The page. Folder and GitHub URL input, the board
   and the list, the status, the documentation links and the report tab,
   wired in `src/main.ts` on top of PBI-1.1, covered by Playwright tests
   with GitHub's answers stubbed (`docs/SPEC.md`).
