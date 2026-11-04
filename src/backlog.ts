@@ -28,6 +28,8 @@ export interface BacklogEntry {
   text: string;
   title: string;
   description: string;
+  /** The rest of the head after the title: the first line of the description when not empty (SPEC 3.7 item 2). */
+  headRest: string;
   /** Text of the nearest heading above (R6), or null. */
   group: string | null;
   /** The line the entry starts on (R8). */
@@ -247,6 +249,7 @@ export function parse(source: string): BacklogResult {
       text,
       title,
       description: readDescription(lines, next, rest),
+      headRest: rest,
       group,
       line: at,
     });
