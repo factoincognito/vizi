@@ -34,9 +34,9 @@ question for the product owner is staged below.
 **Revised assessment:** Clead's proposal, not decided: Phase 1 is done
 when the page, built with `npm run build` and opened locally from
 `dist/index.html`, shows the public template's `docs/BACKLOG.md` and
-`STATUS.md`, both from a local folder and from the template's GitHub
-URL, as the list, the board and the status, with documentation links
-and a report of what it could not read; and CI `build` is green on
+`STATUS.md`, from the template's GitHub URL (the local folder was
+dropped on 2026-11-04, `docs/SPEC.md` "What is decided", item 9), as
+the list, the board and the status, with documentation links and a report of what it could not read; and CI `build` is green on
 `main`.
 **Impact on plan:** sets when PBI-1.1 and PBI-1.2 together close the
 phase; it adds no new PBI.
