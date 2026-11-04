@@ -106,6 +106,11 @@ Build order: Clead's proposal, from the design the spec is taken from.
   to `docs/BACKLOG-FORMAT.md` on GitHub. The text ships in the page, and
   a test checks that its examples read as stated. A spec change first,
   then the code. Before PBI-1.12.
+- **[NEXT] PBI-1.17** (product owner, 2026-11-04 16:36) — The GitHub
+  address field starts with `https://github.com/` filled in, so only
+  `owner/repo` needs typing; a full address pasted into it still works
+  (Clead's design). A spec change first, then the code. Right after
+  PBI-1.13, before PBI-1.14.
 - **[NEXT] PBI-1.14** (product owner, 2026-11-04 15:15, on Clead's recommendation) — Remove
   opening a local project folder: vizi opens projects from GitHub only
   (public by address, private with the saved token). The folder input, its
