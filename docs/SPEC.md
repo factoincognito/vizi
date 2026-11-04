@@ -39,6 +39,15 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
    version is opened locally, not deployed" of 2026-11-03 (section 1).
    His intent approval of this spec change is recorded as a comment on
    PR #23.
+4. His intent approval of 2026-11-04 (09:27, in chat, "saved token
+   apyr") of PBI-1.8: private repos by address, with a fine-grained,
+   read-only GitHub token, limited to chosen repos and with an expiry
+   the product owner chooses, pasted into vizi once per browser, saved
+   in the browser's storage behind a "Remember the token" box, removed
+   with a "Forget the token" button, and sent only to GitHub. It
+   replaces "no token; private repos are not read by address" of
+   2026-11-03 (section 1). It is recorded as a comment on PR #26. How
+   vizi does it is 3.8.
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -48,7 +57,10 @@ Points that come from the approved summary are marked **(approved)**.
 
 **Not decided.** Marked "not decided" where they appear: a lint mode
 beyond the page's report (section 1), and a change to the template's own
-wording of the external-requests rule (section 4, item 8).
+wording of the external-requests rule (section 4, item 8). Also open:
+which defence against the shared origin applies, a custom domain or
+control over the account's Pages sites (3.8, "The shared origin"); that
+is the product owner's choice, asked 2026-11-04.
 
 ---
 
@@ -58,7 +70,7 @@ wording of the external-requests rule (section 4, item 8).
 status, its work items, their state and description, with links to the
 project's documentation.
 
-**Decided by the product owner (2026-11-03; one point replaced on
+**Decided by the product owner (2026-11-03; two points replaced on
 2026-11-04):**
 
 - vizi shows a project's backlog file as a backlog list and as a kanban
@@ -67,10 +79,14 @@ project's documentation.
 - It works for any project whose backlog is close enough to the
   template's format. It finds the backlog at `BACKLOG.md` (the project's
   root), `docs/BACKLOG.md` and `docs/PRODUCT_BACKLOG.md`.
-- It reads a public GitHub repo by its URL, with no token (private repos
-  are not read by URL), and local files. Local mode opens a project
-  folder, not a single file, so documentation links work for private
-  projects.
+- It reads a GitHub repo by its URL, and local files. Local mode opens
+  a project folder, not a single file, so documentation links work for
+  private projects.
+  - 2026-11-03: public repos only, with no token; private repos are not
+    read by URL.
+  - Replaced on 2026-11-04: private repos too, with a fine-grained,
+    read-only token the product owner saves in the browser (3.8;
+    PBI-1.8).
 - A project's status is read from its `STATUS.md`.
 - It is a generated web page, built with the template's web pack
   (`languages/web/`).
@@ -160,20 +176,27 @@ workflow in PR #22, merged as `8054f14`). Clead's design for how:
 - It has no `pull_request` trigger and no job named `build`, so it never
   touches the required `build` check of `ci.yml`.
 - It publishes only once the repo's Pages source is set to "GitHub
-  Actions", a setting only the product owner can change; until then the
-  deploy job is expected to fail (PR #22; not checked).
+  Actions", a setting only the product owner can change. Checked on
+  2026-11-04 through the API: the first run (41800804007, 08:36 UTC),
+  before the source was set, built in `site` and failed in `deploy`
+  with GitHub's 404 "Ensure GitHub Pages has been enabled". The runs
+  after the product owner set it (41801704611 and 41801782427, from
+  08:43 UTC) succeeded, and `https://factoincognito.github.io/vizi/`
+  answers 200 with the page.
 - The site is served under `/vizi/`. The single file has no
   root-relative reference, so Vite's default `base` stays.
 - The pack's Cloudflare `deploy.yml` stays in `languages/web/`, unused:
   it is not in `.github/workflows/` (checked at `0191768`).
 
-**Browser storage.** Every Pages site of the factoincognito account is
-served from one origin, `https://factoincognito.github.io`, so they all
-share that origin's browser storage (local storage, IndexedDB and the
-like). vizi stores nothing in the browser today: `src/` uses no storage
-API. Anything vizi saves later, such as the token of PBI-1.8, can be
-read by every other factoincognito Pages site; a custom domain would
-give vizi an origin of its own.
+**One origin for every factoincognito Pages site.** Every Pages site of
+the factoincognito account is served from one origin,
+`https://factoincognito.github.io`. To the browser they are one site:
+they share that origin's storage (local storage, IndexedDB and the
+like), and a script on any of them can open another one, `/vizi/`
+included, and script into it. Until PBI-1.8 vizi holds nothing secret
+and stores nothing in the browser (`src/` uses no storage API). From
+PBI-1.8 it holds a token, and 3.8, "The shared origin", sets out what
+that exposes.
 
 ### 2.3 The web pack's "no external requests" rule
 
@@ -195,13 +218,47 @@ reaches the network. Publishing on GitHub Pages (2.2) does not change
 this reading: what the page loads at startup is still only its own
 document.
 
-**No Content-Security-Policy.** Clead's design: the page sets none,
-neither as a header nor as a `<meta>` tag. GitHub Pages cannot send
-custom response headers, and the single-file build inlines the page's
-script and style, so a `<meta>` policy would need `'unsafe-inline'` or
-hashes made at each build. Untrusted content is handled by the rendering
-contract (3.7): no source text is inserted as HTML, and content loads
-nothing.
+**Content-Security-Policy.** Clead's design.
+
+- Until PBI-1.8 the page sets none, neither as a header nor as a
+  `<meta>` tag. GitHub Pages cannot send custom response headers, and
+  the single-file build inlines the page's script and style.
+  Untrusted content is handled by the rendering contract (3.7): no
+  source text is inserted as HTML, and content loads nothing.
+- PBI-1.8 adds one, because the page then holds a secret, the token
+  (3.8). It is a `<meta http-equiv="Content-Security-Policy">` tag in
+  `<head>`, after `<meta charset>` and before any script or style:
+
+  ```
+  default-src 'none'; script-src 'sha256-<script>';
+  style-src 'sha256-<style>'; connect-src https://api.github.com
+  https://raw.githubusercontent.com; img-src data:; base-uri 'none';
+  form-action 'none'
+  ```
+
+  `<script>` and `<style>` are the SHA-256 hashes of the page's one
+  inline script and one inline style block, computed by the build after
+  the single-file plugin has inlined them, and written into the tag.
+  `'unsafe-inline'` is not used. The built page has exactly one inline
+  module script, one `<style>` block, no `style=` attribute and no
+  `on…=` attribute (checked 2026-11-04 on a build of `main`), so hashes
+  cover everything it runs. `img-src data:` is for the inline favicon.
+- What it adds: no script other than the build's own runs, and a
+  script that did run could send data by `fetch` and the like only to
+  GitHub's two hosts.
+- What it does not close:
+  - sending the token out through GitHub itself: a script that has
+    broken 3.7 can call `api.github.com` with credentials of its own and
+    put the token in, say, a gist or an issue comment. The policy
+    narrows the ways out; it does not shut them;
+  - navigating away with data in the address;
+  - anything from the shared origin (3.8, "The shared origin"): other
+    factoincognito Pages sites reading storage or scripting into vizi,
+    and a root site's service worker, which can rewrite the page and
+    its policy;
+  - `frame-ancestors` and reporting, which a `<meta>` policy cannot set.
+
+  3.7 stays the first protection.
 
 ---
 
@@ -225,9 +282,9 @@ the points the text above it leaves open.
   read at the folder's root. Nothing is sent anywhere.
 - **GitHub URL.** `https://github.com/<owner>/<repo>`, optionally
   followed by `/tree/<branch>`, where the branch is everything after
-  `/tree/`, a trailing `/` dropped (branch names can hold `/`). No token
-  is stored or asked for. The page makes these anonymous requests, in
-  this order:
+  `/tree/`, a trailing `/` dropped (branch names can hold `/`). Without
+  a token the page makes these anonymous requests, in this order (with
+  a token, 3.8 changes them):
   1. `GET https://api.github.com/repos/<owner>/<repo>`, for the default
      branch (skipped when the URL names a branch);
   2. `GET https://api.github.com/repos/<owner>/<repo>/git/trees/<branch>?recursive=1`,
@@ -595,6 +652,160 @@ CommonMark. What it reads, beyond items 1 to 5:
   text, not read as Markdown, when its target is allowed under item 4;
   otherwise it is the alt text alone.
 
+### 3.8 Private repos with a saved token (PBI-1.8)
+
+**(approved)** The product owner's intent approval of 2026-11-04 (see
+"What is decided", item 4): a fine-grained, read-only GitHub token,
+limited to chosen repos and with an expiry he chooses, pasted into vizi
+once per browser, saved in the browser's storage behind a "Remember the
+token" box, removed with a "Forget the token" button, sent only to
+GitHub.
+
+Clead's design, within that intent. This is a spec ahead of its code:
+PBI-1.8 builds it.
+
+- **What token.** Only a fine-grained personal access token, the kind
+  that GitHub limits to chosen repos and gives an expiry. It is
+  expected to need the repository permission "Contents: read" (and
+  "Metadata: read", which GitHub adds to every such token); PBI-1.8
+  confirms it (section 4, items 10 and 11). The page takes only text
+  that, after trimming, matches `^github_pat_[A-Za-z0-9_]+$`, so the
+  token is always a valid header value. Anything else, a classic
+  `ghp_` token included, is refused with a message saying so, and is
+  not kept.
+- **Where it is entered.** A field "GitHub token (for private repos)"
+  under the address field, of type `password`, with `autocomplete="off"`
+  and spellcheck off, a "Remember the token" box (not ticked unless a
+  token is already saved) and a "Use" button. The field is outside any
+  `<form>`, so a browser has no form to offer to save it from; whether a
+  password manager still offers to save it is section 4, item 15.
+  Folder mode never uses the token.
+- **Never shown back in full.** After "Use" the field is cleared. The
+  page then shows only "Token in use: `github_pat_…` and its last four
+  characters", followed by "saved in this browser" or "for this page
+  only", and the "Forget the token" button.
+- **Where it is kept.**
+  - Always in the page's memory, while the page is open.
+  - With "Remember the token" ticked, also in `localStorage` under the
+    key `vizi.githubToken`, so it survives a reload: entered once per
+    browser. Unticking the box later removes the saved copy and keeps
+    the token for this page only. At startup the page reads the key; a
+    value that does not match the token rule is removed.
+  - "Remember the token" is off until the user ticks it. That keeps a
+    token out of storage, but it does not protect a token from the
+    shared origin; see "The shared origin" below.
+- **The shared origin.** The published page runs on the origin of every
+  factoincognito Pages site (2.2), so the token, whether saved or held
+  for this page only, is only as safe as every current and future Pages
+  site of the account:
+  - a script on any of them can read the saved token from
+    `localStorage`, or write a `github_pat_…` value of its own there,
+    which vizi would then use;
+  - a script on any of them can open `/vizi/` in a window or a frame
+    and script into it, so it can read a token held only in memory;
+  - the account's root site, a repo named `factoincognito.github.io`,
+    could register a service worker for the whole origin. That worker
+    would see every request vizi makes, the `Authorization` header
+    included, and could serve a changed page without its
+    Content-Security-Policy. A root site could take vizi over entirely.
+
+  Today `https://factoincognito.github.io/` answers 404, so there is no
+  root site (checked 2026-11-04). Which other repos of the account have
+  a Pages site was not checked: this session cannot list them.
+
+  The defences are a custom domain for vizi, which gives it an origin of
+  its own, or the product owner's control over who may create Pages
+  sites in the account, above all never a root site
+  `factoincognito.github.io`. Which applies is the product owner's
+  choice, asked 2026-11-04. The read-only, chosen-repos, expiring token
+  limits what a stolen token can do; it does not stop the theft. The
+  page says, next to the token field, that other factoincognito Pages
+  sites can reach the token.
+- **Forget the token.** It removes the token from memory, removes the
+  `localStorage` key, clears the field and the "Token in use" line, and
+  hides any results that were loaded with the token, since they may
+  hold private text. It counts as a newer load (3.1, "Two loads at
+  once"), so the answer of a load still running with the token is
+  dropped and cannot show private text again. A token held for one page
+  only is gone when the page is closed.
+- **Other open vizi tabs** listen for the `storage` event of the key:
+  - when the key is removed, a tab does everything "Forget the token"
+    does, including hiding its token-loaded results and counting as a
+    newer load, whatever token it held;
+  - when another tab saves a new token, a tab adopts it for its next
+    loads if it matches the token rule above, and updates its
+    "Token in use" line; results already shown stay.
+- **Which requests carry it.** Only requests to `https://api.github.com`,
+  in an `Authorization: Bearer <token>` header, with `credentials:
+  "omit"` (no cookies) and `cache: "no-store"` (private answers are not
+  kept in the browser's cache). With a token held, every request of a
+  load goes to `api.github.com`, private and public repos alike, and
+  `raw.githubusercontent.com` is not used. Requests 1 and 2 are as in
+  3.1. Request 3 becomes
+  `GET https://api.github.com/repos/<owner>/<repo>/contents/<path>?ref=<branch>`
+  with `Accept: application/vnd.github.raw+json`, which answers the
+  file's text (checked 2026-11-04 without a token, on a public file:
+  the text came back as `application/vnd.github.raw+json` with
+  `Access-Control-Allow-Origin: *`). The branch and each segment of the
+  path are percent-encoded. So a load with a token makes two to four
+  requests, all to `api.github.com`.
+- **Never in an address, a log or a message.** The token is never put
+  in a URL, never written to the console, and never part of an error
+  message, the report or the page's text; messages name the host, the
+  URL and the HTTP status only, and no URL holds the token. When a
+  request that carries the token fails before an answer (a network
+  error, or an exception from `fetch`), the message names only the host
+  and that the request failed: the exception's own text is never shown,
+  since a browser may quote a header value in it.
+- **Answers** (with a token; without one, 3.1 is unchanged):
+  - **401:** GitHub did not accept the token: it has expired, has been
+    revoked, or is wrong. The page says so ("GitHub refused the token:
+    it may have expired. It has been forgotten; enter a new one."), and
+    forgets it as "Forget the token" does, so a dead token does not
+    break later loads of public repos.
+  - **403:** when `X-RateLimit-Remaining` is `0`, the page says the
+    rate limit is reached and when it resets (`X-RateLimit-Reset`).
+    Otherwise it says the token may not read this repo (a missing
+    "Contents: read" permission, or an organisation's token policy).
+    The token is kept.
+  - **404 on request 1 or 2:** "Not found, or the token does not give
+    access to this repo", offering the local folder. GitHub is expected
+    to answer 404 for a private repo the token cannot see (section 4,
+    item 11). The token is kept.
+  - Any other failure is shown as in 3.1.
+- **Expiry.** The page does not try to know a token's expiry before
+  GitHub refuses it. `api.github.com` exposes to a page only the
+  headers in its `Access-Control-Expose-Headers` list, and no header
+  about a token's expiry is in it (read 2026-11-04 on an answer without
+  a token). An expired token is met by the 401 rule.
+- **Rendering and links** are unchanged (3.7). In URL mode, links still
+  go to github.com, where a private file needs the user's own GitHub
+  sign-in.
+- **Tests,** all with GitHub stubbed and synthetic tokens:
+  - unit (a pure `src/token.ts`, storage passed in): the rule
+    `^github_pat_[A-Za-z0-9_]+$` after trimming, with a classic token,
+    spaces inside, a line break and other characters refused; the
+    masked form; save, read at startup, forget; the `storage` event,
+    for a removed key and for a new token;
+  - unit (`src/github.ts`): with a token, every request goes to
+    `api.github.com` with the header, request 3 uses the contents API
+    and the raw media type, no URL holds the token; the 401, 403 and
+    404 mapping; a fetcher that throws an error whose message holds the
+    token gives a message without it;
+  - browser: the field is a password field and is cleared; the masked
+    line; "Remember" writes `localStorage` and a reload finds it;
+    "Forget" clears memory, storage, the line and token-loaded results;
+    "Forget" during a load: the load's late answer is dropped and shows
+    nothing; a second tab: removing the key there makes this tab hide its
+    token-loaded results and drop its token, and saving a new token
+    there makes this tab use it;
+    no request to `raw.githubusercontent.com` while a token is held;
+    the token appears in no request URL, console message or page text;
+    a 401 forgets the token;
+  - the CSP of 2.3: the tag is present before any script or style, its
+    hashes match the built page's inline blocks, the page loads with no
+    policy violation, and a request to another host is blocked.
+
 ---
 
 ## 4. Known unknowns
@@ -654,3 +865,35 @@ PBI-1.2's; their outcome after it (PR #9):
 8. Not decided: whether the template's own wording of the "no external
    requests" rule changes as well (2.3). That is a template change,
    through the template's review flow.
+
+Items 9 to 15 are PBI-1.8's (3.8); PBI-1.8 says to check first that
+GitHub accepts such a token from the published page. None is checked
+yet:
+
+9. **Open; PBI-1.8.** CORS with an `Authorization` header: whether
+   `api.github.com` answers the browser's preflight from
+   `https://factoincognito.github.io`, and from a page opened from disk.
+   A preflight sent from this session's proxy got 405 from
+   `api.github.com` and 403 from `raw.githubusercontent.com`, which
+   proves nothing about a browser: the proxy may cause both.
+10. **Open; PBI-1.8.** Whether the contents API with the raw media type
+    reads a private file with a fine-grained token, and up to what file
+    size. It was checked only without a token, on one public file.
+11. **Open; PBI-1.8.** Whether GitHub answers 401 for an expired or
+    revoked fine-grained token, 404 for a repo outside its selection,
+    and 403 for a missing permission, as 3.8 expects.
+12. **Open; PBI-1.8.** Whether an organisation's policy, such as
+    requiring approval of fine-grained tokens, stops a token from
+    reading that organisation's private repos, and what GitHub answers
+    then.
+13. **Open; PBI-1.8.** Whether `localStorage` keeps the token on a page
+    opened from disk (`file://`); browsers treat that origin
+    differently.
+14. **Open; PBI-1.8.** Whether build-time hashes of the inline script
+    and style can be written into the `<meta>` policy with the
+    single-file plugin, and whether every browser the page targets
+    applies the policy with no violation.
+15. **Open; PBI-1.8.** Whether a browser's password manager offers to
+    save the token from a password field outside any `<form>`, and so
+    may keep it, perhaps synced to an account. Browsers often ignore
+    `autocomplete="off"` on password fields.
