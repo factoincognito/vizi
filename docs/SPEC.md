@@ -57,7 +57,10 @@ Points that come from the approved summary are marked **(approved)**.
 
 **Not decided.** Marked "not decided" where they appear: a lint mode
 beyond the page's report (section 1), and a change to the template's own
-wording of the external-requests rule (section 4, item 8).
+wording of the external-requests rule (section 4, item 8). Also open:
+which defence against the shared origin applies, a custom domain or
+control over the account's Pages sites (3.8, "The shared origin"); that
+is the product owner's choice, asked 2026-11-04.
 
 ---
 
@@ -185,13 +188,15 @@ workflow in PR #22, merged as `8054f14`). Clead's design for how:
 - The pack's Cloudflare `deploy.yml` stays in `languages/web/`, unused:
   it is not in `.github/workflows/` (checked at `0191768`).
 
-**Browser storage.** Every Pages site of the factoincognito account is
-served from one origin, `https://factoincognito.github.io`, so they all
-share that origin's browser storage (local storage, IndexedDB and the
-like). Until PBI-1.8, vizi stores nothing in the browser: `src/` uses
-no storage API. From PBI-1.8 it saves one thing, the token, when the
-user asks it to (3.8), and every other factoincognito Pages site can
-read it. A custom domain would give vizi an origin of its own.
+**One origin for every factoincognito Pages site.** Every Pages site of
+the factoincognito account is served from one origin,
+`https://factoincognito.github.io`. To the browser they are one site:
+they share that origin's storage (local storage, IndexedDB and the
+like), and a script on any of them can open another one, `/vizi/`
+included, and script into it. Until PBI-1.8 vizi holds nothing secret
+and stores nothing in the browser (`src/` uses no storage API). From
+PBI-1.8 it holds a token, and 3.8, "The shared origin", sets out what
+that exposes.
 
 ### 2.3 The web pack's "no external requests" rule
 
@@ -221,8 +226,8 @@ document.
   Untrusted content is handled by the rendering contract (3.7): no
   source text is inserted as HTML, and content loads nothing.
 - PBI-1.8 adds one, because the page then holds a secret, the token
-  (3.8). It is a `<meta http-equiv="Content-Security-Policy">` tag,
-  the first element in `<head>`:
+  (3.8). It is a `<meta http-equiv="Content-Security-Policy">` tag in
+  `<head>`, after `<meta charset>` and before any script or style:
 
   ```
   default-src 'none'; script-src 'sha256-<script>';
@@ -238,13 +243,22 @@ document.
   module script, one `<style>` block, no `style=` attribute and no
   `on…=` attribute (checked 2026-11-04 on a build of `main`), so hashes
   cover everything it runs. `img-src data:` is for the inline favicon.
-- What it adds: even if a defect let content run script, that script
-  could not send the token to any host other than GitHub's, through
-  `fetch` or the like, and no script other than the build's own runs.
-- What it does not do: a `<meta>` policy cannot set `frame-ancestors`
-  or reporting; it does not stop a script from navigating away with
-  data in the address; and it does not protect storage from other
-  factoincognito Pages sites (2.2). 3.7 stays the first protection.
+- What it adds: no script other than the build's own runs, and a
+  script that did run could send data by `fetch` and the like only to
+  GitHub's two hosts.
+- What it does not close:
+  - sending the token out through GitHub itself: a script that has
+    broken 3.7 can call `api.github.com` with credentials of its own and
+    put the token in, say, a gist or an issue comment. The policy
+    narrows the ways out; it does not shut them;
+  - navigating away with data in the address;
+  - anything from the shared origin (3.8, "The shared origin"): other
+    factoincognito Pages sites reading storage or scripting into vizi,
+    and a root site's service worker, which can rewrite the page and
+    its policy;
+  - `frame-ancestors` and reporting, which a `<meta>` policy cannot set.
+
+  3.7 stays the first protection.
 
 ---
 
@@ -655,14 +669,17 @@ PBI-1.8 builds it.
   expected to need the repository permission "Contents: read" (and
   "Metadata: read", which GitHub adds to every such token); PBI-1.8
   confirms it (section 4, items 10 and 11). The page takes only text
-  that starts with `github_pat_` after trimming; anything else, a
-  classic `ghp_` token included, is refused with a message saying so,
-  and is not kept.
+  that, after trimming, matches `^github_pat_[A-Za-z0-9_]+$`, so the
+  token is always a valid header value. Anything else, a classic
+  `ghp_` token included, is refused with a message saying so, and is
+  not kept.
 - **Where it is entered.** A field "GitHub token (for private repos)"
   under the address field, of type `password`, with `autocomplete="off"`
   and spellcheck off, a "Remember the token" box (not ticked unless a
-  token is already saved) and a "Use" button. Folder mode never uses
-  the token.
+  token is already saved) and a "Use" button. The field is outside any
+  `<form>`, so a browser has no form to offer to save it from; whether a
+  password manager still offers to save it is section 4, item 15.
+  Folder mode never uses the token.
 - **Never shown back in full.** After "Use" the field is cleared. The
   page then shows only "Token in use: `github_pat_…` and its last four
   characters", followed by "saved in this browser" or "for this page
@@ -673,22 +690,51 @@ PBI-1.8 builds it.
     key `vizi.githubToken`, so it survives a reload: entered once per
     browser. Unticking the box later removes the saved copy and keeps
     the token for this page only. At startup the page reads the key; a
-    value that does not start with `github_pat_` is removed.
-  - **The risk:** the published page's storage belongs to the origin
-    `https://factoincognito.github.io`, which every Pages site of the
-    factoincognito account shares (2.2). Any script on any of those
-    sites, now or later, can read the saved token. That is why only a
-    read-only token, limited to chosen repos and with an expiry, is
-    taken; why "Remember the token" is off until the user ticks it; and
-    why the page says, next to the box, that other factoincognito Pages
-    sites can read a saved token. A custom domain would remove the
-    sharing.
+    value that does not match the token rule is removed.
+  - "Remember the token" is off until the user ticks it. That keeps a
+    token out of storage, but it does not protect a token from the
+    shared origin; see "The shared origin" below.
+- **The shared origin.** The published page runs on the origin of every
+  factoincognito Pages site (2.2), so the token, whether saved or held
+  for this page only, is only as safe as every current and future Pages
+  site of the account:
+  - a script on any of them can read the saved token from
+    `localStorage`, or write a `github_pat_…` value of its own there,
+    which vizi would then use;
+  - a script on any of them can open `/vizi/` in a window or a frame
+    and script into it, so it can read a token held only in memory;
+  - the account's root site, a repo named `factoincognito.github.io`,
+    could register a service worker for the whole origin. That worker
+    would see every request vizi makes, the `Authorization` header
+    included, and could serve a changed page without its
+    Content-Security-Policy. A root site could take vizi over entirely.
+
+  Today `https://factoincognito.github.io/` answers 404, so there is no
+  root site (checked 2026-11-04). Which other repos of the account have
+  a Pages site was not checked: this session cannot list them.
+
+  The defences are a custom domain for vizi, which gives it an origin of
+  its own, or the product owner's control over who may create Pages
+  sites in the account, above all never a root site
+  `factoincognito.github.io`. Which applies is the product owner's
+  choice, asked 2026-11-04. The read-only, chosen-repos, expiring token
+  limits what a stolen token can do; it does not stop the theft. The
+  page says, next to the token field, that other factoincognito Pages
+  sites can reach the token.
 - **Forget the token.** It removes the token from memory, removes the
   `localStorage` key, clears the field and the "Token in use" line, and
   hides any results that were loaded with the token, since they may
-  hold private text. Another open vizi tab drops its copy too: the page
-  listens for the `storage` event of that key. A token held for one
-  page only is gone when the page is closed.
+  hold private text. It counts as a newer load (3.1, "Two loads at
+  once"), so the answer of a load still running with the token is
+  dropped and cannot show private text again. A token held for one page
+  only is gone when the page is closed.
+- **Other open vizi tabs** listen for the `storage` event of the key:
+  - when the key is removed, a tab does everything "Forget the token"
+    does, including hiding its token-loaded results and counting as a
+    newer load, whatever token it held;
+  - when another tab saves a new token, a tab adopts it for its next
+    loads if it matches the token rule above, and updates its
+    "Token in use" line; results already shown stay.
 - **Which requests carry it.** Only requests to `https://api.github.com`,
   in an `Authorization: Bearer <token>` header, with `credentials:
   "omit"` (no cookies) and `cache: "no-store"` (private answers are not
@@ -706,7 +752,11 @@ PBI-1.8 builds it.
 - **Never in an address, a log or a message.** The token is never put
   in a URL, never written to the console, and never part of an error
   message, the report or the page's text; messages name the host, the
-  URL and the HTTP status only, and no URL holds the token.
+  URL and the HTTP status only, and no URL holds the token. When a
+  request that carries the token fails before an answer (a network
+  error, or an exception from `fetch`), the message names only the host
+  and that the request failed: the exception's own text is never shown,
+  since a browser may quote a header value in it.
 - **Answers** (with a token; without one, 3.1 is unchanged):
   - **401:** GitHub did not accept the token: it has expired, has been
     revoked, or is wrong. The page says so ("GitHub refused the token:
@@ -732,20 +782,27 @@ PBI-1.8 builds it.
   go to github.com, where a private file needs the user's own GitHub
   sign-in.
 - **Tests,** all with GitHub stubbed and synthetic tokens:
-  - unit (a pure `src/token.ts`, storage passed in): the `github_pat_`
-    check, the masked form, save, read at startup, forget, the
-    `storage` event;
+  - unit (a pure `src/token.ts`, storage passed in): the rule
+    `^github_pat_[A-Za-z0-9_]+$` after trimming, with a classic token,
+    spaces inside, a line break and other characters refused; the
+    masked form; save, read at startup, forget; the `storage` event,
+    for a removed key and for a new token;
   - unit (`src/github.ts`): with a token, every request goes to
     `api.github.com` with the header, request 3 uses the contents API
     and the raw media type, no URL holds the token; the 401, 403 and
-    404 mapping;
+    404 mapping; a fetcher that throws an error whose message holds the
+    token gives a message without it;
   - browser: the field is a password field and is cleared; the masked
     line; "Remember" writes `localStorage` and a reload finds it;
     "Forget" clears memory, storage, the line and token-loaded results;
+    "Forget" during a load: the load's late answer is dropped and shows
+    nothing; a second tab: removing the key there makes this tab hide its
+    token-loaded results and drop its token, and saving a new token
+    there makes this tab use it;
     no request to `raw.githubusercontent.com` while a token is held;
     the token appears in no request URL, console message or page text;
     a 401 forgets the token;
-  - the CSP of 2.3: the tag is present and first in `<head>`, its
+  - the CSP of 2.3: the tag is present before any script or style, its
     hashes match the built page's inline blocks, the page loads with no
     policy violation, and a request to another host is blocked.
 
@@ -809,7 +866,7 @@ PBI-1.2's; their outcome after it (PR #9):
    requests" rule changes as well (2.3). That is a template change,
    through the template's review flow.
 
-Items 9 to 14 are PBI-1.8's (3.8); PBI-1.8 says to check first that
+Items 9 to 15 are PBI-1.8's (3.8); PBI-1.8 says to check first that
 GitHub accepts such a token from the published page. None is checked
 yet:
 
@@ -836,3 +893,7 @@ yet:
     and style can be written into the `<meta>` policy with the
     single-file plugin, and whether every browser the page targets
     applies the policy with no violation.
+15. **Open; PBI-1.8.** Whether a browser's password manager offers to
+    save the token from a password field outside any `<form>`, and so
+    may keep it, perhaps synced to an account. Browsers often ignore
+    `autocomplete="off"` on password fields.
