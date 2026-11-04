@@ -1179,6 +1179,8 @@ the five steps and the closing link. The link is not a sixth step.
     results, a failed or refused load, or a forgotten token, hides them).
     So the control is hidden while the view is open, and nothing else on
     the start page can be focused.
+  - The view's `<section>` sits outside the wrapper, as its sibling under
+    the `h1`, so hiding the wrapper never hides the view.
   - A load that is under way carries on and fills the wrapper's content
     unseen. Opening the view starts no load and cancels none, and a load
     never moves the focus.
@@ -1217,9 +1219,10 @@ the five steps and the closing link. The link is not a sixth step.
      marker, an ID, notes in parentheses, an em dash with a space on each
      side, the title as the first sentence, the description after it (R1
      to R4). An entry without an ID, or without the dash, is still read,
-     with a warning in the Report tab (R2, R3, section 3). Which markers are shown: every marker is shown;
-     `NOW`, `NEXT`, `BLOCKED`, `LATER`, `IDEA` get a column each, `DONE`,
-     `SUPERSEDED` and `MOVED` get folded columns, any other marker gets
+     with a warning in the Report tab (R2, R3, section 3). Which markers
+     are shown: every marker is shown; `NOW`, `NEXT`, `BLOCKED`,
+     `LATER`, `IDEA` get a column each, `DONE`, `SUPERSEDED` and `MOVED`
+     get folded columns, any other marker gets
      a column of its own and a warning in the Report tab (3.2, 3.5).
      Headings group the entries in the list. A list item without a marker
      is not an entry (R1; Info in the report). The example:
@@ -1358,10 +1361,7 @@ the five steps and the closing link. The link is not a sixth step.
     - step 5's token example is refused by `parseToken`, and no part of
       the help text matches `github_pat_[A-Za-z0-9_]{10,}`;
     - the closing link is an `https://github.com/factoincognito/vizi/`
-      URL ending in `docs/BACKLOG-FORMAT.md`;
-    - the token scan also runs over the built `dist/index.html` (the
-      view's code included): no match of `github_pat_[A-Za-z0-9_]{10,}`
-      or of `ghp_[A-Za-z0-9]{20,}`.
+      URL ending in `docs/BACKLOG-FORMAT.md`.
 
     Steps 2 to 4 are checked for an empty report by their readers above;
     steps 1 and 5 have the checks of their own.
@@ -1394,7 +1394,10 @@ the five steps and the closing link. The link is not a sixth step.
       scroll (the check of `e2e/smoke.e2e.ts`);
     - no request is made by opening the view, and the page's requests
       stay as in 2.3; the built `dist/index.html` holds the view's title
-      and the example text; the CSP test of `e2e/csp.e2e.ts` is repeated
+      and the example text, and, read after the build as
+      `e2e/subpath.e2e.ts` reads it (the unit tests run before the page
+      is built), no match of `github_pat_[A-Za-z0-9_]{10,}` or of
+      `ghp_[A-Za-z0-9]{20,}`, the view's code included; the CSP test of `e2e/csp.e2e.ts` is repeated
       with the view open, with no violation and no console error, and a
       script added at run time is still blocked;
     - the final link has the right `href`, `target` and `rel`; it is not
