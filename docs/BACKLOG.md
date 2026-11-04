@@ -125,7 +125,9 @@ Build order: Clead's proposal, from the design the spec is taken from.
   font, Inter, built into the page (the spec checks its licence against
   the product office's third-party policy); light, dark and phone. Next
   to the token fields, a step-by-step guide on how to make the read-only
-  token (product owner, 2026-11-04 16:11), its steps checked against
+  token (product owner, 2026-11-04 16:11), and a line that a saved
+  token can be used by anyone with access to this browser (16:18); the
+  steps checked against
   GitHub's own documentation (with SPEC section 4, item 19). A spec
   change first, then the code. After PBI-1.14.
 - **[NEXT] PBI-1.15** (product owner, 2026-11-04; intent approved 15:15) — A branch
