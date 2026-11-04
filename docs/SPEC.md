@@ -205,10 +205,11 @@ the points the text above it leaves open.
   fails the whole load and is shown with its HTTP status; a 404 there is
   shown as a status, not as "not found or not public". A request that
   cannot be made says so with the host and the reason. An answer to
-  request 1 without a default branch, or to request 2 without a file
-  list, is reported as not understood. After any failed load, and after
-  a refused address, the previous project's results are cleared and
-  hidden.
+  request 1 without a default branch is shown as "GitHub's answer for
+  the repo had no default branch", and an answer to request 2 without a
+  file list as "GitHub's answer for the file list was not understood".
+  After any failed load, and after a refused address, the previous
+  project's results are cleared and hidden.
 - **Two loads at once.** When a second address is submitted before the
   first load has ended, both run, and the one that ends last is shown.
   Ignoring the older answer is PBI-1.5.
@@ -345,8 +346,10 @@ not a second pass. The tab shows the number of items of each kind.
 number of items. The kinds are listed in the order Not read, Read with
 a warning, Info, each with its count. An item with a line reads
 "`<file>` line `<n>`: `<message>`", where the file is the backlog file
-read or `STATUS.md`; an input note (3.1: more than one backlog file, a
-truncated file list) has no line and shows its message only.
+read or `STATUS.md`. An item without a line shows its message only:
+an input note (3.1: more than one backlog file, a truncated file list),
+and a `STATUS.md` item without a line (a missing field heading, a
+missing "Last update" line).
 
 ### 3.6 Build and tests
 
@@ -409,7 +412,7 @@ CommonMark. What it reads, beyond items 1 to 5:
   - A heading is an ATX heading (`#` to `######`) indented at most
     three spaces. The page keeps `h1` and `h2` for itself, so a
     project's heading is shown two levels down: `#` as `h3`, `##` as
-    `h4`, and `####` and deeper as `h6`.
+    `h4`, `###` as `h5`, and `####` and deeper as `h6`.
   - A list item starts with `-`, `*` or `+`, or with one to nine digits
     and `.` or `)`, indented at most three spaces. `+` and `)` are read
     here, in descriptions and documentation files, although the
@@ -454,9 +457,13 @@ CommonMark. What it reads, beyond items 1 to 5:
     opens in a new tab with `rel="noopener noreferrer"`.
   - A target that starts with `//`, holds a `\`, or has a `:` in its
     first path segment is text.
-  - A relative target loses its `?…` or `#…` part and is
-    percent-decoded; bad percent-encoding makes it text. A target that
-    starts with `/` resolves from the project's root. `.` and `..`
+  - A relative target loses its `?…` or `#…` part and is decoded with
+    `decodeURI`: escapes such as `%20` and `%C3%96` are decoded, but the
+    escapes of reserved characters, such as `%2F`, `%23`, `%3F` and
+    `%3A`, stay as written, so `a%2Fb` names a file called `a%2Fb`, not
+    `a/b`. Full decoding is PBI-1.5. Bad percent-encoding makes the
+    target text. A target that starts with `/` resolves from the
+    project's root. `.` and `..`
     segments are resolved, and a target that leaves the project is
     text.
   - An anchor (`#…`) is percent-decoded (bad encoding is kept as
@@ -490,9 +497,11 @@ PBI-1.2's; their outcome after it (PR #9):
 1. **Open for browsers other than Chromium; PBI-1.4.** Which browser
    feature picks the folder, and whether it works on a page opened from
    disk (`file://`). Settled for Chromium: the page uses a folder input
-   (3.1, "As built"), and picking a folder works on the built page
-   opened from disk (browser test "picks a folder on a page opened from
-   disk (file://)", headless Chromium).
+   (3.1, "As built"), and the folder input reads a folder's files on the
+   built page opened from disk (browser test "picks a folder on a page
+   opened from disk (file://)", headless Chromium). The test sets the
+   files with Playwright's `setInputFiles`, so it does not show the
+   browser's own folder picker; that is part of PBI-1.4.
 2. **Open; PBI-1.4.** Whether requests to GitHub work from a page opened
    from disk in a real browser. With GitHub's answers stubbed, URL mode
    works on the built page opened from disk (browser test "works on a
@@ -506,11 +515,15 @@ PBI-1.2's; their outcome after it (PR #9):
 4. **Open; PBI-1.4.** What an anonymous request for a private repo gets
    back. The page shows "not found or not public" for a 404 on request 1
    or 2, and any other status as that status (3.1).
-5. **Settled (PBI-1.2).** What the page does with a truncated file list:
-   it reads the files it got and says so under the address and in the
-   report (3.1, "As built"; browser test "tells that the file list was
-   truncated"). When GitHub truncates a list was not checked; the page
-   reads GitHub's `truncated` flag.
+5. **Settled in part (PBI-1.2).** What the page does with a truncated
+   file list is in 3.1, "As built". Tested: the message under the
+   address names the truncation (browser test "tells that the file list
+   was truncated", which checks that the message contains "truncated"),
+   and `loadRepo` passes GitHub's `truncated` flag through (unit test in
+   `src/github.test.ts`). Not tested: the report's Info item, and that
+   the documentation list and code-span links are built from the files
+   GitHub did send. Those tests are PBI-1.5. When GitHub truncates a
+   list was not checked.
 6. **Settled (PBI-1.2).** A synthetic backlog of 1500 lines (the
    template's `docs/BACKLOG.md` has about as many) loads in URL mode,
    with GitHub stubbed, and shows the board and over 400 list rows in
