@@ -12,7 +12,14 @@ import {
 } from "./backlog";
 import { boardColumns, descriptionForDisplay, listSections } from "./board";
 import { documentationList, folderFiles, isMarkdownPath, projectFilePath } from "./docs";
-import { BACKLOG_PATHS, blobUrl, loadRepo, parseGithubUrl } from "./github";
+import {
+  BACKLOG_PATHS,
+  blobUrl,
+  type Fetcher,
+  loadRepo,
+  parseGithubUrl,
+  readRepoFile,
+} from "./github";
 import {
   type Block,
   type Inline,
@@ -21,6 +28,12 @@ import {
   render,
   renderInline,
 } from "./markdown";
+import {
+  type Pointer,
+  type ProjectNode,
+  type ProjectsResult,
+  parse as parseProjects,
+} from "./projects";
 import { parse as parseStatus, type StatusResult } from "./status";
 import { createTokenStore, maskToken } from "./token";
 import "./style.css";
@@ -51,7 +64,17 @@ interface Project {
   link: (path: string) => LinkTarget | null;
   /** Folder mode only: reads a file of the folder. */
   readFile: ((path: string) => Promise<string>) | null;
+  /** The root PROJECTS.md read as the umbrella view (3.9), or null without the file. */
+  projects: ProjectsResult | null;
+  /** 3.9, "Show status": reads `projects/<name>/STATUS.md` of this project, fresh each time. */
+  readProjectStatus: (name: string, stale: () => boolean) => Promise<StatusRead>;
 }
+
+/** What reading a folder pointer's STATUS.md gave (3.9). */
+type StatusRead =
+  | { kind: "text"; text: string }
+  | { kind: "missing" }
+  | { kind: "failed"; message: string; tokenRefused: boolean };
 
 // ----------------------------------------------------------------- DOM helpers
 
@@ -171,14 +194,40 @@ function inlineEl(text: string, basePath: string): Node[] {
 
 // ------------------------------------------------------------------- status
 
-function renderStatus(p: Project): void {
-  const box = must("status");
-  box.replaceChildren();
-  const s = p.status;
-  if (!s) {
-    box.append(h("p", {}, "No STATUS.md was found, so no status is shown."));
-    return;
-  }
+/** The test ids of a status view: the project's own, and the "Project status" panel's (3.9). */
+interface StatusIds {
+  phase: string;
+  focus: string;
+  next: string;
+  updated: string;
+  blocker: string;
+  none: string;
+  missing: string;
+  empty: string;
+}
+const OWN_IDS: StatusIds = {
+  phase: "status-phase",
+  focus: "status-focus",
+  next: "status-next",
+  updated: "status-updated",
+  blocker: "blocker",
+  none: "blockers-none",
+  missing: "blockers-missing",
+  empty: "blockers-empty",
+};
+const PANEL_IDS: StatusIds = {
+  phase: "pstatus-phase",
+  focus: "pstatus-focus",
+  next: "pstatus-next",
+  updated: "pstatus-updated",
+  blocker: "pblocker",
+  none: "pblockers-none",
+  missing: "pblockers-missing",
+  empty: "pblockers-empty",
+};
+
+/** The fields and blockers of a STATUS.md (3.3), read under S1 to S5; `basePath` is the file's own path. */
+function statusNodes(s: StatusResult, ids: StatusIds, basePath: string): Node[] {
   const field = (testid: string, label: string, text: string | null) =>
     h(
       "div",
@@ -186,28 +235,28 @@ function renderStatus(p: Project): void {
       h("h3", {}, label),
       text === null
         ? h("p", { "data-testid": testid, class: "muted" }, "not given")
-        : h("div", { "data-testid": testid }, markdownEl(text, "STATUS.md")),
+        : h("div", { "data-testid": testid }, markdownEl(text, basePath)),
     );
-  box.append(
-    field("status-phase", "Phase", s.phase),
-    field("status-focus", "Current focus", s.currentFocus),
-    field("status-next", "Next step", s.nextStep),
+  const nodes: Node[] = [
+    field(ids.phase, "Phase", s.phase),
+    field(ids.focus, "Current focus", s.currentFocus),
+    field(ids.next, "Next step", s.nextStep),
     h(
       "p",
-      { "data-testid": "status-updated", class: "muted" },
+      { "data-testid": ids.updated, class: "muted" },
       `Last update: ${s.lastUpdate ?? "not given"}`,
     ),
-  );
+  ];
   const blockers = h("div", { class: "field" }, h("h3", {}, "Blockers"));
   if (s.blockers === null) {
-    blockers.append(h("p", { class: "muted", "data-testid": "blockers-missing" }, "not given"));
+    blockers.append(h("p", { class: "muted", "data-testid": ids.missing }, "not given"));
   } else {
     if (s.none) {
       blockers.append(
-        h("p", { "data-testid": "blockers-none" }, "None", s.remark ? ` — ${s.remark}` : ""),
+        h("p", { "data-testid": ids.none }, "None", s.remark ? ` — ${s.remark}` : ""),
       );
     } else if (s.blockers.length === 0) {
-      blockers.append(h("p", { "data-testid": "blockers-empty" }, "No blockers listed"));
+      blockers.append(h("p", { "data-testid": ids.empty }, "No blockers listed"));
     }
     if (s.blockers.length > 0) {
       blockers.append(
@@ -218,18 +267,30 @@ function renderStatus(p: Project): void {
             h(
               "li",
               {
-                "data-testid": "blocker",
+                "data-testid": ids.blocker,
                 "data-waiting": String(b.waitingOnProductOwner),
                 class: b.waitingOnProductOwner ? "waiting" : "",
               },
-              ...inlineEl(b.text, "STATUS.md"),
+              ...inlineEl(b.text, basePath),
             ),
           ),
         ),
       );
     }
   }
-  box.append(blockers);
+  nodes.push(blockers);
+  return nodes;
+}
+
+function renderStatus(p: Project): void {
+  const box = must("status");
+  box.replaceChildren();
+  const s = p.status;
+  if (!s) {
+    box.append(h("p", {}, "No STATUS.md was found, so no status is shown."));
+    return;
+  }
+  box.append(...statusNodes(s, OWN_IDS, "STATUS.md"));
 }
 
 // ----------------------------------------------------------------- entries
@@ -369,6 +430,7 @@ function renderReport(p: Project): number {
   add(null, p.inputNotes);
   add(p.backlogPath, p.backlog?.report ?? []);
   add("STATUS.md", p.status?.report ?? []);
+  add("PROJECTS.md", p.projects?.report ?? []);
   const box = must("report-body");
   box.replaceChildren();
   const titles = { error: "Not read", warning: "Read with a warning", info: "Info" } as const;
@@ -395,9 +457,137 @@ function renderReport(p: Project): number {
   return items.length;
 }
 
+// ----------------------------------------------------------------- umbrella
+
+/** Loads a repo by its address in the same page, as a newer load (3.9, "Open in vizi"). */
+function openInVizi(address: string): void {
+  must<HTMLInputElement>("url-input").value = address;
+  void openUrl(address);
+}
+
+function link(text: string, onClick: () => void): HTMLElement {
+  const a = h("a", { href: "#" }, text);
+  a.addEventListener("click", (event) => {
+    event.preventDefault();
+    onClick();
+  });
+  return a;
+}
+
+function pointerElement(pointer: Pointer): HTMLElement {
+  const li = h(
+    "li",
+    { "data-testid": "pointer", "data-kind": pointer.kind, "data-pointer": pointer.text },
+    h("span", { class: "pointer-text" }, pointer.text),
+  );
+  if (pointer.kind === "repo") {
+    const address = `https://github.com/${pointer.owner}/${pointer.repo}`;
+    const onGithub = h(
+      "a",
+      { href: address, target: "_blank", rel: "noopener noreferrer" },
+      "On GitHub",
+    );
+    li.append(
+      " ",
+      link("Open in vizi", () => openInVizi(address)),
+      " ",
+      onGithub,
+    );
+  } else {
+    li.append(
+      " ",
+      link("Show status", () => void showProjectStatus(pointer)),
+    );
+  }
+  return li;
+}
+
+function nodeElement(node: ProjectNode): HTMLElement {
+  const li = h(
+    "li",
+    { "data-testid": "umbrella-node" },
+    h(
+      "div",
+      { class: "umbrella-heading" },
+      ...(node.heading === null ? ["(no heading)"] : inlineEl(node.heading, "PROJECTS.md")),
+    ),
+  );
+  if (node.pointers.length > 0)
+    li.append(h("ul", { class: "pointers" }, ...node.pointers.map(pointerElement)));
+  if (node.children.length > 0)
+    li.append(h("ul", { class: "children" }, ...node.children.map(nodeElement)));
+  return li;
+}
+
+/** The tree is built from the file at every load and never carries a status (3.9). */
+function renderUmbrella(p: Project): void {
+  const tree = must("umbrella-tree");
+  tree.replaceChildren();
+  clearProjectStatus();
+  if (p.projects && p.projects.tree.length > 0)
+    tree.append(h("ul", { class: "children" }, ...p.projects.tree.map(nodeElement)));
+}
+
+function clearProjectStatus(): void {
+  const box = must("project-status");
+  box.replaceChildren();
+  box.hidden = true;
+}
+
+/** Counts the "Show status" uses: the newest wins (3.9). */
+let latestStatus = 0;
+
+async function showProjectStatus(pointer: Extract<Pointer, { kind: "folder" }>): Promise<void> {
+  const p = project;
+  if (!p) return;
+  const id = ++latestStatus;
+  const load = latestLoad;
+  // An answer is dropped when a newer "Show status" or a newer load has started, or another project is open.
+  const stale = () => id !== latestStatus || load !== latestLoad || project !== p;
+  const read = await p.readProjectStatus(pointer.name, stale);
+  if (stale()) return;
+  const box = must("project-status");
+  const statusPath = `${pointer.text}STATUS.md`;
+  box.hidden = false;
+  box.replaceChildren(
+    h("h3", {}, "Project status"),
+    h("p", { class: "muted pointer-text" }, pointer.text),
+  );
+  if (read.kind === "missing") {
+    box.append(h("p", {}, `No STATUS.md in ${pointer.text}`));
+  } else if (read.kind === "failed") {
+    if (read.tokenRefused) {
+      // GitHub refused the token: forget it, as 3.8 sets out.
+      dropToken();
+      forgetEverything(read.message);
+      return;
+    }
+    box.append(h("p", {}, read.message));
+  } else {
+    const status = parseStatus(read.text);
+    box.append(...statusNodes(status, PANEL_IDS, statusPath));
+    if (status.report.length > 0) {
+      box.append(
+        h("h4", {}, "What could not be read"),
+        h(
+          "ul",
+          { class: "panel-report" },
+          ...status.report.map((r) =>
+            h(
+              "li",
+              { "data-testid": "panel-report-item", "data-kind": r.kind },
+              `${r.line === null ? "" : `line ${r.line}: `}${r.message}`,
+            ),
+          ),
+        ),
+      );
+    }
+  }
+}
+
 // -------------------------------------------------------------------- tabs
 
-const TABS = ["board", "list", "docs", "report"] as const;
+const TABS = ["board", "list", "docs", "report", "umbrella"] as const;
 type Tab = (typeof TABS)[number];
 
 function selectTab(tab: Tab): void {
@@ -428,7 +618,10 @@ function show(p: Project): void {
   renderDocs(p);
   const count = renderReport(p);
   must("tab-report").textContent = `Report (${count})`;
-  selectTab("board");
+  must("tab-umbrella").hidden = p.projects === null;
+  renderUmbrella(p);
+  // A project with a PROJECTS.md and no backlog file opens on the Umbrella tab (3.9).
+  selectTab(p.projects !== null && p.backlog === null ? "umbrella" : "board");
 }
 
 function inputNotes(backlogPaths: string[], truncated: boolean): ReportItem[] {
@@ -462,6 +655,8 @@ function build(
   truncated: boolean,
   link: Project["link"],
   readFile: Project["readFile"],
+  projectsText: string | null,
+  readProjectStatus: Project["readProjectStatus"],
 ): Project {
   return {
     name,
@@ -472,6 +667,8 @@ function build(
     inputNotes: inputNotes(backlogPaths, truncated),
     link,
     readFile,
+    projects: projectsText === null ? null : parseProjects(projectsText),
+    readProjectStatus,
   };
 }
 
@@ -480,9 +677,18 @@ function hideResults(): void {
   project = null;
   projectUsedToken = false;
   must("results").hidden = true;
-  for (const id of ["status", "board", "list-body", "doc-list", "doc-view", "report-body"]) {
+  for (const id of [
+    "status",
+    "board",
+    "list-body",
+    "doc-list",
+    "doc-view",
+    "report-body",
+    "umbrella-tree",
+  ]) {
     must(id).replaceChildren();
   }
+  clearProjectStatus();
 }
 
 /**
@@ -491,6 +697,14 @@ function hideResults(): void {
  * newest request always wins (docs/SPEC.md 3.1).
  */
 let latestLoad = 0;
+
+/** The page's fetch. A request that carries the token is not made once its load has been replaced (3.8). */
+function guardedFetch(token: string | null, replaced: () => boolean): Fetcher {
+  return (url, init) => {
+    if (token !== null && replaced()) throw new Error("replaced by a newer load");
+    return fetch(url, init);
+  };
+}
 
 async function openUrl(address: string): Promise<void> {
   const load = ++latestLoad;
@@ -506,11 +720,7 @@ async function openUrl(address: string): Promise<void> {
   const token = tokens.current();
   const result = await loadRepo(
     ref,
-    (url, init) => {
-      // A load that Forget or a newer load has replaced sends nothing more with the token.
-      if (token !== null && load !== latestLoad) throw new Error("replaced by a newer load");
-      return fetch(url, init);
-    },
+    guardedFetch(token, () => load !== latestLoad),
     token,
   );
   if (load !== latestLoad) return;
@@ -531,6 +741,20 @@ async function openUrl(address: string): Promise<void> {
     result.truncated,
     (path) => ({ kind: "external", href: blobUrl(withBranch, path), newTab: true }),
     null,
+    result.projectsText,
+    async (name, stale) => {
+      const path = `projects/${name}/STATUS.md`;
+      // Without the file in the file list there is nothing to ask for.
+      if (!result.files.includes(path)) return { kind: "missing" };
+      const current = tokens.current();
+      const answer = await readRepoFile(withBranch, path, guardedFetch(current, stale), current);
+      if (answer.ok) return { kind: "text", text: answer.text };
+      return {
+        kind: "failed",
+        message: answer.message,
+        tokenRefused: answer.kind === "token-refused",
+      };
+    },
   );
   show(p);
   projectUsedToken = token !== null;
@@ -565,6 +789,7 @@ async function openFolder(input: HTMLInputElement): Promise<void> {
   const first = backlogPaths[0];
   const backlogText = first === undefined ? null : await read(first);
   const statusText = byPath.has("STATUS.md") ? await read("STATUS.md") : null;
+  const projectsText = byPath.has("PROJECTS.md") ? await read("PROJECTS.md") : null;
   if (load !== latestLoad) return;
   const name = (picked[0]?.webkitRelativePath ?? "").split("/")[0] || "folder";
   const p = build(
@@ -576,6 +801,16 @@ async function openFolder(input: HTMLInputElement): Promise<void> {
     false,
     (path) => (byPath.has(path) ? { kind: "file", path } : null),
     read,
+    projectsText,
+    async (name) => {
+      const path = `projects/${name}/STATUS.md`;
+      if (!byPath.has(path)) return { kind: "missing" };
+      try {
+        return { kind: "text", text: await read(path) };
+      } catch {
+        return { kind: "failed", message: `${path} could not be read.`, tokenRefused: false };
+      }
+    },
   );
   show(p);
   projectUsedToken = false;
@@ -684,6 +919,8 @@ function mount(): void {
       label,
     );
     b.addEventListener("click", () => selectTab(id));
+    // The Umbrella tab exists only for a project with a PROJECTS.md (3.9).
+    if (id === "umbrella") b.hidden = true;
     return b;
   };
   const urlInput = h("input", {
@@ -734,6 +971,7 @@ function mount(): void {
         tab("list", "List"),
         tab("docs", "Documentation"),
         tab("report", "Report"),
+        tab("umbrella", "Umbrella"),
       ),
       h("div", { id: "panel-board", role: "tabpanel" }, h("div", { id: "board", class: "board" })),
       h(
@@ -752,6 +990,17 @@ function mount(): void {
         "div",
         { id: "panel-report", role: "tabpanel", hidden: "" },
         h("div", { id: "report-body" }),
+      ),
+      h(
+        "div",
+        { id: "panel-umbrella", role: "tabpanel", hidden: "" },
+        h("div", { id: "umbrella-tree" }),
+        h("section", {
+          id: "project-status",
+          "data-testid": "project-status",
+          "aria-label": "Project status",
+          hidden: "",
+        }),
       ),
     ),
   );

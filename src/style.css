@@ -275,3 +275,39 @@ button {
   margin: 4px 0;
   padding-left: 20px;
 }
+
+/* The umbrella view (docs/SPEC.md 3.9). */
+#umbrella-tree ul {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+#umbrella-tree ul.pointers {
+  list-style: none;
+  padding-left: 12px;
+}
+
+.umbrella-heading {
+  font-weight: 600;
+  margin: 8px 0 2px;
+}
+
+.pointer-text {
+  font-family: ui-monospace, monospace;
+}
+
+#umbrella-tree li > a {
+  margin-left: 8px;
+}
+
+#project-status {
+  margin-top: 16px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+}
+
+#project-status .field {
+  margin: 4px 0;
+}

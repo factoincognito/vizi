@@ -36,7 +36,10 @@ const EXAMPLE = [
 ].join("\n");
 
 const summary = (r: ReturnType<typeof parse>) =>
-  r.report.map((i) => [i.line, i.kind] as const).sort((a, b) => (a[0] ?? 0) - (b[0] ?? 0));
+  r.report
+    .filter((i) => i.kind !== "info")
+    .map((i) => [i.line, i.kind] as const)
+    .sort((a, b) => (a[0] ?? 0) - (b[0] ?? 0));
 
 describe("the example of BACKLOG-FORMAT section 5", () => {
   const r = parse(EXAMPLE);
