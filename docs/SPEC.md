@@ -133,7 +133,7 @@ test. No fixture is copied from a real project's backlog or status file.
 No test reaches the network (2.3).
 
 **Published on GitHub Pages** (product owner, 2026-11-04; PBI-1.7,
-workflow in PR #22, as at `c901ef8`). Clead's design for how:
+workflow in PR #22, merged as `8054f14`). Clead's design for how:
 
 - `.github/workflows/pages.yml` builds the page and deploys `dist/` to
   `https://factoincognito.github.io/vizi/` on every push to `main`
@@ -425,26 +425,30 @@ one test, written before the code.
 
 Publishing (2.2, PR #22):
 
-- `src/pages-workflow.test.ts` (Jest) reads `pages.yml` as text and
-  checks:
-  - the whole `on:` block, exactly;
-  - the top-level `permissions:` block, exactly `contents: read`, and
-    that there is only one;
-  - that `site` has no `permissions:` key;
-  - the `deploy` job's `permissions:` block, exactly `pages: write` and
-    `id-token: write`;
-  - that `deploy` runs only for `refs/heads/main`;
-  - the concurrency group;
-  - that `site` builds with `npm ci` and `npm run build`, and uses the
-    same `checkout` and `setup-node` versions and Node.js version as
-    CI;
-  - `upload-pages-artifact` with the path `dist`, and `deploy-pages`,
-    each pinned to a major version;
-  - that `deploy` needs `site` and uses the `github-pages` environment;
-  - that no job is named `build`.
-
-  It does not check `persist-credentials: false`, although one test's
-  name mentions it.
+- `src/pages-workflow.test.ts` (Jest) parses `pages.yml` and `ci.yml`
+  with the `yaml` package and compares structures, so comments, blank
+  lines, quoting and key order cannot hide a change. `yaml` is a
+  devDependency used only by this test: version 2.9.1, pinned exactly
+  in `package.json`, ISC licence; it is not part of the built page. The
+  test checks:
+  - the whole workflow, exactly: its name; the triggers (a push to
+    `main` and `workflow_dispatch`, nothing else); the top-level
+    permissions (`contents: read`); the concurrency group (`pages`,
+    `cancel-in-progress: false`); and exactly two jobs, `site` and
+    `deploy`, so none is named `build`;
+  - `site`, exactly: its runner and timeout, no `permissions:` key, and
+    its steps with every `with` (step names aside): `checkout@v7` with
+    `persist-credentials: false`, `setup-node@v7` with Node.js 24 and
+    the npm cache, `npm ci`, `npm run build`, and
+    `upload-pages-artifact@v5` with the path `dist`;
+  - `deploy`, exactly: `needs: site`, the `refs/heads/main` condition,
+    its runner and timeout, `pages: write` and `id-token: write`, the
+    `github-pages` environment and its URL, and one step,
+    `deploy-pages@v5`;
+  - that CI's `build` job has the same `setup-node` step, `npm ci` and
+    `npm run test:e2e`, that the `test:e2e` script starts with
+    `npm run build`, and that `build` is `vite build`;
+  - that `site` uses the same `checkout` version as CI.
 - `e2e/subpath.e2e.ts` (Playwright) reads the built `dist/index.html`
   and checks that it has no root-relative `src`, `href`, `action`,
   `poster`, `url()` or `import`, and no external script or stylesheet,
