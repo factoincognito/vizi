@@ -109,13 +109,15 @@ test.describe("the Repository field (3.1)", () => {
     context,
   }) => {
     const seen = await stubGithub(context);
-    await page.goto("/");
     const lists: string[][] = [];
     for (const text of [
       "acme/widgets",
       "github.com/acme/widgets",
       "https://github.com/acme/widgets",
     ]) {
+      // A fresh page each time, so the wait below is for this load's results.
+      await page.goto("/");
+      await expect(page.locator("#results")).toBeHidden();
       const mark = seen.length;
       await open(page, text);
       await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");

@@ -163,7 +163,9 @@ test.describe("GitHub URL input (3.1)", () => {
     const requested = await stubGithub(page);
     await page.goto("/");
     await openUrl(page, "https://example.com/acme/widgets");
-    await expect(page.locator("#message")).toContainText("https://github.com/<owner>/<repo>");
+    await expect(page.locator("#message")).toContainText(
+      "Type the repository as owner/repo, for example fomo-t/fomo-f",
+    );
     expect(requested).toEqual([]);
   });
 
