@@ -38,9 +38,9 @@ shows the cache read and cache write tokens of every run.
 
 ## Secrets and trust
 
-- `ANTHROPIC_API_KEY` is the repository secret; the key `vizi-ci-review`
-  expires 2026-12-04 (product-office PO-68). After that the job fails visibly
-  and posts nothing.
+- `ANTHROPIC_API_KEY` is the repository secret. The key expires; after that, or
+  when the monthly credits are used up, the job fails visibly and posts nothing.
+  The product office tracks the key and the spend (product-office PO-68).
 - The model gets no tools and no settings files, and its process does not see the
   GitHub token.
 - A pull request from a fork gets no secrets and the job is skipped for it. The
