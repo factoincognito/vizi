@@ -91,7 +91,8 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
    opening a private repo with a token or as a folder (the folder is
    replaced by item 9); a link at the end
    to `docs/BACKLOG-FORMAT.md` on GitHub; the text shipped in the page;
-   a test that its examples read as stated. How vizi does it is 3.10.
+   a test that its examples read as stated. How vizi does it is 3.10;
+   item 10 adds to it.
 9. His decision of 2026-11-04 (15:15, in chat, "apyr"; recorded in the
    product office's `DECISIONS.md`, PR #390, and as PBI-1.14 in
    `docs/BACKLOG.md`): vizi no longer opens a local project folder. It
@@ -101,8 +102,10 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
    folder", and with it the folder in the inputs of item 2, in the
    umbrella view of item 6 and in the help view of item 8. What the
    code change must remove is in 3.11.
-10. His decision of 2026-11-04 (16:13, in chat): the help view says early
-    in its text that vizi is a read-only tool. The sentence is in 3.10.
+10. His decision of 2026-11-04 (16:13, in chat; recorded in the product
+    office's `DECISIONS.md`, PR #393): the help view says early in its
+    text that vizi is a read-only tool. It adds to item 8. How vizi does
+    it is 3.10.
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -1200,18 +1203,19 @@ the five steps and the closing link. The link is not a sixth step.
     link at its end is to the format spec on GitHub.
   - The view is not a tab: the tabs belong to a loaded project.
 - **Static text in the built page.** The text is in a module,
-  `src/help.ts`, as data: for each step a title, a few short paragraphs,
-  and one example. A paragraph is a list of parts, each plain text or
+  `src/help.ts`, as data: the view's title, the read-only sentence, and
+  for each step a title, a few short paragraphs, and one example. A paragraph is a list of parts, each plain text or
   code. The module is built into the one inline script, so the text ships
   in `dist/index.html`. Nothing is loaded for it: no `fetch`, no file, no
   image. The page's requests stay as in 2.3, and the policy in 2.3 stays
   as it is; only the hash of the inline script changes with the build, as
   with any change to the script.
-- **The read-only sentence (decided by the product owner, 2026-11-04,
-  16:13; item 10 of "What is decided").** Right under the view's `h2`
-  title, before step 1, one sentence of static text: "vizi is a
-  read-only tool: it reads your project's files on GitHub and never
-  changes anything there."
+- **The read-only sentence.** Decided by the product owner (2026-11-04,
+  16:13; item 10 of "What is decided"): the view says early that vizi is
+  read-only. Clead's design within that: the sentence and its place.
+  Right under the view's `h2` title, before step 1, one sentence of
+  static text: "vizi is a read-only tool: it reads your project's files
+  on GitHub and never changes anything there."
 - **The steps,** five, in this order, each with its title as a heading, a
   few sentences, and one example in a code block. What each says, and what
   its example reads as, are given below; the examples are what the code
