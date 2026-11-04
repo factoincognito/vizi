@@ -20,6 +20,8 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - PBI-1.3 done; status after the first version (#15).
 - Markdown and rendering (PBI-1.5 part 1): headings in any script get anchors, one 4096-character limit for link targets, faster on hostile lines, unique heading ids, relative link targets fully percent-decoded (#16).
 - Page and load (PBI-1.5 part 2): the newest load wins, non-Markdown files open as code, a stricter stray-request guard in the browser tests, tests for a truncated file list (#17).
+- PBI-1.5 done; PBI-1.6 (review follow-ups) added; changelog for #14 to #17 (#18).
+- Spec: matches the code after PBI-1.5 (link decoding, heading ids, two loads at once, files shown as code) (#19).
 
 ## Project created
 
