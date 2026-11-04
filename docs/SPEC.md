@@ -157,7 +157,11 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
     at 19:18 ("All"; recorded in the product office's `DECISIONS.md`,
     and in this repo's backlog and `docs/NEXT_SESSION.md` by PR #64),
     built after PBI-1.14 and before PBI-1.16. How vizi does it is 3.1,
-    "The Repository field".
+    "The Repository field". His decision of 21:01 the same day
+    (recorded in the product office's `DECISIONS.md`) adds to it: the
+    field's hint reads `<owner>/<repo>`, not `owner/repo`, so it shows
+    two parts to fill in, and so do the field's messages that show the
+    form.
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -502,7 +506,8 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
   `autocomplete="off"`, and gains `spellcheck="false"` and
   `autocapitalize="none"` (a phone would capitalise the owner).
   - Its label, a `<label for="url-input">`, reads "Repository".
-  - Its placeholder reads "owner/repo".
+  - Its placeholder reads "<owner>/<repo>" (the product owner's
+    decision of 21:01, item 14).
   - It starts empty, and the page never fills it at startup.
   - Placement before PBI-1.16: where today's label "Public GitHub repo"
     is, which it replaces. From PBI-1.16 (3.12): under the section's
@@ -574,15 +579,20 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
 - **Errors.** Any other text makes no request, counts as a load (3.1,
   "Two loads at once": the results are cleared and hidden, and an older
   load's answer is dropped), and `#message` says: "Type the repository
-  as owner/repo, for example fomo-t/fomo-f, or paste its GitHub address
-  (github.com/owner/repo, optionally with /tree/<branch>)." An
+  as <owner>/<repo>, for example fomo-t/fomo-f, or paste its GitHub
+  address (github.com/<owner>/<repo>, optionally with /tree/<branch>)."
+  An
   empty field gives the same message. Two cases have their own message,
   with the same effect (no request, counted as a load):
   - a branch refused as above: "vizi cannot open this branch: its name
     holds # or %.". (A decoded `?` gets the same message; it comes only
     from `%3F` and git refuses it, so no real branch meets it.)
   - a repo ending in `.git`: "That is a clone address. Type the
-    repository as owner/repo, without .git."
+    repository as <owner>/<repo>, without .git."
+
+  The form is written `<owner>/<repo>` in every text the user sees (the
+  placeholder and these messages, decision of 21:01, item 14); the real
+  example `fomo-t/fomo-f` stays as it is.
 
   These replace today's "Enter a public repo address like
   https://github.com/<owner>/<repo>, optionally followed by
@@ -640,19 +650,20 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
     `github.com/acme/widgets.GIT` and
     `https://github.com/acme/widgets.git/tree/main`. Today's refused
     case `acme/widgets` moves to the accepted cases;
-  - browser: the label "Repository" for `#url-input` and the
-    placeholder "owner/repo"; `acme/widgets`, `github.com/acme/widgets`
-    and `https://github.com/acme/widgets` make the same requests; the short
+  - browser: the label "Repository" for `#url-input` and the placeholder
+    "<owner>/<repo>"; the refusal and `.git` messages word for word,
+    with `<owner>/<repo>`; `acme/widgets`, `github.com/acme/widgets` and
+    `https://github.com/acme/widgets` make the same requests; the short
     form with `/tree/<branch>` makes no request 1; a refused text makes
     no request and shows the message; `acme/widgets/tree/fix-%C3%A5`
     makes request 2 for the branch `fix-å` (sent encoded once, as
     `fix-%C3%A5`) and the heading reads `acme/widgets (fix-å)`;
     `acme/widgets/tree/a%23b` makes no request and shows the branch
-    message; with a token held for `acme`,
-    `ACME/widgets` uses it; the Owner prefill follows both forms;
-    "Open in vizi" writes `owner/repo` into the field; the token, CSP
-    and umbrella tests that open a project by address pass with either
-    form.
+    message; with a token held for `acme`, `ACME/widgets` uses it; the
+    Owner prefill follows both forms; "Open in vizi" writes the
+    pointer's own owner and repo (such as `acme/widgets`) into the
+    field; the token, CSP and umbrella tests that open a
+    project by address pass with either form.
 - **The help view.** 3.10's step 5 places the token fields "under the
   address" (in the help text: "Under the address, type the owner…").
   That stays true with the Repository field, so the help text does not
