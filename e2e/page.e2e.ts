@@ -600,11 +600,15 @@ test.describe("a late answer from an older load (3.1)", () => {
     await page.goto("/");
     await openUrl(page, SLOW);
     await openUrl(page, "not an address");
-    await expect(page.locator("#message")).toContainText("Enter a public repo address");
+    await expect(page.locator("#message")).toContainText(
+      "Type the repository as owner/repo, for example fomo-t/fomo-f",
+    );
     slow.release();
     await slow.finished;
     await settle(page);
-    await expect(page.locator("#message")).toContainText("Enter a public repo address");
+    await expect(page.locator("#message")).toContainText(
+      "Type the repository as owner/repo, for example fomo-t/fomo-f",
+    );
     await expect(page.locator("#results")).toBeHidden();
   });
 });

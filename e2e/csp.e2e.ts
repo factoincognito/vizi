@@ -94,7 +94,9 @@ test.describe("the browser enforces it", () => {
     await expect(page.locator("#url-input")).toBeVisible();
     await page.locator("#url-input").fill("not an address");
     await page.locator("#open-url").click();
-    await expect(page.locator("#message")).toContainText("Enter a public repo address");
+    await expect(page.locator("#message")).toContainText(
+      "Type the repository as owner/repo, for example fomo-t/fomo-f",
+    );
     expect(await violations()).toEqual([]);
     expect(problems).toEqual([]);
   });
@@ -106,7 +108,9 @@ test.describe("the browser enforces it", () => {
     await page.goto(pathToFileURL(BUILT).href);
     await page.locator("#url-input").fill("not an address");
     await page.locator("#open-url").click();
-    await expect(page.locator("#message")).toContainText("Enter a public repo address");
+    await expect(page.locator("#message")).toContainText(
+      "Type the repository as owner/repo, for example fomo-t/fomo-f",
+    );
     expect(await violations()).toEqual([]);
   });
 

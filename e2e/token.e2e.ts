@@ -30,7 +30,8 @@ const TOKEN2 = "github_pat_TEST_e2e_wxyz9876";
 const TOKEN3 = "github_pat_TEST_e2e_qrst5555";
 const KEY = "vizi.githubTokens";
 const OLD_KEY = "vizi.githubToken";
-const REPO = "https://github.com/acme/widgets";
+/** The Repository field's short form; other tests here type the full address (3.1, "The Repository field"). */
+const REPO = "acme/widgets";
 const API = "https://api.github.com/repos/acme/widgets";
 const project = join(__dirname, "fixtures", "project");
 const read = (p: string) => readFileSync(join(project, p), "utf8");
