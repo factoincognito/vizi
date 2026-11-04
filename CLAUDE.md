@@ -169,23 +169,26 @@ Adam's change-control model (stated 2026-07-23, updated 2026-09-30):
    - **Not reviewed.** A head the workflow did not review (a fork, a
      failed run), a comment saying "Not reviewed" (a diff over its cap;
      that comment is not a verdict), and a PR whose base branch was
-     changed after its review (the run finds the old verdict and posts
-     nothing): Clead starts Crog as a separate agent on Opus, as in
-     rule 5. A manual Crog verdict on a head prevails over any CI
-     verdict on it. A verdict is not redone when the base branch only
-     moves on.
+     changed after its review (the issue timeline has a
+     `base_ref_changed` event dated after the verdict comment; the run
+     finds the old verdict and posts nothing): Clead starts Crog as a separate agent on Opus, as in
+     rule 5. In these cases a manual Crog verdict on a head prevails over
+     any CI verdict on it. A verdict is not redone when the base branch
+     only moves on.
    - **Disagreement.** The workflow reads only the diff and the review
      documents, so it cannot read an author's reply, and the inputs of
      `memory/standards.md` section 7 stay as they are. An author who
      thinks a CI `CHANGES NEEDED` is wrong does not re-run the job or
-     push an empty commit; the question goes to Adam as in section 6 of
+     push an empty commit, and Clead does not start a manual Crog agent to
+     get another answer; the question goes to Adam as in section 6 of
      the standard, with both sides stated. The three-round limit counts
      the verdicts that can satisfy the gate.
    - **Whose code.** Code and config written by Crog are reviewed by
      Clead (rule 3); on such a PR the CI verdict is extra. The PR
-     description names who wrote it; if it does not, treat the PR as
-     written by Crog. A process change written by Crog is reviewed by
-     Crog, so the CI verdict counts.
+     description names who wrote it; if it does not, both reviews are
+     required: Clead's, and the CI verdict (or a manual Crog verdict).
+     A process change written by Crog is reviewed by Crog, so the CI
+     verdict counts.
    - **What it reads.** The diff, and `CLAUDE.md`, `memory/standards.md`
      and `docs/SPEC.md` as they are on the base commit, plus its own
      fixed instructions (`.github/reviewer/instructions.md`); never the

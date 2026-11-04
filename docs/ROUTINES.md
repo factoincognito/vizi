@@ -6,7 +6,8 @@
 
 1. The author opens the PR (Crog for code, Clead for docs, process and
    its own config changes).
-2. Clead starts the review directly. No automation triggers it yet:
+2. Clead starts the review directly, except where the CI reviewer reviews
+   (section "CI review" below, PO-68 pilot). No other automation triggers it:
    `review.yml` only posts a `<!-- clead-review-ready -->` marker
    comment on PRs that touch `src/`, and nothing reads it.
 3. The reviewer posts the verdict on the PR. Fix loop until approved,

@@ -55,7 +55,8 @@ says.
 `CLAUDE.md`, and the contract in `docs/ROUTINES.md` said the same; the
 brief of 2026-11-04 adds `CLAUDE.md`. Resolved: both list four now, and the
 CI reviewer is Crog in `CLAUDE.md`, rule 7.
-(b) The Review Standard asks the reviewer to check the test coverage table
+(b) The Review Standard asks every reviewer, the manual Crog agents
+included, to check the test coverage table
 and the red run (section 4) and to judge each `Test-exempt:` reason. The
 first two live in the PR description and the third in commit messages,
 which the contract keeps from the reviewer as the author's reasoning. So
