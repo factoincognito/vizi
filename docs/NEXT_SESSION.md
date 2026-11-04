@@ -103,7 +103,9 @@ runs (non-blocking points, all Clead's call):
   (about 57,000 uncached input tokens, about $0.006 per review), which the
   script does not use; look for an option that turns it off.
 - `hasVerdictFor` trusts any comment by the Actions bot that starts
-  `Crog review:`; actions are pinned by major tag, as in `ci.yml`.
+  `Crog review:` (rule 7 of `CLAUDE.md` says which comment counts, but the
+  script's skip check is looser); the script could record the base SHA
+  next to the head; actions are pinned by major tag, as in `ci.yml`.
 **Impact on plan:** none now.
 **Action:** Clead does them in one small PR when the pilot is judged, or
 drops them if the pilot ends.

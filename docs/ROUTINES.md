@@ -17,7 +17,8 @@
 
 Adam is not in this loop and never relays messages. How Clead reaches
 Crog today: by starting Crog as a separate agent from its own session,
-with only the diff and `memory/standards.md` as input. Clead cannot
+with only the diff and the review documents of `memory/standards.md`
+section 7 as input. Clead cannot
 reach a Crog session running in Adam's VS Code (tested 2026-09-30 with
 Remote Control from a cloud Clead session: not reachable).
 
