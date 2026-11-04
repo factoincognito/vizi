@@ -135,6 +135,15 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
     `docs/BACKLOG.md`) of PBI-1.15, a branch picker: after a repo loads,
     a list of its branches, and picking one opens that branch; the
     `/tree/<branch>` address keeps working. How vizi does it is 3.13.
+13. His intent approval of 2026-11-04 (11:59, in chat, "apyr", on
+    Clead's recommendation, after his 11:58 request; recorded in the
+    product office's `DECISIONS.md`, PR #386, and in the PBI-1.12 entry
+    of `docs/BACKLOG.md`) of PBI-1.12, a "Saved repos" quick-access list
+    on the start page: a "Save" button adds the open address, clicking
+    an entry loads it (with the right token if private), an "×" removes
+    it; kept in the browser, addresses only, never tokens; other
+    factoincognito Pages sites (trusted, under the Pages rule) could
+    read the repo names, not their contents. How vizi does it is 3.14.
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -195,6 +204,8 @@ project's documentation.
   PBI-1.16).
 - Added on 2026-11-04: a branch picker on a loaded project (3.13;
   PBI-1.15).
+- Added on 2026-11-04: a "Saved repos" quick-access list on the start
+  page (3.14; PBI-1.12).
 
 Not decided: a lint mode beyond the page's report (Clead's suggestion,
 which the product owner found worth considering). The parser is
@@ -294,7 +305,10 @@ included, and script into it. vizi holds GitHub tokens in the page's
 memory and saves those the user asks it to remember in `localStorage`
 (3.8; built in PBI-1.8, one token per owner from PBI-1.11); 3.8, "The
 shared origin", sets out what that exposes. Before PBI-1.8 it held
-nothing secret and stored nothing in the browser.
+nothing secret and stored nothing in the browser. From PBI-1.12 it also
+stores the saved repos' names under `vizi.savedRepos`, which every site
+on the origin can read and write (3.14, "The shared origin, and
+tokens"); no token is ever in it.
 
 ### 2.3 The web pack's "no external requests" rule
 
@@ -834,6 +848,8 @@ forgets the token held at that moment.
     "Other open vizi tabs"); it is not carried over to the next write,
     since each write raises its own `storage` event in every other tab,
     and a tab handles those events in order.
+  - No token is kept anywhere else: from PBI-1.12 the saved repos list
+    has its own key, `vizi.savedRepos`, which holds names only (3.14).
   - **Owners are own entries only.** In memory the tokens are a `Map`
     from owner to token. The stored JSON is read with its own entries
     only (`Object.entries` of the parsed `"tokens"`, never a lookup
@@ -2523,8 +2539,12 @@ accept.
   more. The page lists the names it read, adds the current branch if it
   is not among them, and the message line says: "vizi lists the first
   300 branches GitHub gives. To open another branch, paste its address,
-  https://github.com/<owner>/<repo>/tree/<branch>, with the owner,
-  repo and branch filled in." That address keeps working (the
+  https://github.com/<owner>/<repo>/tree/<branch>, with the branch's
+  name in place of <branch>." The page writes the loaded project's
+  owner and repo in place of `<owner>` and `<repo>` (for example
+  "https://github.com/fomo-t/fomo-f/tree/<branch>"), so only the branch
+  is left to type; `<branch>` stays as written. That address keeps
+  working (the
   approved intent; 3.1, and PBI-1.17's field accepts a pasted full
   address). In which order GitHub gives the branches, and so which 300
   are listed, was not checked.
@@ -2533,8 +2553,9 @@ accept.
   item is skipped. A name that is there twice is listed once. An answer
   that is not an array is a failure: "GitHub's answer for the branch
   list was not understood."
-- **When.** The list is read once, after a load opened from an address
-  or by the umbrella view's "Open in vizi" (3.9) has succeeded and its
+- **When.** The list is read once, after a load opened from an address,
+  by the umbrella view's "Open in vizi" (3.9) or by an entry of the
+  saved repos list (3.14) has succeeded and its
   results are shown. A load started by the picker for the same owner and
   repo does not read it again: the list the page holds stays (it is the
   same repo's), and the select's selected option follows the branch
@@ -2583,8 +2604,8 @@ accept.
 - The address field is left as it is (it is PBI-1.17's, and the picker
   never touches it, see above). Using the field's "Open" again opens
   what the field says, which may be another branch than the picked one.
-- What PBI-1.12 ("Saved repos") saves for a picked branch is for its
-  own spec.
+- What PBI-1.12 ("Saved repos") saves for a picked branch is 3.14's:
+  the branch, from the loaded reference.
 
 #### Errors
 
@@ -2709,8 +2730,9 @@ Test first (2.2), with GitHub stubbed and synthetic data.
     address load while the list is due drops the list's answer;
   - an address with `/tree/<branch>`: no request 1, the select shows that
     branch, and no option is marked default;
-  - the cap: three pages of 100 give 300 options, the message, and no
-    fourth request; the current branch past the cap is added first;
+  - the cap: three pages of 100 give 300 options, the message with the
+    loaded project's owner and repo written in, and no fourth request;
+    the current branch past the cap is added first;
   - a name holding `#` is shown disabled; a name like
     `<img src=x onerror=alert(1)>` is shown as text and nothing runs;
   - with a token for the owner, the branches requests go to
@@ -2735,6 +2757,304 @@ Test first (2.2), with GitHub stubbed and synthetic data.
     no violation and no console error, and the page's requests stay
     within the guard of `e2e/guard.ts` (which already allows
     `https://api.github.com/`).
+
+### 3.14 The saved repos list (PBI-1.12)
+
+**(approved)** The product owner's intent approval of 2026-11-04 (11:59,
+"apyr", on Clead's recommendation; see "What is decided", item 13): a
+"Saved repos" quick-access list on the start page. "Save" adds the open
+address, clicking an entry loads it (with the right token if private),
+and "×" removes it. It is kept in the browser, addresses only, never
+tokens. Other factoincognito Pages sites (trusted, under the Pages rule
+of item 5) could read the repo names, not their contents.
+
+Clead's design, within that intent. It is built after PBI-1.15, in the
+redesigned page of 3.12.
+
+**Independent of the address field.** As the branch picker (3.13), the
+list never reads, writes or parses the address field, whose form is
+PBI-1.17's. "Save" saves the reference of the project that loaded
+(owner, repo, and the branch when the load named one), and an entry
+starts a load from such a reference, not from text. "The open address"
+of the approval is read as that reference: it is the address the page
+has open, whatever was typed to open it.
+
+#### Where it sits
+
+- **The list**, in the start column of 3.12, between the "Open a
+  project from GitHub" section (with the message line `#message` under
+  it) and the "Private repos" panel, 28 px from each, as the column's
+  sections are. A `<section id="saved-repos">` labelled by its `h2`,
+  "Saved repos" (15 px, weight 600, the same style as the address
+  section's heading), over a list `ul#saved-list` (border 1 px
+  `--line`, radius 8 px, the card background, as the panel is; rows
+  separated by 1 px lines).
+- **The section is shown only while the list holds an entry.** With no
+  entry, the start page is the approved page of 3.12 as it is. (Clead's
+  choice: an empty list would add a section that says nothing.)
+- **An entry** is one `li` (`data-testid="saved-entry"`), at least 44 px
+  high, padding 0 6 px 0 14 px, holding:
+  - a button (`data-testid="saved-open"`), the row's width but the last
+    40 px, its text "`<owner>/<repo>`", or
+    "`<owner>/<repo>` (`<branch>`)" for an entry with a branch, as the project's heading reads (3.13),
+    16 px, `--fg`, left-aligned, styled as a row, not a link; the text
+    set with `textContent`, wrapping (`overflow-wrap: anywhere`);
+  - a button "×" (`data-testid="saved-remove"`), 40 × 40 px, the
+    secondary style without its border, with the accessible name
+    "Remove `<owner>/<repo>` from Saved repos" (with " (`<branch>`)"
+    after the repo for an entry with a branch); the "×" itself is
+    `aria-hidden`.
+- **"Save"** is with the loaded project, where "the open address" is: a
+  button `#save-repo` in `#results`, at the right of the heading
+  `#project-name` on desktop, under it on a phone, before the branch
+  picker's row (3.13). The secondary style, 40 px high (44 px on a
+  phone). It is part of the results: shown, hidden and cleared with
+  them.
+  - Its text is "Save" while the loaded reference is not in the list.
+    When it is (saved here, in another tab, or before), its text is
+    "Saved" and it has `aria-disabled="true"`: it stays focusable (a
+    `disabled` button would drop the focus) and using it does nothing.
+    When the entry is removed, here or in another tab, it is "Save"
+    again.
+- **Phone** (below 800 px, 3.12): the section as wide as the column;
+  each entry's open button at least 44 px high, the "×" 44 × 44 px; a
+  long name wraps inside its row; no sideways scroll at 375 px with an
+  entry of a 100-character owner, repo and branch. "Save" under the
+  heading, at the full width.
+
+#### What is stored
+
+- One `localStorage` key, `vizi.savedRepos`, holding JSON:
+  `{"repos": [{"owner": "<owner>", "repo": "<repo>", "branch": "<branch>" | null}, …]}`.
+  Each entry has exactly those three keys. Nothing else is stored: no
+  token, no masked token, no mark of whether a repo is private, no
+  file, status or result, no time.
+- **What "Save" stores:** the loaded reference. `owner` in lower case,
+  as 3.8 keeps owners; `repo` as the load had it; `branch` the branch
+  the load named (a pick, 3.13, or an address with `/tree/<branch>`),
+  or `null` when the load used the default branch, so the entry then
+  follows the repo's default branch when it is opened.
+- **The rules an entry must meet** (Clead's design):
+  - `owner` and `repo` match 3.1's name rule (letters, digits, `.`, `_`
+    and `-`, not `.` or `..`), each at most 100 characters;
+  - `branch` is `null`, or a string of 1 to 255 characters with no
+    `?`, `#` or `%`, no control character (U+0000 to U+001F, U+007F),
+    and no `/` at its start or end. Those are names the page can open
+    (3.13, "Names the page cannot open"), so an entry never holds one
+    a pick would disable.
+
+  A load whose reference breaks them (not expected, since loads use the
+  same rules) is not saved, and "Save" says "This address cannot be
+  saved." in `#message`.
+- **At most 50 entries** (Clead's choice; about 20 KB at most). "Save"
+  with 50 entries saves nothing and says "Saved repos holds at most 50
+  repos. Remove one to save another." in `#message`.
+- **One entry per reference.** Two entries are the same when their
+  owners and repos are the same without regard to case (GitHub's
+  documentation calls both "not case sensitive" for "List branches",
+  section 4, item 18) and their branches are the same exactly (git
+  branch names are case-sensitive), `null` matching only `null`. The
+  same repo with two branches is two entries.
+- **Order:** the newest save first. Opening an entry does not move it:
+  nothing is written on a load.
+
+#### Reading and writing
+
+As 3.8 does for tokens (Clead's design):
+
+- **Reading.** `JSON.parse`, then only own properties are read: the
+  top-level object's own `repos` (`Object.hasOwn`), and each entry's own
+  `owner`, `repo` and `branch`. Nothing is looked up by name on a plain
+  object, and the de-duplication uses a `Map` keyed by the entry's
+  lower-cased owner, repo and branch, so an owner or repo named
+  `__proto__`, `constructor`, `toString` or `hasOwnProperty`, which the
+  name rule allows, is read as text and finds nothing an object
+  inherits. A top-level `"__proto__"` key in the stored JSON is an own
+  property after `JSON.parse` and is ignored like any other unknown key.
+- **Cleaning.** At startup, and whenever a value is read:
+  - a value that is not JSON, not an object (an array included), or
+    whose own `repos` is missing or not an array, counts as no entries;
+    at startup it is removed;
+  - an entry that is not an object, or breaks the rules above, is
+    dropped; so is an entry that repeats an earlier one; entries past
+    the 50th are dropped; keys other than the three are not kept;
+  - at startup, when cleaning changed the value, the cleaned value is
+    written back (or the key removed when no entry is left).
+- **Every write starts from what is stored.** Just before "Save" or
+  "×" writes, the page reads the stored value, cleans it, changes only
+  the entry it is about (adds it first, or removes it), and writes the
+  result. An entry another tab added or removed is never undone. With
+  no entry left, the key is removed.
+- **The list is drawn from storage.** The page keeps no list of its own:
+  it draws the section from the stored value after its own writes and
+  on every `storage` event, so every tab shows what is stored.
+- **Storage refused.** When `localStorage` cannot be used (3.8,
+  `browserStorage()` gives `null`) or a write throws, nothing is saved
+  and "Save" says "The browser would not save the repo." in `#message`;
+  the section shows what could be read, or is hidden.
+
+#### Other open vizi tabs
+
+- Each tab listens for the `storage` event of `vizi.savedRepos`. It
+  draws the list again from the event's `newValue`, cleaned (a removed
+  key, or a `key` of `null` when all of storage was cleared, counts as
+  no entries), and updates "Save" for the project it shows. Following an
+  event never writes, so events do not echo between tabs.
+- Results shown stay: an entry removed in another tab does not touch a
+  project that is open here.
+
+#### Opening an entry
+
+- Using an entry's open button starts a load of its reference: the
+  load of 3.1 through the same code as an address, with the branch
+  named when the entry has one (no request 1) and the default branch
+  otherwise. The token is the one held, at that moment, for the entry's
+  owner (3.8, "Which token a load uses"), so a private repo opens with
+  the right token, and with none held it gets 3.1's 404 message, which
+  says to add a token for its owner.
+- It counts as a newer load (3.1, "Two loads at once"): any older
+  load's answer, the branch list's of 3.13 included, is dropped, and of
+  two entries used in quick succession the newer wins.
+- Its results are those of any load: the heading, the status, the tabs,
+  "Save" (now "Saved"), and the branch picker, which reads the branch
+  list as after an address load (3.13, "When").
+- The address field is not touched, and the page's own URL does not
+  change (3.13, "The address after picking").
+- A failed load clears and hides the results as any failed load does
+  (3.1). The entry stays in the list: a repo that cannot be read now is
+  removed only by "×".
+- Drawing the list makes no request: nothing is fetched for an entry
+  until it is used.
+
+#### Removing an entry
+
+- "×" removes that entry from storage as above, and nothing else: the
+  results shown, the tokens and the other entries stay.
+- **Focus** (Clead's design): after "×", the focus moves to the open
+  button of the entry that took its place, or of the one before it when
+  it was the last; when the list is now empty and the section hidden,
+  it moves to the address section's heading `h2` "Open a project from
+  GitHub" (`tabindex="-1"`), not to the field, which is PBI-1.17's. An
+  entry removed in another tab moves the focus here only if the focus
+  was on that entry's buttons, by the same rule. Nothing else in the
+  list moves the focus; opening an entry leaves it on the open button,
+  which stays while the load runs. While the help view (3.10) is open
+  the list is hidden in the wrapper, and the focus is left alone.
+
+#### The shared origin, and tokens
+
+- **Tokens are never stored here.** The value holds owners, repos and
+  branches only. "Save" never reads the token store, and the token
+  store never reads this key. A Forget or "Forget all tokens" (3.8)
+  leaves the list as it is, and a 401 forgets the token only.
+- **What other Pages sites can do** (2.2, 3.8 "The shared origin"):
+  read the names of the saved repos, as the approval says, but not their
+  contents, which are never stored; and write entries of their own into
+  the key. A planted entry is only an address, cleaned by the rules
+  above and shown as text. Using it does what typing its address does:
+  a read-only load, with the token held for its owner, whose results
+  only this page shows. It adds no way to read a token or a private file
+  that the shared origin does not already give (3.8).
+- The Content-Security-Policy of 2.3 does not change: the list itself
+  makes no request, and an entry's load makes the requests of 3.1, 3.8
+  and 3.13 only.
+- The help view (3.10) and the token guide (3.12) are not changed.
+
+#### Accessibility
+
+- The section is labelled by its `h2`. The entries are a list, so a
+  screen reader announces their number.
+- Each open button's accessible name is its text; each "×" has its own
+  name, so the many "×" buttons are told apart.
+- "Save" in its "Saved" state has `aria-disabled="true"` and keeps its
+  place in the tab order.
+- Messages go to the page's `role="status"` line `#message`.
+- Tab order: the address section, then each entry's open button and
+  "×" in turn, then the "Private repos" panel.
+- Sizes, colours, focus ring and contrast as in 3.12: the open buttons
+  use `--fg` on `--card` (17.62:1 light, 15.22:1 dark); the "×" uses
+  `--fg` too.
+
+#### What changes in `src/` (no code here)
+
+- `src/saved.ts` (new, pure): the entry rules, reading and cleaning a
+  stored value, de-duplication, adding and removing, the cap, the
+  display text, and writing the value; a store over a `Storage` given
+  to it, as `src/token.ts` has.
+- `src/main.ts`: the section, "Save" in the results, the `storage`
+  listener, loading an entry by reference, the focus rule.
+- `src/style.css`: the section and its rows at both widths, and "Save".
+
+#### Tests
+
+Test first (2.2), with GitHub stubbed and synthetic data.
+
+- **Unit (Jest), `src/saved.test.ts`:**
+  - the rules: owners and repos that pass and fail 3.1's rule and the
+    100-character limit; branches `null`, valid, empty, 256 characters,
+    with `?`, `#`, `%`, a control character, or a `/` at either end;
+  - reading: not JSON, an array, no `repos`, `repos` not an array, an
+    entry that is not an object, an entry with a bad field, extra keys
+    dropped on writing, entries past the 50th dropped; a top-level
+    `"__proto__"` key ignored; owners and repos named `__proto__`,
+    `constructor`, `toString` and `hasOwnProperty` read as names, saved,
+    found and removed, and nothing found for them when not saved;
+  - de-duplication: owner and repo without regard to case, branch
+    exactly, `null` only with `null`, the first kept;
+  - adding first, no change when already there, the cap's refusal;
+    removing one entry; the key removed when the last goes;
+  - the written value holds only `owner`, `repo` and `branch`, and no
+    `github_pat_` even when a token store on the same storage holds
+    tokens;
+  - two stores on one storage, interleaved: store A adds X, store B
+    (which drew its list before) adds Y, and the stored value holds
+    both; store A removes X, store B then adds Z, and X stays removed;
+  - storage that throws on writing: nothing saved, the refusal
+    returned;
+  - the display text and the "×" name, with and without a branch.
+- **Browser (Playwright),** in light and dark, at 375 px and 1280 px,
+  projects opened with a full address (which PBI-1.17's field accepts
+  too):
+  - with nothing stored, no section, and the start page as 3.12's
+    tests expect;
+  - "Save" after a load: the entry appears first, "Save" reads "Saved"
+    with `aria-disabled="true"` and keeps the focus; a reload shows the
+    entry; the stored value is the expected JSON;
+  - a load of the default branch saves `"branch": null`; a pick (3.13)
+    or a `/tree/<branch>` address saves the branch; the same repo twice
+    with two branches makes two entries;
+  - an entry's open button loads it: its requests (no request 1 for an
+    entry with a branch), the heading, "Saved"; with a token held for
+    the owner, the requests go to `api.github.com` with the header; with
+    none, a private repo's 404 message; the address field's value is the
+    same before and after;
+  - newest wins: two entries used in quick succession, the first
+    answered last, show the second; an entry used while a load from the
+    address is due drops the older answer;
+  - "×" removes the entry and leaves the results; the focus moves as
+    set out, to the heading when the list empties; "Save" for the shown
+    project is "Save" again;
+  - the cap: 50 stored entries, "Save" refused with its message and no
+    write;
+  - startup: a planted malformed value is cleaned and written back; a
+    planted entry with an `<img src=x onerror=…>`-like repo is dropped
+    by the rules, and nothing runs;
+  - a second tab: an entry saved, removed, and storage cleared in one
+    tab are shown in the other, which writes nothing on the event;
+  - drawing the list makes no request (the page's requests at startup
+    stay as in 2.3, with entries stored);
+  - no `localStorage` value under `vizi.savedRepos` holds `github_pat_`
+    after saving a private repo opened with a token; a Forget and
+    "Forget all tokens" leave the list as it was;
+  - storage refused: "Save" shows its message and the section stays
+    hidden;
+  - accessibility: the section's name, the entries as a list, the "×"
+    names, the tab order; with the help view open, a removal in another
+    tab moves no focus;
+  - phone: no sideways scroll with a long entry; the buttons at least
+    44 px high;
+  - the CSP test of `e2e/csp.e2e.ts` passes with entries shown, with no
+    violation and no console error.
 
 ---
 
@@ -2914,3 +3234,10 @@ Item 18 gains a point from 3.13: the documentation of "List branches"
 (`github/docs` at `e44c283`) says of `owner` and `repo` "The name is not
 case sensitive." That is GitHub's word for that one request, not a
 check of the others.
+
+Item 28 is PBI-1.12's (3.14):
+
+28. **Open; PBI-1.12.** GitHub's own length limits for owner and repo
+    names. 3.14 allows at most 100 characters for each and at most 255
+    for a branch; those are Clead's limits, generous for the names seen,
+    not GitHub's, which were not checked.
