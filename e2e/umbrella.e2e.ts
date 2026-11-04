@@ -34,10 +34,11 @@ const UMBRELLA_CROSS = join(fixtures, "umbrella-cross");
 const PROJECT = join(fixtures, "project");
 const read = (dir: string, path: string) => readFileSync(join(dir, path), "utf8");
 const TOKEN = "github_pat_TEST_umbrella_abcd1234";
+// The hub by its full address, the other repos in the Repository field's other forms (3.1).
 const HUB = "https://github.com/acme/hub";
-const HUB_BACKLOG = "https://github.com/acme/hub-backlog";
-const HUB_EMPTY = "https://github.com/acme/hub-empty";
-const WIDGETS = "https://github.com/acme/widgets";
+const HUB_BACKLOG = "acme/hub-backlog";
+const HUB_EMPTY = "github.com/acme/hub-empty";
+const WIDGETS = "acme/widgets";
 const API = "https://api.github.com/repos/acme";
 
 type Seen = { method: string; url: string; headers: Record<string, string> };
@@ -369,7 +370,8 @@ test.describe("the links of a repo pointer (3.9)", () => {
     await expect(umbrellaTab(page)).toBeVisible();
     const before = gets(stub).length;
     await pointer(page, "acme/widgets").getByRole("link", { name: "Open in vizi" }).click();
-    await expect(page.locator("#url-input")).toHaveValue("https://github.com/acme/widgets");
+    // The field's own form, owner/repo (3.1, "The Repository field"; 3.9).
+    await expect(page.locator("#url-input")).toHaveValue("acme/widgets");
     await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
     await expect(page.getByTestId("column").first()).toBeVisible();
     await expect(umbrellaTab(page)).toHaveCount(0);

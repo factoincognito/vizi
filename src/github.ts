@@ -1,6 +1,6 @@
 /**
- * Reading a public GitHub repo by its address (docs/SPEC.md 3.1): the
- * address, the anonymous requests in their order, and what comes back.
+ * Reading a GitHub repo (docs/SPEC.md 3.1): the Repository field's text,
+ * the requests in their order, and what comes back.
  * The fetcher is passed in, so tests never reach the network.
  */
 
@@ -38,13 +38,69 @@ export const BACKLOG_PATHS: readonly string[] = [
 const NAME = /^[A-Za-z0-9._-]+$/;
 const isName = (s: string) => NAME.test(s) && s !== "." && s !== "..";
 
-/** `https://github.com/<owner>/<repo>`, optionally followed by `/tree/<branch>`. */
-export function parseGithubUrl(input: string): RepoRef | null {
-  const m = /^https:\/\/github\.com\/([^/?#]+)\/([^/?#]+)(?:\/tree\/([^?#]+?))?\/?$/.exec(
-    input.trim(),
-  );
-  if (!m?.[1] || !m[2] || !isName(m[1]) || !isName(m[2])) return null;
-  return { owner: m[1], repo: m[2], branch: m[3] ?? null };
+/** The Repository field's message for a text it cannot read (docs/SPEC.md 3.1, "The Repository field"). */
+export const REPOSITORY_MESSAGE =
+  "Type the repository as <owner>/<repo>, for example fomo-t/fomo-f, or paste its GitHub address (github.com/<owner>/<repo>, optionally with /tree/<branch>).";
+/** A branch whose name, decoded, holds #, % or ?, or that does not decode: 3.1's text, also for a decoded ?. */
+export const BRANCH_MESSAGE = "vizi cannot open this branch: its name holds # or %.";
+/** A repo name ending in .git: a clone address. */
+export const CLONE_MESSAGE =
+  "That is a clone address. Type the repository as <owner>/<repo>, without .git.";
+
+export type RepositoryRead =
+  | { ok: true; ref: RepoRef }
+  | { ok: false; reason: "form" | "branch" | "clone"; message: string };
+
+const refused = (reason: "form" | "branch" | "clone", message: string): RepositoryRead => ({
+  ok: false,
+  reason,
+  message,
+});
+
+/**
+ * The Repository field's one reader (docs/SPEC.md 3.1, "The Repository
+ * field"): `<owner>/<repo>`, or `<host>/<owner>/<repo>` with the host
+ * `github.com` or `www.github.com`, with or without `https://` (scheme and
+ * host in any case), each optionally followed by `/tree/<branch>` and one
+ * `/`. The branch is percent-decoded once. Used for submitting the form and
+ * for the Owner prefill, and nowhere else.
+ */
+export function readRepository(input: string): RepositoryRead {
+  const text = input.trim();
+  if (text.includes("?") || text.includes("#")) return refused("form", REPOSITORY_MESSAGE);
+  let rest = text;
+  let lower = text.toLowerCase();
+  // A text with a scheme is read only as the long form: the scheme must be https:// and a host must follow.
+  const withScheme = lower.startsWith("https://");
+  if (withScheme) {
+    rest = rest.slice("https://".length);
+    lower = lower.slice("https://".length);
+  }
+  const host = ["github.com/", "www.github.com/"].find((h) => lower.startsWith(h));
+  if (host) rest = rest.slice(host.length);
+  else if (withScheme) return refused("form", REPOSITORY_MESSAGE);
+
+  // After the repo: nothing, one "/", or "/tree/" and the branch.
+  const m = /^([^/]+)\/([^/]+)(?:\/tree\/(.*)|\/)?$/.exec(rest);
+  const owner = m?.[1];
+  const repo = m?.[2];
+  if (!owner || !repo || !isName(owner) || !isName(repo)) {
+    return refused("form", REPOSITORY_MESSAGE);
+  }
+  const afterTree = m[3];
+  // The branch is everything after /tree/, one trailing / dropped, and is not empty (3.1).
+  const written = afterTree?.endsWith("/") ? afterTree.slice(0, -1) : afterTree;
+  if (written === "") return refused("form", REPOSITORY_MESSAGE);
+  if (repo.toLowerCase().endsWith(".git")) return refused("clone", CLONE_MESSAGE);
+  if (written === undefined) return { ok: true, ref: { owner, repo, branch: null } };
+  let branch: string;
+  try {
+    branch = decodeURIComponent(written);
+  } catch {
+    return refused("branch", BRANCH_MESSAGE);
+  }
+  if (/[#%?]/.test(branch)) return refused("branch", BRANCH_MESSAGE);
+  return { ok: true, ref: { owner, repo, branch } };
 }
 
 /** The file's page on github.com. */

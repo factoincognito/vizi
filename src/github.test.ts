@@ -1,47 +1,136 @@
 /**
- * Tests for src/github.ts: the GitHub input of docs/SPEC.md 3.1.
+ * Tests for src/github.ts: the GitHub input of docs/SPEC.md 3.1, read
+ * from the Repository field (3.1, "The Repository field").
  * A fake fetcher stands in for the network; no test reaches it.
  */
-import { blobUrl, type Fetcher, loadRepo, parseGithubUrl, readRepoFile } from "./github";
+import * as github from "./github";
+import {
+  BRANCH_MESSAGE,
+  blobUrl,
+  CLONE_MESSAGE,
+  type Fetcher,
+  loadRepo,
+  REPOSITORY_MESSAGE,
+  readRepoFile,
+  readRepository,
+} from "./github";
 
-describe("parseGithubUrl", () => {
-  it("reads owner and repo", () => {
-    expect(parseGithubUrl("https://github.com/acme/widgets")).toEqual({
-      owner: "acme",
-      repo: "widgets",
-      branch: null,
-    });
-    expect(parseGithubUrl("  https://github.com/acme/widgets/  ")).toEqual({
-      owner: "acme",
-      repo: "widgets",
-      branch: null,
-    });
+describe("readRepository: the Repository field's reader (3.1)", () => {
+  const ref = (owner: string, repo: string, branch: string | null = null) => ({
+    ok: true,
+    ref: { owner, repo, branch },
   });
 
-  it("takes everything after /tree/ as the branch, a trailing slash dropped", () => {
-    expect(parseGithubUrl("https://github.com/acme/widgets/tree/feat/new-thing/")).toEqual({
-      owner: "acme",
-      repo: "widgets",
-      branch: "feat/new-thing",
-    });
+  it.each([
+    ["acme/widgets", ref("acme", "widgets")],
+    ["acme/widgets/", ref("acme", "widgets")],
+    ["  acme/widgets  ", ref("acme", "widgets")],
+    ["acme/widgets/tree/main", ref("acme", "widgets", "main")],
+    ["acme/widgets/tree/feat/new-thing/", ref("acme", "widgets", "feat/new-thing")],
+    ["acme/widgets/tree/fix-%C3%A5", ref("acme", "widgets", "fix-å")],
+    ["github.com/acme/widgets/tree/feat%2Fx", ref("acme", "widgets", "feat/x")],
+    ["acme/widgets/tree/fix-å", ref("acme", "widgets", "fix-å")],
+    ["https://github.com/acme/widgets", ref("acme", "widgets")],
+    ["https://github.com/acme/widgets/tree/main", ref("acme", "widgets", "main")],
+    ["https://github.com/acme/widgets/", ref("acme", "widgets")],
+    ["  https://github.com/acme/widgets/  ", ref("acme", "widgets")],
+    ["github.com/acme/widgets", ref("acme", "widgets")],
+    ["www.github.com/acme/widgets", ref("acme", "widgets")],
+    ["https://www.github.com/acme/widgets/tree/main", ref("acme", "widgets", "main")],
+    ["https://www.github.com/acme/widgets", ref("acme", "widgets")],
+    ["GitHub.com/acme/widgets", ref("acme", "widgets")],
+    ["HTTPS://GITHUB.COM/acme/widgets", ref("acme", "widgets")],
+    ["Acme/Widgets", ref("Acme", "Widgets")],
+  ])("accepts %j", (input, expected) => {
+    expect(readRepository(input)).toEqual(expected);
+  });
+
+  it("reads the short form and the long form of one repo to the same reference", () => {
+    const short = readRepository("acme/widgets/tree/feat/x");
+    for (const long of [
+      "https://github.com/acme/widgets/tree/feat/x",
+      "github.com/acme/widgets/tree/feat/x",
+      "www.github.com/acme/widgets/tree/feat/x/",
+      "https://www.github.com/acme/widgets/tree/feat%2Fx",
+    ])
+      expect(readRepository(long)).toEqual(short);
   });
 
   it.each([
     "",
-    "acme/widgets",
+    "   ",
+    "acme",
+    "acme/",
+    "/acme/widgets",
+    "acme/widgets/tree/",
+    "acme/widgets/tree//",
+    "github.com/acme/widgets/tree//",
+    "acme/widgets/issues",
+    "acme/widgets/blob/main/x",
+    "acme/widgets?x=1",
+    "acme/widgets#x",
+    "acme/widgets/tree/main?x=1",
+    "ac me/widgets",
+    "../..",
+    "./widgets",
+    "acme/..",
+    "acme/widgets//",
     "http://github.com/acme/widgets",
+    "http://www.github.com/acme/widgets",
     "https://example.com/acme/widgets",
+    "https://github.com",
     "https://github.com/acme",
-    "https://github.com/../..",
-    "https://github.com/./widgets",
-    "https://github.com/acme/..",
-    "https://github.com/acme/widgets/issues",
-    "https://github.com/acme/widgets/tree/",
-    "https://github.com/ac me/widgets",
-    "https://github.com/acme/widgets?x=1",
+    "gist.github.com/acme/widgets",
+    "github.com/acme",
+    "github.com/acme/widgets/issues",
     "javascript:alert(1)",
-  ])("refuses %j", (input) => {
-    expect(parseGithubUrl(input)).toBeNull();
+  ])("refuses %j with the field's message", (input) => {
+    expect(readRepository(input)).toEqual({
+      ok: false,
+      reason: "form",
+      message: REPOSITORY_MESSAGE,
+    });
+  });
+
+  it.each([
+    "acme/widgets/tree/a%23b",
+    "acme/widgets/tree/50%25",
+    "acme/widgets/tree/a%E0",
+    "acme/widgets/tree/50%",
+    "acme/widgets/tree/a%3Fb",
+    "https://github.com/acme/widgets/tree/feat%2Fa%23b",
+  ])("refuses the branch of %j with the branch message", (input) => {
+    expect(readRepository(input)).toEqual({ ok: false, reason: "branch", message: BRANCH_MESSAGE });
+  });
+
+  it.each([
+    "acme/widgets.git",
+    "github.com/acme/widgets.GIT",
+    "https://github.com/acme/widgets.git/tree/main",
+    "acme/widgets.Git/",
+  ])("refuses the clone address %j with its own message", (input) => {
+    expect(readRepository(input)).toEqual({ ok: false, reason: "clone", message: CLONE_MESSAGE });
+  });
+
+  it("does not take a text that starts with github.com/ for an owner named github.com", () => {
+    expect(readRepository("github.com/acme")).toMatchObject({ ok: false, reason: "form" });
+    expect(readRepository("www.github.com/acme/")).toMatchObject({ ok: false, reason: "form" });
+  });
+
+  it("has the messages of 3.1, word for word", () => {
+    expect(REPOSITORY_MESSAGE).toBe(
+      "Type the repository as <owner>/<repo>, for example fomo-t/fomo-f, or paste its GitHub address (github.com/<owner>/<repo>, optionally with /tree/<branch>).",
+    );
+    // 3.1's text, word for word; a decoded ? gets the same message (3.1).
+    expect(BRANCH_MESSAGE).toBe("vizi cannot open this branch: its name holds # or %.");
+    expect(CLONE_MESSAGE).toBe(
+      "That is a clone address. Type the repository as <owner>/<repo>, without .git.",
+    );
+  });
+
+  it("is the module's one reader: parseGithubUrl is gone", () => {
+    expect(Object.keys(github)).toContain("readRepository");
+    expect(Object.keys(github)).not.toContain("parseGithubUrl");
   });
 });
 
