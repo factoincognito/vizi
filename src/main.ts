@@ -35,6 +35,18 @@ import {
   type ProjectsResult,
   parse as parseProjects,
 } from "./projects";
+import {
+  ACCESS_LINE,
+  FONT_NOTICE,
+  GUIDE_AFTER,
+  GUIDE_STEPS,
+  GUIDE_TITLE,
+  type GuidePart,
+  migrateSentence,
+  NOTICES_LINK,
+  TOKEN_NOTE,
+  tokenSummary,
+} from "./start";
 import { parse as parseStatus, type StatusResult } from "./status";
 import { createTokenStore, maskToken } from "./token";
 import "./style.css";
@@ -770,12 +782,20 @@ function fillOwnerFromAddress(): void {
   if (read.ok) must<HTMLInputElement>("owner-input").value = read.ref.owner;
 }
 
-/** One owner's line: the masked token, where it is kept, its own Remember box and Forget button. */
+/**
+ * One owner's row of the "Private repos" panel (3.12): the owner, the
+ * masked token, the "Remember in this browser" box (ticked exactly when the
+ * token is saved; 3.8's Remember) and "Forget" (3.8's Forget).
+ */
 function tokenLine(owner: string): HTMLElement {
   const token = tokens.tokenFor(owner) ?? "";
-  const saved = tokens.isSaved(owner);
-  const box = h("input", { type: "checkbox", "data-testid": "token-remember-owner" });
-  box.checked = saved;
+  const box = h("input", {
+    type: "checkbox",
+    "data-testid": "token-remember-owner",
+    // The visible label first, then the row's owner (3.12, "Labels").
+    "aria-label": `Remember in this browser, ${owner}`,
+  });
+  box.checked = tokens.isSaved(owner);
   box.addEventListener("change", () => {
     tokens.setRemember(owner, box.checked);
     must("token-message").textContent =
@@ -786,6 +806,7 @@ function tokenLine(owner: string): HTMLElement {
     "button",
     {
       type: "button",
+      class: "secondary",
       "data-testid": "token-forget",
       "aria-label": `Forget the token for ${owner}`,
     },
@@ -799,25 +820,60 @@ function tokenLine(owner: string): HTMLElement {
   return h(
     "li",
     { "data-testid": "token-line", "data-owner": owner },
-    h(
-      "span",
-      { "data-testid": "token-text" },
-      `${owner}: ${maskToken(token)}, ${saved ? "saved in this browser" : "for this page only"}`,
-    ),
-    h("label", { class: "check" }, box, " Remember"),
+    h("span", { class: "token-owner", "data-testid": "token-owner" }, owner),
+    h("span", { class: "token-text", "data-testid": "token-text" }, maskToken(token)),
+    h("label", { class: "check" }, box, h("span", {}, "Remember in this browser")),
     forget,
   );
 }
 
-/** Shows the "Tokens in use" lines and the line for a token an earlier vizi saved; a token is shown only in its masked form. */
+/** Text and bold parts as nodes, each set as text. */
+function partNodes(parts: readonly GuidePart[]): Node[] {
+  return parts.map((p) =>
+    p.kind === "strong" ? h("strong", {}, p.text) : document.createTextNode(p.text),
+  );
+}
+
+/** The toggle's summary: owners only, never a token (3.12, "The summary"). */
+function renderSummary(): void {
+  const opened = must("private-repos-toggle").getAttribute("aria-expanded") === "true";
+  must("private-repos-summary").textContent = tokenSummary(
+    tokens.owners(),
+    opened,
+    tokens.migration() !== null,
+  );
+}
+
+/**
+ * Draws the panel's rows, the block for a token an earlier vizi saved, the
+ * summary and "Forget all tokens" again; a token is shown only in its
+ * masked form. The focus stays on the same control of the same owner's row;
+ * when the focused control is gone, it moves to the panel's toggle (3.12,
+ * "Focus").
+ */
 function renderTokens(): void {
+  const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const activeRow = active?.closest<HTMLElement>("[data-testid=token-line]") ?? null;
   const owners = tokens.owners();
-  must("token-status").hidden = owners.length === 0;
   must("token-list").replaceChildren(...owners.map(tokenLine));
   const old = tokens.migration();
   must("token-migrate").hidden = old === null;
-  must("migrate-line").textContent =
-    old === null ? "" : `A token saved by an earlier vizi: ${maskToken(old)}`;
+  must("migrate-line").replaceChildren(
+    ...(old === null ? [] : partNodes(migrateSentence(maskToken(old)))),
+  );
+  must("token-forget-all").hidden = owners.length === 0;
+  renderSummary();
+
+  const toggle = must("private-repos-toggle");
+  if (activeRow && active) {
+    const row = [...must("token-list").children].find(
+      (r) => r instanceof HTMLElement && r.dataset.owner === activeRow.dataset.owner,
+    );
+    const same = row?.querySelector<HTMLElement>(`[data-testid="${active.dataset.testid}"]`);
+    (same ?? toggle).focus();
+  } else if (active && must("private-repos").contains(active) && active.closest("[hidden]")) {
+    toggle.focus();
+  }
 }
 
 const NOT_SAVED_MESSAGE = "The browser would not save the token; it is kept for this page only.";
@@ -850,10 +906,66 @@ function useToken(): void {
   renderTokens();
 }
 
-function mountToken(): HTMLElement {
+/** A chevron (an inline SVG, hidden from assistive technology), pointing right; CSS turns it down when opened. */
+function chevron(): SVGSVGElement {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  for (const [k, v] of Object.entries({
+    class: "chevron",
+    viewBox: "0 0 16 16",
+    width: "16",
+    height: "16",
+    "aria-hidden": "true",
+    focusable: "false",
+  }))
+    svg.setAttribute(k, v);
+  const path = document.createElementNS(ns, "path");
+  path.setAttribute("d", "M6 3l5 5-5 5");
+  svg.append(path);
+  return svg;
+}
+
+/** A button that folds and opens `body` (`aria-expanded`, `aria-controls`); folded whenever the page opens, never stored. */
+function foldToggle(id: string, body: HTMLElement, onChange: () => void, ...children: Child[]) {
+  const button = h(
+    "button",
+    { id, type: "button", "aria-expanded": "false", "aria-controls": body.id },
+    chevron(),
+    ...children,
+  );
+  body.hidden = true;
+  button.addEventListener("click", () => {
+    const opened = button.getAttribute("aria-expanded") !== "true";
+    button.setAttribute("aria-expanded", String(opened));
+    body.hidden = !opened;
+    onChange();
+  });
+  return button;
+}
+
+/** The token guide inside "Add a token" (3.12, the product owner's decision of 16:11). */
+function mountGuide(): HTMLElement {
+  const steps = h(
+    "div",
+    { id: "token-guide-body" },
+    h("ol", {}, ...GUIDE_STEPS.map((step) => h("li", {}, ...partNodes(step)))),
+    h("p", {}, ...partNodes(GUIDE_AFTER)),
+  );
+  const toggle = foldToggle("token-guide-toggle", steps, () => {}, GUIDE_TITLE);
+  return h("div", { class: "guide" }, toggle, steps);
+}
+
+/**
+ * The "Private repos" panel (3.12): the toggle with its summary, then the
+ * rows, the block for a token an earlier vizi saved, "Add a token" and
+ * "Forget all tokens". Each control carries the 3.8 behaviour it had before
+ * the redesign; the token store calls and the messages are unchanged.
+ */
+function mountPanel(): HTMLElement {
   const owner = h("input", {
     id: "owner-input",
     type: "text",
+    placeholder: "owner",
     autocomplete: "off",
     spellcheck: "false",
   });
@@ -864,13 +976,18 @@ function mountToken(): HTMLElement {
   const input = h("input", {
     id: "token-input",
     type: "password",
+    placeholder: "github_pat_…",
     autocomplete: "off",
     spellcheck: "false",
   });
   const remember = h("input", { id: "token-remember", type: "checkbox" });
-  const use = h("button", { id: "token-use", type: "button" }, "Use");
+  const use = h("button", { id: "token-use", type: "button", class: "primary" }, "Add");
   use.addEventListener("click", useToken);
-  const forgetAll = h("button", { id: "token-forget-all", type: "button" }, "Forget all");
+  const forgetAll = h(
+    "button",
+    { id: "token-forget-all", type: "button", class: "secondary", hidden: "" },
+    "Forget all tokens",
+  );
   forgetAll.addEventListener("click", () => {
     tokens.forgetAll();
     renderTokens();
@@ -879,10 +996,11 @@ function mountToken(): HTMLElement {
   const migrateOwner = h("input", {
     id: "migrate-owner",
     type: "text",
+    placeholder: "e.g. factoincognito",
     autocomplete: "off",
     spellcheck: "false",
   });
-  const keep = h("button", { id: "migrate-keep", type: "button" }, "Keep for this owner");
+  const keep = h("button", { id: "migrate-keep", type: "button", class: "primary" }, "Keep");
   keep.addEventListener("click", () => {
     const result = tokens.keepMigrated(migrateOwner.value);
     must("token-message").textContent = result.ok
@@ -892,43 +1010,66 @@ function mountToken(): HTMLElement {
       : result.message;
     renderTokens();
   });
-  const dropOld = h("button", { id: "migrate-forget", type: "button" }, "Forget");
+  const dropOld = h("button", { id: "migrate-forget", type: "button" }, "Forget it");
   dropOld.addEventListener("click", () => {
     tokens.forgetMigrated();
     must("token-message").textContent = "";
     renderTokens();
   });
-  // Not a <form>: a browser has no form to offer to save the field from (3.8).
-  return h(
+
+  const body = h(
     "div",
-    { id: "token-box" },
-    h("label", { for: "owner-input" }, "Owner"),
-    owner,
-    h("label", { for: "token-input" }, "GitHub token (for private repos)"),
-    h("div", { class: "token-row" }, input, use),
-    h("label", { class: "check" }, remember, " Remember the token"),
-    h(
-      "p",
-      { id: "token-note", class: "muted", "data-testid": "token-note" },
-      "Use a read-only token limited to the repos you need, with an expiry, for the owner of those repos. Other factoincognito Pages sites share this page's storage and can reach the tokens.",
-    ),
-    h("p", { id: "token-message", role: "status", "data-testid": "token-message" }),
+    { id: "private-repos-body" },
+    h("ul", { id: "token-list", "aria-label": "Tokens" }),
     h(
       "div",
-      { id: "token-status", hidden: "" },
-      h("h3", {}, "Tokens in use"),
-      h("ul", { id: "token-list" }),
-      forgetAll,
-    ),
-    h(
-      "div",
-      { id: "token-migrate", hidden: "" },
+      { id: "token-migrate", role: "group", "aria-labelledby": "migrate-line", hidden: "" },
       h("p", { id: "migrate-line", "data-testid": "migrate-line" }),
-      h("label", { for: "migrate-owner" }, "Owner"),
-      migrateOwner,
-      keep,
-      dropOld,
+      h(
+        "div",
+        { class: "migrate-row" },
+        h("label", { for: "migrate-owner" }, "Owner"),
+        migrateOwner,
+        keep,
+        dropOld,
+      ),
     ),
+    // Not a <form>: a browser has no form to offer to save the fields from (3.8).
+    h(
+      "div",
+      { id: "token-add", role: "group", "aria-labelledby": "token-add-title" },
+      h("h3", { id: "token-add-title" }, "Add a token"),
+      h(
+        "div",
+        { class: "add-fields" },
+        h("div", {}, h("label", { for: "owner-input" }, "Owner"), owner),
+        h("div", {}, h("label", { for: "token-input" }, "Fine-grained token, read-only"), input),
+      ),
+      // The box comes before "Add" in the page and the tab order: "Add" reads it (3.8).
+      h(
+        "div",
+        { class: "add-row" },
+        h("label", { class: "check" }, remember, h("span", {}, "Remember in this browser")),
+        use,
+      ),
+      h("p", { id: "token-message", role: "status", "data-testid": "token-message" }),
+      h("p", { id: "token-note", "data-testid": "token-note" }, TOKEN_NOTE),
+      mountGuide(),
+    ),
+    forgetAll,
+  );
+  const toggle = foldToggle(
+    "private-repos-toggle",
+    body,
+    renderSummary,
+    h("span", { class: "toggle-label" }, "Private repos"),
+    h("span", { id: "private-repos-summary" }),
+  );
+  return h(
+    "section",
+    { id: "private-repos", "aria-labelledby": "private-repos-title" },
+    h("h2", { id: "private-repos-title" }, toggle),
+    body,
   );
 }
 
@@ -943,11 +1084,16 @@ function helpParts(paragraph: Paragraph): Node[] {
 
 /**
  * The help view of docs/SPEC.md 3.10: static text from src/help.ts, built
- * with calls that set text. Opening it hides the start wrapper only; a load
- * under way carries on and fills the wrapper unseen, and closing shows the
- * wrapper as it is by then. No address, no history entry.
+ * with calls that set text. Opening it hides the start wrapper, and the
+ * control and the footer, which are outside it (3.12, "Changes to the help
+ * view", item 2); a load under way carries on and fills the wrapper unseen,
+ * and closing shows all three as they are by then. No address, no history
+ * entry.
  */
-function mountHelp(start: HTMLElement): { control: HTMLElement; view: HTMLElement } {
+function mountHelp(
+  start: HTMLElement,
+  footer: HTMLElement,
+): { control: HTMLElement; view: HTMLElement } {
   const control = h(
     "button",
     { id: "help-open", type: "button", class: "link-button" },
@@ -1000,12 +1146,16 @@ function mountHelp(start: HTMLElement): { control: HTMLElement; view: HTMLElemen
 
   function open(): void {
     start.hidden = true;
+    control.hidden = true;
+    footer.hidden = true;
     view.hidden = false;
     title.focus();
   }
   function close(): void {
     view.hidden = true;
     start.hidden = false;
+    control.hidden = false;
+    footer.hidden = false;
     control.focus();
   }
   control.addEventListener("click", open);
@@ -1043,8 +1193,12 @@ function mount(): void {
     "form",
     { id: "url-form" },
     h("label", { for: "url-input" }, "Repository"),
-    urlInput,
-    h("button", { id: "open-url", type: "submit" }, "Open"),
+    h(
+      "div",
+      { class: "url-row" },
+      urlInput,
+      h("button", { id: "open-url", type: "submit", class: "primary" }, "Open"),
+    ),
   );
   urlInput.addEventListener("input", fillOwnerFromAddress);
   form.addEventListener("submit", (event) => {
@@ -1059,12 +1213,42 @@ function mount(): void {
 
   // The start content sits in one wrapper, which the help view hides while it is open (3.10).
   const start = h("div", { id: "start" });
-  const help = mountHelp(start);
-  app.append(h("h1", {}, "Vizi - backlog visualizer"), help.view, start);
+  const footer = h(
+    "footer",
+    {},
+    `${FONT_NOTICE} `,
+    h(
+      "a",
+      { id: "notices-link", href: NOTICES_LINK.href, target: "_blank", rel: "noopener noreferrer" },
+      NOTICES_LINK.label,
+    ),
+  );
+  const help = mountHelp(start, footer);
+  // The banner, one main landmark and the footer (3.12, "The page's structure").
+  app.append(
+    h(
+      "header",
+      {},
+      h("h1", {}, "vizi", " ", h("span", { class: "tagline" }, "backlog visualizer")),
+      help.control,
+    ),
+    h("main", {}, help.view, start),
+    footer,
+  );
   start.append(
-    help.control,
-    h("div", { class: "inputs" }, form, mountToken()),
-    h("div", { id: "message", role: "status" }),
+    h(
+      "div",
+      { class: "start-col" },
+      h(
+        "section",
+        { id: "open-project", "aria-labelledby": "open-project-title" },
+        h("h2", { id: "open-project-title" }, "Open a project from GitHub"),
+        form,
+        h("p", { id: "access-line" }, ACCESS_LINE),
+      ),
+      h("div", { id: "message", role: "status" }),
+      mountPanel(),
+    ),
     h(
       "div",
       { id: "results", hidden: "" },

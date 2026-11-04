@@ -1,13 +1,53 @@
+/* Inter, bundled as a subset under the SIL Open Font License 1.1 (docs/SPEC.md 3.12; THIRD-PARTY-NOTICES.md).
+   The build inlines each file as a data: URL; the policy allows fonts from data: only. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/inter-latin-400.woff2") format("woff2");
+  unicode-range:
+    U+0020-007E, U+00A0-00FF, U+2013, U+2014, U+2018, U+2019, U+201C, U+201D, U+2022, U+2026, U+2192;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./fonts/inter-latin-600.woff2") format("woff2");
+  unicode-range:
+    U+0020-007E, U+00A0-00FF, U+2013, U+2014, U+2018, U+2019, U+201C, U+201D, U+2022, U+2026, U+2192;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./fonts/inter-latin-700.woff2") format("woff2");
+  unicode-range:
+    U+0020-007E, U+00A0-00FF, U+2013, U+2014, U+2018, U+2019, U+201C, U+201D, U+2022, U+2026, U+2192;
+}
+
+/* The colours of docs/SPEC.md 3.12, "Light, dark and phone": light, then dark. */
 :root {
   color-scheme: light dark;
   --bg: #ffffff;
   --fg: #111111;
-  --muted: #5a5a5a;
-  --line: #d0d0d0;
-  --card: #f6f6f6;
+  --muted: #555555;
+  --line: #dcdfe4;
+  --card: #f6f7f9;
   --accent: #0b5cad;
-  --alert-bg: #fff1c2;
+  --accent-hover: #08427d;
+  --on-accent: #ffffff;
+  --control-border: #858c97;
+  --alert-bg: #fff4d1;
   --alert-fg: #4a3500;
+  --alert-border: #8f7a30;
+  /* The address field's background: the page's in light, the card's in dark. */
+  --address-bg: var(--bg);
+  --mono: ui-monospace, Menlo, Consolas, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -18,8 +58,13 @@
     --line: #3a3a3a;
     --card: #1c1c1c;
     --accent: #7db7f5;
+    --accent-hover: #a9d0fa;
+    --on-accent: #0b1a2b;
+    --control-border: #7a7a7a;
     --alert-bg: #4a3a00;
     --alert-fg: #ffe9a6;
+    --alert-border: #c9a93a;
+    --address-bg: var(--card);
   }
 }
 
@@ -29,16 +74,19 @@
 
 body {
   margin: 0;
-  padding: 16px;
   background: var(--bg);
   color: var(--fg);
-  font-family: system-ui, sans-serif;
+  font-family: Inter, system-ui, sans-serif;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
 
 a {
   color: var(--accent);
+}
+
+a:hover {
+  color: var(--accent-hover);
 }
 
 h1 {
@@ -67,56 +115,421 @@ button {
   max-width: 100%;
 }
 
-.inputs {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
+code,
+pre,
+.pointer-text,
+.token-text {
+  font-family: var(--mono);
 }
 
-.token-row {
+::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+  flex: none;
+}
+
+button.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* The page (docs/SPEC.md 3.12): the header, one main and the footer. */
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 24px;
+  padding: 20px 48px;
+  border-bottom: 1px solid var(--line);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+header h1 .tagline {
+  margin-left: 6px;
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: normal;
+  color: var(--muted);
+}
+
+header #help-open {
+  margin: 0;
+  font-size: 15px;
+}
+
+main {
+  padding: 0 48px;
+}
+
+.start-col {
+  max-width: 760px;
+  margin: 0 auto;
+  padding-top: 72px;
+}
+
+.start-col > * + * {
+  margin-top: 28px;
+}
+
+#open-project > * {
+  margin: 0;
+}
+
+#open-project > * + * {
+  margin-top: 10px;
+}
+
+#open-project h2 {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+#url-form label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.url-row {
   display: flex;
   gap: 8px;
-  margin: 4px 0;
-}
-
-#token-input {
-  flex: 1;
-  min-width: 0;
-}
-
-.inputs label.check {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-#token-note,
-#token-message {
-  margin: 4px 0;
-  font-size: 0.85rem;
-}
-
-#token-note {
-  color: var(--muted);
-}
-
-.inputs label {
-  display: block;
-  font-size: 0.85rem;
-  color: var(--muted);
 }
 
 #url-input {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  padding: 0 14px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--control-border);
+  background: var(--address-bg);
+}
+
+#open-url {
+  height: 48px;
+  padding: 0 24px;
+  font-size: 16px;
+}
+
+#access-line {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* The message line takes no space while it is empty. */
+#message:empty {
+  margin-top: 0;
+}
+
+#message p {
+  margin: 0 0 6px;
+}
+
+/* The "Private repos" panel. */
+#private-repos {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+#private-repos h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+#private-repos-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
-  margin: 4px 0;
+  min-height: 56px;
+  padding: 0 18px;
+  font-size: 15px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.toggle-label {
+  font-weight: 600;
+}
+
+#private-repos-summary {
+  margin-left: auto;
+  color: var(--muted);
+  text-align: right;
+}
+
+.chevron {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  transition: transform 0.15s;
+}
+
+[aria-expanded="true"] > .chevron {
+  transform: rotate(90deg);
+}
+
+#private-repos-body {
+  padding: 0 18px 18px;
+}
+
+#token-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#token-list li {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr) 190px 96px;
+  gap: 12px;
+  align-items: center;
+  min-height: 56px;
+  border-top: 1px solid var(--line);
+}
+
+.token-owner {
+  font-weight: 600;
+}
+
+.token-text {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+label.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#token-list button,
+#token-forget-all {
+  height: 40px;
+  padding: 0 16px;
+}
+
+#token-migrate {
+  margin-top: 4px;
+  padding: 14px;
+  border-radius: 8px;
+  background: var(--alert-bg);
+  color: var(--alert-fg);
+}
+
+#migrate-line {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.migrate-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+#token-migrate .migrate-row label {
+  font-size: 13px;
+}
+
+#migrate-owner {
+  width: 220px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--alert-border);
+  background: var(--bg);
+  color: var(--fg);
+}
+
+#migrate-keep,
+#migrate-forget {
+  height: 40px;
+  padding: 0 16px;
+}
+
+#migrate-forget {
+  background: transparent;
+  color: var(--alert-fg);
+  border: 1px solid var(--alert-border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#token-add {
+  margin-top: 14px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+#token-add-title {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.add-fields {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 8px;
+  align-items: end;
+}
+
+#token-add .add-fields label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+#owner-input,
+#token-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--control-border);
+  background: var(--bg);
+}
+
+.add-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+#token-use {
+  height: 44px;
+  min-width: 96px;
+  padding: 0 22px;
+}
+
+#token-message {
+  margin: 10px 0 0;
+  font-size: 14px;
+}
+
+/* The panel's message line takes no space while it is empty. */
+#token-message:empty {
+  margin: 0;
+}
+
+#token-note {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.guide {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+#token-guide-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+#token-guide-body ol,
+#token-guide-body p {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+#token-guide-body ol {
+  padding-left: 20px;
+}
+
+#token-guide-body li + li {
+  margin-top: 6px;
+}
+
+/* Shown while any token is held: a display rule here would undo its hidden. */
+#token-forget-all:not([hidden]) {
+  display: block;
+  margin: 14px 0 0 auto;
+}
+
+footer {
+  max-width: 760px;
+  margin: 24px auto 0;
+  padding: 0 20px 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* The results use the page's full width, inside main's side padding. */
+#results {
+  margin-top: 28px;
 }
 
 .muted {
   color: var(--muted);
-}
-
-#message p {
-  margin: 8px 0;
 }
 
 #status {
@@ -288,10 +701,6 @@ button {
   margin: 8px 0 2px;
 }
 
-.pointer-text {
-  font-family: ui-monospace, monospace;
-}
-
 #umbrella-tree li > a {
   margin-left: 8px;
 }
@@ -308,35 +717,6 @@ button {
   margin: 4px 0;
 }
 
-#owner-input,
-#migrate-owner {
-  width: 100%;
-  margin: 4px 0;
-}
-
-#token-list {
-  list-style: none;
-  margin: 4px 0;
-  padding: 0;
-}
-
-#token-list li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin: 4px 0;
-}
-
-#token-status h3 {
-  margin: 8px 0 0;
-  font-size: 0.95rem;
-}
-
-#token-migrate {
-  margin: 8px 0;
-}
-
 /* The help view (docs/SPEC.md 3.10): the page's own colours, none of its own. */
 .link-button {
   background: none;
@@ -349,6 +729,119 @@ button {
   text-align: left;
 }
 
+.link-button:hover {
+  color: var(--accent-hover);
+}
+
 .help-steps {
   padding-left: 20px;
+}
+
+/* The phone (docs/SPEC.md 3.12): below 800 px, the width at which the board turns into columns. */
+@media (max-width: 799px) {
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 18px 20px;
+  }
+
+  header h1 {
+    font-size: 22px;
+  }
+
+  header h1 .tagline {
+    margin-left: 4px;
+    font-size: 14px;
+  }
+
+  header #help-open {
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  main {
+    padding: 0 20px;
+  }
+
+  .start-col {
+    padding: 24px 0;
+  }
+
+  .start-col > * + * {
+    margin-top: 22px;
+  }
+
+  #open-project > * + * {
+    margin-top: 8px;
+  }
+
+  .url-row {
+    flex-direction: column;
+  }
+
+  #url-input {
+    flex: none;
+    width: 100%;
+  }
+
+  #open-url {
+    width: 100%;
+  }
+
+  #private-repos-toggle {
+    min-height: 52px;
+    padding: 0 14px;
+  }
+
+  #private-repos-summary {
+    font-size: 14px;
+  }
+
+  #private-repos-body {
+    padding: 0 14px 14px;
+  }
+
+  #token-list li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 12px 0;
+  }
+
+  #token-list .token-text {
+    justify-self: end;
+    font-size: 13px;
+  }
+
+  label.check {
+    min-height: 44px;
+  }
+
+  #token-list button,
+  #token-forget-all,
+  #migrate-keep,
+  #migrate-forget {
+    height: 44px;
+  }
+
+  #migrate-owner {
+    width: 100%;
+    height: 44px;
+  }
+
+  #token-migrate .migrate-row label {
+    width: 100%;
+  }
+
+  .add-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #owner-input,
+  #token-input {
+    font-size: 15px;
+  }
+
+  #token-guide-toggle {
+    min-height: 44px;
+  }
 }
