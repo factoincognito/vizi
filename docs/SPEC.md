@@ -101,6 +101,8 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
    folder", and with it the folder in the inputs of item 2, in the
    umbrella view of item 6 and in the help view of item 8. What the
    code change must remove is in 3.11.
+10. His decision of 2026-11-04 (16:13, in chat): the help view says early
+    in its text that vizi is a read-only tool. The sentence is in 3.10.
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -1205,6 +1207,11 @@ the five steps and the closing link. The link is not a sixth step.
   image. The page's requests stay as in 2.3, and the policy in 2.3 stays
   as it is; only the hash of the inline script changes with the build, as
   with any change to the script.
+- **The read-only sentence (decided by the product owner, 2026-11-04,
+  16:13; item 10 of "What is decided").** Right under the view's `h2`
+  title, before step 1, one sentence of static text: "vizi is a
+  read-only tool: it reads your project's files on GitHub and never
+  changes anything there."
 - **The steps,** five, in this order, each with its title as a heading, a
   few sentences, and one example in a code block. What each says, and what
   its example reads as, are given below; the examples are what the code
@@ -1344,6 +1351,8 @@ the five steps and the closing link. The link is not a sixth step.
   - unit (`src/help.test.ts`, Jest), on the same exported constants the
     page renders, through the page's own readers (`src/backlog.ts`,
     `src/status.ts`, `src/projects.ts`, `src/token.ts`, `src/github.ts`):
+    - the read-only sentence of 3.10 is the constant of `src/help.ts`
+      the page renders, word for word;
     - step 1's paths equal `BACKLOG_PATHS`, in order;
     - step 2's example read by `parse` of `src/backlog.ts` gives exactly
       the stated reading above, with an empty report; the markers the
@@ -1375,6 +1384,9 @@ the five steps and the closing link. The link is not a sixth step.
       only (the hidden wrapper holds other headings): the `h1`, then the
       section's one `h2` and five `h3`, one per step, none deeper; the
       closing link is outside the ordered list and has no heading;
+    - the read-only sentence is the first text after the `h2` and before
+      the first step's `h3`, and is static text: it is in the built
+      `dist/index.html`, and opening the view makes no request for it;
     - every example block has `tabindex="0"`, `role="region"` and an
       accessible name;
     - each code block's text equals the constant in `src/help.ts`; the
