@@ -698,6 +698,22 @@ describe("two stores on one storage, interleaved", () => {
     expect(mine.tokenFor("y")).toBe(T3);
   });
 
+  it("a startup clean-up does not carry the stored forgot list: a page-only X token elsewhere is left alone", () => {
+    // The value needs cleaning (an upper-case owner) and its forgot names x.
+    const raw = JSON.stringify({ tokens: { ACME: T1 }, forgot: ["x"] });
+    const s = sharedStorage({ [TOKENS_KEY]: raw });
+    const mine = createTokenStore(s.view("mine"));
+    mine.use("x", T3, false);
+    const other = createTokenStore(s.view("other"));
+    other.start();
+    expect(stored(s.data)).toEqual({ tokens: { acme: T1 }, forgot: [] });
+    const out = deliver(mine, s.log, "mine");
+    expect(out).toHaveLength(1);
+    expect(out[0]?.forgotten).toEqual([]);
+    expect(mine.tokenFor("x")).toBe(T3);
+    expect(mine.isSaved("x")).toBe(false);
+  });
+
   it("another store's startup clean-up changes nothing for an owner whose entry it kept", () => {
     const raw = JSON.stringify({ tokens: { x: T1, "a/b": T2 }, forgot: [] });
     const s = sharedStorage({ [TOKENS_KEY]: raw });

@@ -800,6 +800,28 @@ test.describe("a second tab (3.8)", () => {
     for (const s of gets(stub)) expect(s.headers.authorization).toBe(`Bearer ${TOKEN}`);
   });
 
+  test("a new tab's startup clean-up does not carry the stored forgot list: a page-only token here stays", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context);
+    await page.goto("/");
+    // A stored value that needs cleaning (an upper-case owner) and whose forgot names fomo-t.
+    await page.evaluate(
+      ([k, v]) => localStorage.setItem(k as string, v as string),
+      [KEY, JSON.stringify({ tokens: { ACME: TOKEN3 }, forgot: ["fomo-t"] })],
+    );
+    await useToken(page, TOKEN2, false, "fomo-t");
+    const other = await context.newPage();
+    await other.goto("/");
+    await expect(line(other, "acme")).toBeVisible();
+    expect(await saved(other)).toEqual({ tokens: { acme: TOKEN3 }, forgot: [] });
+    await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 300)));
+    await expect(lineText(page, "fomo-t")).toHaveText(
+      "fomo-t: github_pat_…9876, for this page only",
+    );
+  });
+
   test("following an event writes nothing to storage", async ({ page, context }) => {
     await stubGithub(context);
     await page.goto("/");
