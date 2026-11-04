@@ -470,6 +470,15 @@ describe("R9: HTML comments", () => {
     expect(r.report.map((x) => `${x.kind}:${x.code}@${x.line}`)).toEqual(["error:not-read@1"]);
   });
 
+  it("keeps the indent of the closing line of a multi-line comment too", () => {
+    const r = parse(lines("<!--", "  hidden", "  -->- **[NOW] AB-1** — a."));
+    expect(r.entries).toEqual([]);
+    expect(r.report.map((x) => `${x.kind}:${x.code}@${x.line}`)).toEqual(["error:not-read@3"]);
+    expect(parse(lines("<!--", "-->- **[NOW] AB-1** — a.")).entries.map((e) => e.id)).toEqual([
+      "AB-1",
+    ]);
+  });
+
   it("reads an entry whose list marker follows --> directly, at column 0", () => {
     expect(parse("<!-- x -->- **[NOW] AB-1** — a.").entries.map((e) => e.id)).toEqual(["AB-1"]);
   });
