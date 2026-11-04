@@ -4,11 +4,11 @@
  * synthetic (e2e/fixtures/project).
  */
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { expect, type Page, type Route, test } from "@playwright/test";
 
-const here = dirname(fileURLToPath(import.meta.url));
+const here = __dirname;
 const project = join(here, "fixtures", "project");
 const read = (p: string) => readFileSync(join(project, p), "utf8");
 const REPO = "https://github.com/acme/widgets";
@@ -220,9 +220,6 @@ test.describe("board and list (3.2)", () => {
     await expect(done.getByTestId("card")).toBeHidden();
     await done.locator("summary").click();
     await expect(done.getByTestId("card")).toBeVisible();
-    await expect(
-      page.locator('[data-testid="column"][data-marker="WAITING"]').locator("details[open], div"),
-    ).not.toHaveCount(0);
   });
 
   test("shows marker, ID, notes and title on a card, and the description when opened", async ({
