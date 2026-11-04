@@ -44,7 +44,7 @@ Build order: Clead's proposal, from the design the spec is taken from.
   wired in `src/main.ts` on top of PBI-1.1, covered by Playwright tests
   with GitHub's answers stubbed (`docs/SPEC.md`).
 
-- **[NEXT] PBI-1.3** (PR #3 merged) — A link to vizi's
+- **[DONE] PBI-1.3** (2026-11-04: template PR #344, merge `b1139d9`) — A link to vizi's
   `docs/BACKLOG-FORMAT.md` from the template's `docs/BACKLOG.md` header.
   The template links to the format spec and does not hold a copy
   (product owner, 2026-11-03). A change in
