@@ -22,3 +22,4 @@ The product owner tries the first version and says what to change; then PBI-1.4 
 
 ## Blockers
 - Product Owner: the definition of done for this phase (`docs/NEXT_SESSION.md`, entry 1).
+- Product Owner: set the repo's Pages source to "GitHub Actions" (Settings, Pages), so the PBI-1.7 deploy job can publish `https://factoincognito.github.io/vizi/`.
