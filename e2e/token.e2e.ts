@@ -182,7 +182,11 @@ test.describe("entering the token (3.8)", () => {
     expect(
       await page.locator("#token-remember").evaluate((el) => (el as HTMLInputElement).checked),
     ).toBe(false);
-    await expect(page.getByText("GitHub token (for private repos)")).toBeVisible();
+    // The field's own label: the help view quotes the same text (3.10, step 5).
+    await expect(page.locator("label[for=token-input]")).toHaveText(
+      "GitHub token (for private repos)",
+    );
+    await expect(page.locator("label[for=token-input]")).toBeVisible();
     await expect(page.locator("label[for=owner-input]")).toHaveText("Owner");
     await expect(page.getByTestId("token-note")).toContainText("factoincognito Pages sites");
     await expect(anyLine(page)).toBeHidden();

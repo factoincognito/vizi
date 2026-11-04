@@ -10,8 +10,9 @@
 
 ## Current situation summary
 
-Phase 1 (the first version) is in design: the spec is PR #3. One
-question for the product owner is staged below.
+Phase 1 (the first version) is built and live; follow-up items are
+being built unattended. Two questions for the product owner are staged
+below.
 
 ---
 
@@ -43,6 +44,18 @@ phase; it adds no new PBI.
 **Action:** Clead asks the product owner to accept, change or replace
 this; once he decides, Clead writes it into `memory/project.md` and
 removes this entry.
+
+### 2. PBI-1.17 in the unattended run — new, a question for the product owner
+
+**Previous assumption:** the product owner's night-shift scope (2026-11-04
+16:37) lists PBI-1.14, PBI-1.16, PBI-1.15 and PBI-1.12.
+**Revised assessment:** PBI-1.17 (the Repository field, decided 17:07) came
+after that scope and sits before PBI-1.14 in the backlog. Clead asked at
+17:30 whether to build it tonight; no answer yet, so it is not built.
+**Impact on plan:** none on the others: PBI-1.16's spec leaves the field's
+input to PBI-1.17, and PBI-1.15 and PBI-1.12 do not read the field.
+**Action:** the product owner says whether PBI-1.17 is built next; Clead
+then starts its spec, or leaves it in NEXT.
 
 ---
 
