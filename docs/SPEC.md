@@ -133,7 +133,7 @@ test. No fixture is copied from a real project's backlog or status file.
 No test reaches the network (2.3).
 
 **Published on GitHub Pages** (product owner, 2026-11-04; PBI-1.7,
-workflow in PR #22). Clead's design for how:
+workflow in PR #22, as at `c901ef8`). Clead's design for how:
 
 - `.github/workflows/pages.yml` builds the page and deploys `dist/` to
   `https://factoincognito.github.io/vizi/` on every push to `main`
@@ -141,15 +141,22 @@ workflow in PR #22). Clead's design for how:
   started by hand from another branch builds but does not deploy: the
   deploy job runs only for `refs/heads/main`.
 - Its job `site` runs `npm ci` and `npm run build`, the scripts CI uses,
-  with the same `checkout` and `setup-node` actions and Node.js 24. The
-  job `deploy` runs after it and deploys with GitHub's own Pages actions
-  (`configure-pages`, `upload-pages-artifact` with the path `dist`,
-  `deploy-pages`, each pinned to a major version) to the `github-pages`
-  environment.
-- Permissions: `contents: read` for the workflow; `pages: write` and
+  with the same `checkout` and `setup-node` actions and Node.js 24, and
+  uploads `dist/` with `upload-pages-artifact`. Its checkout sets
+  `persist-credentials: false`, so the job's token is not kept in the
+  checkout's git config. The job `deploy` runs after it and deploys
+  with `deploy-pages` to the `github-pages` environment. Both Pages
+  actions are GitHub's own, pinned to a major version.
+- Permissions: `contents: read` for the workflow, which `site` keeps,
+  as it sets no permissions of its own; `pages: write` and
   `id-token: write` for the `deploy` job only. One deploy runs at a
   time (concurrency group `pages`), and a running deploy is allowed to
   finish.
+- It runs no tests. It relies on the required `build` check of
+  `ci.yml` (lint, type check, unit tests, the browser tests): branch
+  protection on `main` requires a pull request and a passing `build`
+  check for every change, administrators included (checked 2026-11-04
+  through the API).
 - It has no `pull_request` trigger and no job named `build`, so it never
   touches the required `build` check of `ci.yml`.
 - It publishes only once the repo's Pages source is set to "GitHub
@@ -419,11 +426,25 @@ one test, written before the code.
 Publishing (2.2, PR #22):
 
 - `src/pages-workflow.test.ts` (Jest) reads `pages.yml` as text and
-  checks its triggers, its permissions, that it deploys only from
-  `main`, its concurrency, that it builds with the scripts and toolchain
-  CI uses, the Pages actions and their major-version pins, that `deploy`
-  runs after `site` to the `github-pages` environment, and that no job
-  is named `build`.
+  checks:
+  - the whole `on:` block, exactly;
+  - the top-level `permissions:` block, exactly `contents: read`, and
+    that there is only one;
+  - that `site` has no `permissions:` key;
+  - the `deploy` job's `permissions:` block, exactly `pages: write` and
+    `id-token: write`;
+  - that `deploy` runs only for `refs/heads/main`;
+  - the concurrency group;
+  - that `site` builds with `npm ci` and `npm run build`, and uses the
+    same `checkout` and `setup-node` versions and Node.js version as
+    CI;
+  - `upload-pages-artifact` with the path `dist`, and `deploy-pages`,
+    each pinned to a major version;
+  - that `deploy` needs `site` and uses the `github-pages` environment;
+  - that no job is named `build`.
+
+  It does not check `persist-credentials: false`, although one test's
+  name mentions it.
 - `e2e/subpath.e2e.ts` (Playwright) reads the built `dist/index.html`
   and checks that it has no root-relative `src`, `href`, `action`,
   `poster`, `url()` or `import`, and no external script or stylesheet,
