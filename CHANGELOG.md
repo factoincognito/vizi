@@ -6,6 +6,10 @@ All notable changes to Vizi - backlog visualizer are documented here.
 
 - Project description, status and first backlog: purpose and goals from the product owner's decisions, `STATUS.md`, Phase 1 backlog (PBI-1.1 parser, PBI-1.2 page, PBI-1.3 template link) (#2).
 - Technical spec and backlog format spec: `docs/SPEC.md` and `docs/BACKLOG-FORMAT.md`, with the product owner's intent approval of 2026-11-04 and Clead's design within it; the web pack's external-requests rule read as covering what the page loads at startup (#3).
+- Changelog for #2 and #3 (#5).
+- Spec: HTML comments in a backlog file are dropped (rule R9) (#4).
+- Backlog parser and report (`src/scan.ts`, `src/backlog.ts`) and `STATUS.md` reader (`src/status.ts`), tested with Jest on synthetic fixtures (PBI-1.1) (#6).
+- Spec: edge cases settled from the PBI-1.1 review, and the description indent rule for rendering (#7).
 
 ## Project created
 
