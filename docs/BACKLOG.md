@@ -49,14 +49,6 @@ Build order: Clead's proposal, from the design the spec is taken from.
   The template links to the format spec and does not hold a copy
   (product owner, 2026-11-03). A change in
   `factoincognito/ai-project-template-v2`, through that repo's own flow.
-- **[LATER] PBI-1.19** (product owner, 2026-11-04 22:34, an idea, not
-  decided) — Guided opening from the Repository field: the field takes
-  `<owner>` or `<owner>/<repo>`. When it loses focus, vizi works out
-  which was typed: an owner alone lists that owner's repos to pick from
-  (private ones if the owner's token can see them); a repo lists its
-  branches, with the repo's own default branch preselected (fomo-f's is
-  `master`). Builds on PBI-1.17 and takes in PBI-1.15's branch list. To
-  be talked through with the product owner before a spec.
 - **[LATER] PBI-1.4** (Clead, 2026-11-04, from the code review of PR #9) — Settle the known unknowns of `docs/SPEC.md` section 4 that PBI-1.2 left open, each checked in a real browser on the product owner's computer, not through this session's proxy: GitHub requests from a page opened from disk; GitHub's anonymous rate limit; what GitHub answers for a private repo. Record each result in the spec.
 - **[DONE] PBI-1.5** (2026-11-04: PR #16, merge `d5bb2c3`, and PR #17, merge `c94918b`, each approved by a Clead-role review in round 1) (Clead, 2026-11-04, from the code review of PR #9, round 2) — The review's optional points, none a defect: heading slugs keep Unicode letters and digits (today `Översikt` becomes `versikt`); the same 4096-character limit for both link destination forms (one is 4095); the cost of a 1 MB hostile line (about 4 s); the stray-request test guard allows only the page's own file; separate test ids for "No blockers listed" and "None"; duplicate heading ids when one description shows in a board card and a list row; non-`.md` files shown as code in folder mode; a late answer from an older load ignored when a newer address was submitted. Added from the review of PR #11: the doc comment on `folderFiles` in `src/docs.ts` still says dot-folders are skipped, while the code skips only `.git` and `node_modules`; relative link targets fully percent-decoded (today `decodeURI` leaves `%2F` and `%23` as written); tests for the report's Info item and the documentation list when GitHub's file list is truncated (today only the message under the address is tested).
 - **[DONE] PBI-1.7** (2026-11-04: workflow PR #22, merge `8054f14`, Clead-role review approved in round 3; spec PR #23, merge `bec8392`; Pages source set by the product owner 09:44; the first deploy before that failed with GitHub's 404 "Ensure GitHub Pages has been enabled", runs 41801704611 and 41801782427 after it succeeded; the live page answered 200 and made no request but its own, checked from this session) (product owner, 2026-11-04) — Publish vizi on
@@ -114,7 +106,7 @@ Build order: Clead's proposal, from the design the spec is taken from.
   to `docs/BACKLOG-FORMAT.md` on GitHub. The text ships in the page, and
   a test checks that its examples read as stated. A spec change first,
   then the code. Before PBI-1.12.
-- **[NEXT] PBI-1.17** (product owner, 2026-11-04 17:07, on Clead's
+- **[DONE] PBI-1.17** (2026-11-04: PR #67, merge `cc7652c`, Clead-role review approved in round 2; spec PRs #65 and #69; live on Pages) (product owner, 2026-11-04 17:07, on Clead's
   recommendation; replaces the 16:36 prefill of `https://github.com/`) —
   One "Repository" field where the user types `owner/repo`, for example
   `fomo-t/fomo-f`; a full GitHub address pasted into it, with or without
@@ -122,13 +114,13 @@ Build order: Clead's proposal, from the design the spec is taken from.
   owner. A spec change first, then the code. In the unattended run of
   2026-11-04 (product owner, 19:18 "All"); built after PBI-1.14, which
   was already under way, and before PBI-1.16.
-- **[NOW] PBI-1.14** (product owner, 2026-11-04 15:15, on Clead's recommendation) — Remove
+- **[DONE] PBI-1.14** (2026-11-04: PR #63, merge `9560d78`, Clead-role review approved; live on Pages) (product owner, 2026-11-04 15:15, on Clead's recommendation) — Remove
   opening a local project folder: vizi opens projects from GitHub only
   (public by address, private with the saved token). The folder input, its
   code and tests go, and the folder step of the help view (PBI-1.13). This
   replaces the 2026-11-03 decision that local mode opens a folder. Spec merged in #47 (`1a84c1a`); the help
   text in #45 followed it before #45 merged. The code is next.
-- **[NEXT] PBI-1.16** (product owner, 2026-11-04; intent approved 15:48, on
+- **[NOW] PBI-1.16** (product owner, 2026-11-04; intent approved 15:48, on
   Clead's mockup, recorded in the product office's decisions) — Redesign
   the start page: "Open a project from GitHub" with the address and
   Open on one row, the help link in the header, and the line "Public
@@ -158,6 +150,16 @@ Build order: Clead's proposal, from the design the spec is taken from.
   opens that branch. The `/tree/<branch>` address keeps working. A spec
   change first, then the code. After PBI-1.16, in the redesigned start
   page.
+- **[NEXT] PBI-1.19** (product owner, 2026-11-04 22:47, on Clead's
+  recommendation; open to change after trying it) — Guided opening from
+  the Repository field: it takes `<owner>` or `<owner>/<repo>`. While
+  typing after `<owner>/`, a list of that owner's repos drops down
+  (private ones the owner's token can see). When the field loses focus,
+  an owner alone shows the repo list, and a repo shows its branches with
+  the repo's own default branch preselected (fomo-f's is `master`). A
+  pasted full address still opens directly. PBI-1.15's picker on a loaded
+  project stays, and its branch request is reused. A spec change first,
+  then the code. In the unattended run of 2026-11-04, after PBI-1.15.
 - **[NEXT] PBI-1.12** (product owner, 2026-11-04; intent approved 11:59) — A "Saved repos"
   quick-access list on the start page: "Save" adds the open address, an
   entry loads on click (with the right token if private), "×" removes it.
