@@ -105,12 +105,6 @@ Build order: Clead's proposal, from the design the spec is taken from.
   to `docs/BACKLOG-FORMAT.md` on GitHub. The text ships in the page, and
   a test checks that its examples read as stated. A spec change first,
   then the code. Before PBI-1.12.
-- **[NEXT] PBI-1.12** (product owner, 2026-11-04; intent approved 11:59) — A "Saved repos"
-  quick-access list on the start page: "Save" adds the open address, an
-  entry loads on click (with the right token if private), "×" removes it.
-  Kept in the browser, addresses only, never tokens; other factoincognito
-  Pages sites (trusted, under the Pages rule) could read the repo names,
-  not their contents. A spec change first, then the code. After PBI-1.11.
 - **[NEXT] PBI-1.14** (product owner, 2026-11-04 15:15, on Clead's recommendation) — Remove
   opening a local project folder: vizi opens projects from GitHub only
   (public by address, private with the saved token). The folder input, its
@@ -118,10 +112,30 @@ Build order: Clead's proposal, from the design the spec is taken from.
   replaces the 2026-11-03 decision that local mode opens a folder. A spec
   change first, then the code; the help text in #45 follows the spec
   before #45 merges.
+- **[NEXT] PBI-1.16** (product owner, 2026-11-04; intent approved 15:48, on
+  Clead's mockup, recorded in the product office's decisions) — Redesign
+  the start page: "Open a project from GitHub" with the address and
+  Open on one row, the help link in the header, and the line "Public
+  repos open without a token. Private repos need a token for their
+  owner. All access is read-only: vizi never changes anything on
+  GitHub."; a folded "Private repos" panel with one row per owner
+  (Remember and Forget each), a token saved by an earlier vizi as one
+  row asking for its owner, "Add a token" and "Forget all tokens"; one
+  font, Inter, built into the page (the spec checks its licence against
+  the product office's third-party policy); light, dark and phone. A
+  spec change first, then the code. After PBI-1.14.
 - **[NEXT] PBI-1.15** (product owner, 2026-11-04; intent approved 15:15) — A branch
   picker: after a repo loads, a list of its branches, and picking one
   opens that branch. The `/tree/<branch>` address keeps working. A spec
-  change first, then the code. After PBI-1.14.
+  change first, then the code. After PBI-1.16, in the redesigned start
+  page.
+- **[NEXT] PBI-1.12** (product owner, 2026-11-04; intent approved 11:59) — A "Saved repos"
+  quick-access list on the start page: "Save" adds the open address, an
+  entry loads on click (with the right token if private), "×" removes it.
+  Kept in the browser, addresses only, never tokens; other factoincognito
+  Pages sites (trusted, under the Pages rule) could read the repo names,
+  not their contents. A spec change first, then the code. After PBI-1.15, in the redesigned
+  start page (PBI-1.16).
 - **[LATER] PBI-1.10** (Clead, 2026-11-04, from the code reviews of PRs #30 and #31) — Optional points, none a leak: a 401 forgets the token that is current, not the one GitHub refused (a new token entered during a load is forgotten); unticking "Remember" in one tab makes every other tab do a full Forget; the browser leak check looks at `body.outerHTML` only and should check the whole page; the token browser tests should assert that `window.__pwned` stays unset; a 429, or a 403 for the secondary rate limit, is reported as "the token may not read this repo"; Enter in the token field does nothing; `addCsp` misses a second policy spelled with an entity (harmless). Also: the spec lines #31 lists as outdated (2.2 and 2.3 "until PBI-1.8", 3.8 "a spec ahead of its code", the messages as built, a replaced load sends nothing more with the token, the no-store check as a unit test). Added from the code review of PR #35: the same 401 race applies to "Show status"; the pointer `- .../x` is accepted (harmless, as P4 allows); the spec lines #35 lists as outdated (3.9 "a spec ahead of its code" and the section 4 item 3 note, the report messages as built, the 401 token forget and the panel's "What could not be read" list). Added from the spec review of PR #40: a planted value that the startup clean-up removes entirely counts as no entries (the spec should say so). Added from PR #42 and its code review: the spec lines #42 lists (3.8 "Built and to build" and the single-token fallback; the line format as built; the Owner prefill as typed, kept in lower case; the messages for refusing an owner and for "Keep for this owner" when the browser will not save; "Use" without Remember removes only this tab's own saved copy; Forget for one owner also drops another owner's running load; the 401 message after the token was already replaced; an upper-case stored owner is lower-cased; a value without `"forgot"` is removed; the 3.9 test fixture `umbrella-cross`); "Forget all" leaves the old `vizi.githubToken` key and its migration line, so that earlier token survives it (a spec decision, Clead's); "Forget all" with nothing saved does not reach another tab's page-only tokens, while a per-owner Forget does; "Keep for this owner", when the browser will not save, drops that owner's existing token from memory; keep a Playwright trace on failure in CI, for the one-off failure of the second-tab test seen while building #42.
 - **[LATER] PBI-1.6** (Clead, 2026-11-04, from the code reviews of PRs #16 and #17) — Optional points, none a defect: check a link target again for control characters and backslashes after percent-decoding (today `%00`, `%0A` and `%5C` survive; SPEC 3.7 says a target with control characters is text); normalise heading text to NFC before making its slug, so a precomposed `Ö` and `O` plus a combining mark give the same anchor; a ~900k-character line of nested brackets takes about 1.4 s, close to the tests' 1.5 s limit; in `e2e/page.e2e.ts` two "no link" checks (around lines 207 and 370) run before the description renders, so they prove nothing — check after rendering; `showDoc` does not check after its `await` that the project is still the current one; a test for an older slow success arriving after a newer fast error.
 
