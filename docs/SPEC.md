@@ -128,6 +128,13 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
     17:07 (recorded in the same file, #399), one "Repository" field for
     `owner/repo`, which replaces his prefill decision of 16:36. How vizi
     does it is 3.12; the token behaviour of 3.8 does not change.
+12. His intent approval of 2026-11-04 (15:15, in chat, "apyr", on
+    Clead's recommendation, after his 15:14 "possibily broaden the
+    possibility to load branches from repo"; recorded in the product
+    office's `DECISIONS.md`, PR #390, and in the PBI-1.15 entry of
+    `docs/BACKLOG.md`) of PBI-1.15, a branch picker: after a repo loads,
+    a list of its branches, and picking one opens that branch; the
+    `/tree/<branch>` address keeps working. How vizi does it is 3.13.
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -186,6 +193,8 @@ project's documentation.
 - Added on 2026-11-04: the start page redesign, with the Inter font
   built into the page and a guide to making the read-only token (3.12;
   PBI-1.16).
+- Added on 2026-11-04: a branch picker on a loaded project (3.13;
+  PBI-1.15).
 
 Not decided: a lint mode beyond the page's report (Clead's suggestion,
 which the product owner found worth considering). The parser is
@@ -301,11 +310,12 @@ startup: fetching a backlog after an address is typed is allowed.
 
 Clead's design: the load check stays as it is. The only requests the
 page ever makes are the GitHub requests of 3.1, after the user enters a
-URL. Content the page shows never makes a request of its own (3.7). The
-browser tests stub GitHub's answers with Playwright routes, so no test
-reaches the network. Publishing on GitHub Pages (2.2) does not change
-this reading: what the page loads at startup is still only its own
-document.
+URL, and, from PBI-1.15, the branch list of 3.13 after such a load, also
+to `api.github.com`. Content the page shows never makes a request of its
+own (3.7). The browser tests stub GitHub's answers with Playwright
+routes, so no test reaches the network. Publishing on GitHub Pages (2.2)
+does not change this reading: what the page loads at startup is still
+only its own document.
 
 **Content-Security-Policy.** Clead's design.
 
@@ -398,12 +408,14 @@ the points the text above it leaves open.
 
   So one load makes one or two requests to `api.github.com` (requests 1
   and 2) and up to three to `raw.githubusercontent.com` (request 3): two
-  to five in all when the backlog file is found. If request 1 or 2 answers
-  404 and no token is held for the owner, the page says: "Not found or
-  not public. If the repo is private, add a token for its owner." (3.8
-  sets out the tokens; Clead's design; with a token held for the owner,
-  3.8 sets out the message.) Any other failed request is shown with its HTTP status and
-  is not retried.
+  to five in all when the backlog file is found. From PBI-1.15 the
+  branch picker reads the repo's branch list after a load succeeds, with
+  one to three more requests to `api.github.com` (3.13). If request 1 or
+  2 answers 404 and no token is held for the owner, the page says: "Not
+  found or not public. If the repo is private, add a token for its
+  owner." (3.8 sets out the tokens; Clead's design; with a token held
+  for the owner, 3.8 sets out the message.) Any other failed request is
+  shown with its HTTP status and is not retried.
 - `api.github.com` and `raw.githubusercontent.com` both answer with
   `Access-Control-Allow-Origin: *`, so a browser page can read them
   (checked with `curl` on 2026-11-03, and again on 2026-11-04 against
@@ -989,7 +1001,9 @@ forgets the token held at that moment.
   file's text (checked 2026-11-04 without a token, on a public file).
   The branch and each segment of the path are percent-encoded. So a
   load with a token makes two to five requests (with `PROJECTS.md`,
-  3.9), all to `api.github.com`. A redirect within `api.github.com`,
+  3.9), all to `api.github.com`. The branch list of 3.13, after a load,
+  goes to `api.github.com` the same way, with the token that load used.
+  A redirect within `api.github.com`,
   such as a 301 for a renamed or moved repo, is followed with the
   `Authorization` header kept, so the token still reaches only GitHub;
   what GitHub's redirects look like, and that a browser drops the
@@ -2384,6 +2398,315 @@ Test first, as everywhere (2.2). With GitHub stubbed, synthetic tokens
 - `e2e/help.e2e.ts` (PBI-1.13): the control labels step 5 names exist on
   the start page, inside the panel.
 
+### 3.13 The branch picker (PBI-1.15)
+
+**(approved)** The product owner's intent approval of 2026-11-04 (15:15,
+"apyr", on Clead's recommendation; see "What is decided", item 12):
+after a repo loads, a list of its branches, and picking one opens that
+branch. The `/tree/<branch>` address keeps working.
+
+Clead's design, within that intent. It is built after PBI-1.16, in the
+redesigned page of 3.12, and before PBI-1.12.
+
+**Independent of the address field.** PBI-1.17 (the product owner's
+decision of 17:07: one "Repository" field for `owner/repo`, where a full
+GitHub address pasted, with or without `/tree/<branch>`, still works)
+may be built before this item or after it. The picker does not depend on
+which: it never reads, writes or parses the address field. It works on
+the reference of the project that loaded (owner, repo, branch, as 3.1
+and `loadRepo` hold it), and a pick starts a load from such a reference,
+not from text. Its tests open a project with a full address
+(`https://github.com/<owner>/<repo>`), which both forms of the field
+accept.
+
+#### Where it sits, and the current branch
+
+- Inside `#results`, right under the project's heading `#project-name`
+  and before the status, one row (`#branch-picker`): the label
+  "Branch", a native `<select id="branch-select">` and a button
+  `#branch-open`, "Open branch"; under the row, the picker's message
+  line `#branch-message` (`role="status"`), which takes no space while
+  empty. It is part of the results: it is shown, hidden and cleared
+  with them (3.1, 3.8 "Forget").
+- The project's heading already reads "`<owner>/<repo>` (`<branch>`)",
+  the branch the load read; that stays. The select shows the same
+  branch as its selected option.
+- **The options.** One `<option>` per branch name, its text the name
+  as GitHub gives it, set with `textContent` (3.7: a branch name is
+  untrusted text), its value the same name. The order:
+  - the default branch first, with " (default)" after its name, when
+    the page knows it: from request 1 of 3.1, so when the project was
+    opened by an address without `/tree/<branch>`, or by a pick that
+    followed such a load of the same repo. A project opened with
+    `/tree/<branch>` makes no request 1, and the picker makes none to
+    learn the default: no option is then marked (Clead's choice, to add
+    no request);
+  - then every other name, sorted by the names' character codes, as the
+    documentation list of 3.4 is.
+- **The current branch is always an option.** When the loaded branch is
+  not among the names read (past the cap below, deleted since, or the
+  list could not be read), it is added first, selected.
+- **Names the page cannot open.** A name holding `?`, `#` or `%` is
+  listed but disabled, with " (cannot be opened in vizi)" after it:
+  3.1 uses the branch as written in request 3 and in github.com links,
+  where those characters would end or change the path, and an address
+  cannot carry `?` or `#` at all (3.1, "As built"). Git refuses spaces
+  and control characters in branch names, so the names left are safe as
+  written. (Clead's design; a later item can encode them if one is
+  needed.)
+- **While the list loads**, the select holds the current branch only,
+  `#branch-picker` has `aria-busy="true"`, "Open branch" is disabled,
+  and the message line says "Reading the branches…".
+
+#### Which request lists the branches
+
+- `GET https://api.github.com/repos/<owner>/<repo>/branches?per_page=100&page=<n>`,
+  `<owner>` and `<repo>` as in 3.1 (they hold only letters, digits,
+  `.`, `_` and `-`, so they go as written), `<n>` from 1.
+- Checked on 2026-11-04 against the source of GitHub's documentation,
+  `github/docs` at `e44c283a7f901f63aead1ea13cf9062956706e24` (its
+  `main` that day), read through git (this session's GitHub API refuses
+  `github/docs`, as for 3.12):
+  - `src/rest/data/fpt-2022-11-28/branches.json` (blob
+    `f998136e515c2576ed4d157974d7b1f4383a01f3`), the operation "List
+    branches", `GET /repos/{owner}/{repo}/branches`: the query
+    parameters `protected`, `per_page` ("The number of results per page
+    (max 100)", default 30) and `page` (default 1); the status codes 200
+    and 404; the answer an array of "Short Branch" objects, each with a
+    `name` string, a `commit` and `protected`; and, for programmatic
+    access, `"fineGrainedPat": true`, the permission `"Contents"
+    repository permissions: "read"`, and `"allowsPublicRead": true`;
+  - `src/github-apps/data/fpt-2022-11-28/fine-grained-pat-permissions.json`
+    (blob `0ea0357fb33360c4d474f81e0a9a15b5eafffb38`): under
+    `contents`, "list-branches", `GET /repos/{owner}/{repo}/branches`,
+    `"access": "read"`, `"additional-permissions": false`;
+  - `content/rest/using-the-rest-api/using-pagination-in-the-rest-api.md`
+    (blob `01e66579e9e6a033340ff8b730c42fed45ed7ff9`): "For most
+    endpoints, the maximum value of `per_page` is `100`", and the `link`
+    header for further pages.
+  - The `2022-11-28` data is the REST API version a request without an
+    `X-GitHub-Api-Version` header gets; vizi sends none. That GitHub
+    serves that version by default was not checked in this
+    documentation.
+- **The token.** The request goes with the token that the load it
+  follows used (3.8, "A load keeps the token it started with for all
+  its requests"): with one, in the `Authorization` header with
+  `credentials: "omit"` and `cache: "no-store"`, as every request with
+  a token is; without one, anonymously, which the documentation allows
+  for a public repo (`allowsPublicRead`). The permission it needs is
+  "Contents" read, which the read-only token of 3.8 and of the guide of
+  3.12 already has; it needs no other permission (`"additional-permissions":
+  false`). Metadata read, which GitHub adds to such a token itself
+  (3.12), is not what this request needs. So the token stays read-only
+  and nothing changes in 3.8 or in the guide. Like every request, the
+  token is in no URL and no message (3.8).
+- **Pages and the cap** (Clead's design). The page asks for page 1,
+  then the next page only while the page before held exactly 100
+  names, up to page 3: at most three requests and 300 names. It does
+  not read the `link` header: whether `api.github.com` exposes it to a
+  page (its `Access-Control-Expose-Headers`) was not checked, and
+  counting a page's names needs no header. The requests run one after
+  another, never in parallel.
+- **Past the cap.** When page 3 also held 100 names, the repo may have
+  more. The page lists the 300 names it read, adds the current branch if
+  it is not among them, and the message line says: "vizi lists the
+  first 300 branches GitHub gives. To open another branch, open its
+  address with /tree/<branch>." That address keeps working (the
+  approved intent; 3.1, and PBI-1.17's field accepts a pasted full
+  address). In which order GitHub gives the branches, and so which 300
+  are listed, was not checked.
+- **An answer read as a list** is a JSON array; each item that is an
+  object with a non-empty `name` string gives one name, and any other
+  item is skipped. A name that is there twice is listed once. An answer
+  that is not an array is a failure: "GitHub's answer for the branch
+  list was not understood."
+- **When.** The list is read once, after a load opened from an address
+  or by the umbrella view's "Open in vizi" (3.9) has succeeded and its
+  results are shown. A load started by the picker for the same owner and
+  repo does not read it again: the list the page holds stays (it is the
+  same repo's), and the select's selected option follows the branch
+  loaded. So picking costs the load's own requests only.
+- **Requests in all.** With the picker, opening a repo makes the two to
+  five requests of 3.1 (or of 3.8 with a token), then one to three to
+  `api.github.com` for the branches. A pick makes the requests of a load
+  with a named branch: no request 1, so one to four.
+
+#### Picking a branch
+
+- The user chooses an option and uses "Open branch" (Enter or Space on
+  the button, or a click). The select itself starts nothing when its
+  value changes. (Clead's design: with the keyboard, some browsers
+  change a closed select's value, and fire its change event, at each
+  arrow key, which would start a load per branch passed; and WCAG 3.2.2
+  asks that changing a control's value does not by itself change the
+  page. That a given browser fires it so was not checked here. The
+  approved "picking one opens that branch" is carried out by the choice
+  and the button.)
+- "Open branch" with the loaded branch selected does nothing.
+- Otherwise it starts a load of `{owner, repo, branch}` of the project
+  on the page with the chosen name: the load of 3.1 with a named
+  branch, through the same code as an address, so its requests, the
+  token chosen by the owner at that moment (3.8), the messages and the
+  report are all as for an address with `/tree/<branch>`. It counts as a
+  newer load (3.1, "Two loads at once"): an answer of any older load,
+  the branch list's included, is dropped; and a second pick before the
+  first has answered makes the first one older, so the newest pick wins.
+- While it runs, the select and "Open branch" stay usable; the message
+  line `#message` says "Loading…", as for any load.
+- On success the results are those of the new branch, the heading reads
+  "`<owner>/<repo>` (`<branch>`)", and the select shows that branch. On
+  failure the results are cleared and hidden as for any failed load
+  (3.1), with the load's message; the picker goes with them.
+- **The default branch, again.** Picking the default branch is a load
+  with that branch named, like any other.
+
+#### The address after picking
+
+- vizi has no address of its own to change: the page does not read or
+  write its own URL, keeps no history (3.9, 3.10), and a pick adds no
+  history entry and no hash.
+- The address field is left as it is (it is PBI-1.17's, and the picker
+  never touches it, see above). Using the field's "Open" again opens what
+  the field says, which may be another branch than the picked one.
+- What PBI-1.12 ("Saved repos") saves for a picked branch is for its
+  own spec.
+
+#### Errors
+
+The branch list's requests go through the same request code as a load
+(`src/github.ts`), so their failures read as 3.1 and 3.8 set out, with
+these effects (Clead's design):
+
+- **401 with a token:** 3.8's rule: the token is forgotten if it is
+  still the one held for that owner, the results loaded with it are
+  hidden (the picker with them), and the message is 3.8's "GitHub
+  refused the token for `<owner>`…".
+- **403 with `X-RateLimit-Remaining: 0`, any other 403, a 404, any
+  other status, a network failure or an answer not understood:** the
+  project stays shown; the picker holds what it read before the failure
+  (or the current branch only) and its message line says "The branch
+  list could not be read: `<message>`", where `<message>` is the one
+  3.1 or 3.8 gives (for a 404: "GitHub answered HTTP 404 for `<URL>`.",
+  as a request that is not request 1 or 2). When at least one page was
+  read, it says "The branch list is incomplete: `<message>`" instead.
+  Nothing is retried; opening the repo again reads the list again.
+- An answer that arrives after a newer load has started, after a
+  Forget of the token it carried, or after the results were hidden, is
+  dropped, whether it succeeded or failed.
+
+#### Accessibility
+
+- The label "Branch" is a `<label for="branch-select">`; the select is
+  native, so its options are read and chosen with the platform's own
+  keys. A disabled option is a native disabled option.
+- "Open branch" is a native button; its accessible name is its text.
+- The row is a `role="group"` labelled "Branch". `aria-busy` is set
+  while the list loads, and the message line is a `role="status"`.
+- Focus: the picker never moves the focus; after "Open branch" it stays
+  on the button, which stays in the page while the load runs and after
+  it succeeds. When a load started by it fails and hides the results
+  (the button with them), the focus moves to the message line `#message`
+  (`tabindex="-1"`), which holds the failure's message.
+- Sizes and colours are 3.12's: the select and the button 44 px high on
+  a phone and 40 px on desktop, `--control-border` for the select's
+  border, the secondary style for "Open branch", the 2 px focus ring;
+  contrast as in 3.12.
+
+#### Phone layout
+
+Below 800 px (3.12): the label above, then the select at the full
+width, then "Open branch" at the full width, 8 px apart, each at least
+44 px high. A long branch name is cut by the select itself, not
+wrapped; the page has no sideways scroll at 375 px with a branch name
+of 200 characters. On desktop: the label, the select (at most 420 px
+wide) and the button on one row, 8 px apart.
+
+#### Policy and storage
+
+- The Content-Security-Policy of 2.3 does not change: `connect-src`
+  already allows `https://api.github.com`, and the picker requests
+  nothing else.
+- Nothing is written to the browser's storage: the list lives in the
+  page's memory with the results, and goes with them.
+- The help view (3.10) is not changed by this item.
+
+#### What changes in `src/` (no code here)
+
+- `src/github.ts`: a `listBranches(ref, fetcher, token)` that makes the
+  requests above through the existing request code and returns the
+  names read, whether more may exist, and any failure; `loadRepo`
+  also returns whether it learned the default branch (from request 1).
+- `src/branches.ts` (new, pure): the parsing of one page, the merging of
+  pages, the cap, the order, the current branch added, and which names
+  are disabled.
+- `src/main.ts`: the picker row in `#results`, the list read after a
+  load, the load started from a reference by "Open branch", and the
+  dropping of late answers.
+- `src/style.css`: the picker row at both widths.
+
+#### Tests
+
+Test first (2.2), with GitHub stubbed and synthetic data.
+
+- **Unit (Jest)**
+  - `src/branches.test.ts`: a page answer read into names, skipping
+    items that are not objects or have no `name` string, and an empty
+    name; a duplicate listed once; an answer that is not an array is a
+    failure; pages merged in order; the cap (pages of 100, 100 and 100:
+    300 names and "more may exist"; 100 and 37: 137 names and not);
+    the order (the default first with " (default)", then by character
+    codes, so `B` before `a`); no default mark when the default is not
+    known; the current branch added first when it is not in the list;
+    names with `?`, `#` or `%` disabled, and others not.
+  - `src/github.test.ts`, `listBranches` with a stubbed fetcher: the
+    URL of each page (`/branches?per_page=100&page=<n>`); page 2 asked
+    only after a page of 100, and never a page 4; with a token, each
+    request has the `Authorization` header, `credentials: "omit"` and
+    `cache: "no-store"`, and no URL holds the token; without one, no
+    header; the 401, 403 (rate limit and other), 404 and network
+    messages; a failure on page 2 returns page 1's names and the
+    failure.
+- **Browser (Playwright)**, in light and dark, at 375 px and 1280 px, the
+  project opened with a full address:
+  - after a load, the picker is under the heading, the select's
+    selected option is the loaded branch, the default is first and
+    marked, the others in order;
+  - one branches request after a load whose first page holds fewer than
+    100, and none to `raw.githubusercontent.com`;
+  - "Open branch" on another name loads it: request 2 for that branch,
+    the files of that branch, no request 1, no new branches request; the
+    heading and the select show it;
+  - choosing an option starts no request until "Open branch" is used,
+    also when the option is changed with the arrow keys;
+  - "Open branch" with the loaded branch selected makes no request;
+  - newest wins: two picks in a row, the first answered last, show the
+    second; a pick while the branch list is still due drops the list's
+    answer; an address load while the list is due drops it too;
+  - an address with `/tree/<branch>`: no request 1, the select shows that
+    branch, and no option is marked default;
+  - the cap: three pages of 100 give 300 options, the message, and no
+    fourth request; the current branch past the cap is added first;
+  - a name holding `#` is shown disabled; a name like
+    `<img src=x onerror=alert(1)>` is shown as text and nothing runs;
+  - with a token for the owner, the branches requests go to
+    `api.github.com` with the header; a 401 on the list forgets the token
+    and hides the results; a 403 with `X-RateLimit-Remaining: 0` shows
+    the message and keeps the project; a failure on page 2 keeps page
+    1's names with the "incomplete" message;
+  - Forget of the owner's token hides the picker with the results;
+  - the address field's value is the same before and after a pick (the
+    test reads it and compares; it does not depend on what the field
+    holds);
+  - accessibility: the label and the group's name; `aria-busy` while
+    the list loads; the focus stays on "Open branch" after a pick, and
+    is on `#message` after a pick that fails;
+  - phone: no sideways scroll with a 200-character branch name; the
+    select and the button at least 44 px high;
+  - the CSP test of `e2e/csp.e2e.ts` passes with the picker shown, with
+    no violation and no console error, and the page's requests stay
+    within the guard of `e2e/guard.ts` (which already allows
+    `https://api.github.com/`).
+
 ---
 
 ## 4. Known unknowns
@@ -2537,3 +2860,20 @@ Items 20 to 23 are PBI-1.16's (3.12):
     The licence that counts is the one on the commit used (policy A.1),
     and it was read there, so this changes nothing unless a newer
     release is wanted.
+
+Items 24 to 26 are PBI-1.15's (3.13):
+
+24. **Open; PBI-1.15.** In which order GitHub's "List branches" gives
+    the branches, so which 300 the cap keeps for a repo with more. The
+    documentation read (3.13) does not say. Not checked.
+25. **Open; PBI-1.15.** Whether `api.github.com` exposes the `link`
+    header to a page. 3.13 does not rely on it: it counts the names on
+    a page. Not checked.
+26. **Open; PBI-1.15.** Whether a browser fires a closed select's
+    change event at each arrow key. 3.13 opens a branch only with "Open
+    branch", so the picker does not depend on it. Not checked.
+
+Item 18 gains a point from 3.13: the documentation of "List branches"
+(`github/docs` at `e44c283`) says of `owner` and `repo` "The name is not
+case sensitive." That is GitHub's word for that one request, not a
+check of the others.
