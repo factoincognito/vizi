@@ -45,6 +45,24 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Spec: one saved token per owner (PBI-1.11) (#40).
 - Backlog: PBI-1.13 the help view (#41).
 - PBI-1.11: one saved GitHub token per owner, picked by the owner in the address, with Remember and Forget per owner, Forget all, and the move of an earlier saved token (#42).
+- PBI-1.11 done; PBI-1.13 now; changelog for #39 to #42 (#43).
+- Spec: the help view (PBI-1.13) (#44).
+- PBI-1.13: the help view, "How to make your project vizi compatible", opened from the start page, with the read-only sentence and five steps (#45).
+- Backlog: PBI-1.14 drop local folders, PBI-1.15 branch picker (#46).
+- Spec: vizi opens projects from GitHub only (PBI-1.14) (#47).
+- Backlog: read-only kept for now; folder lines updated (#48).
+- Backlog: PBI-1.16 start page redesign (#49).
+- Backlog: PBI-1.10 gains #45's follow-ups (#50).
+- Spec: the help view says vizi is read-only (PBI-1.13) (#51).
+- Backlog: token guide in PBI-1.16; read-only line in PBI-1.13 (#52).
+- Backlog: PBI-1.16 says who can use a saved token (#53).
+- Backlog: PBI-1.16 advises not saving tokens on a shared computer (#54).
+- Backlog: PBI-1.17 prefilled GitHub address (#56).
+- Spec: the start page redesign (PBI-1.16), with Inter 4.1 under the OFL and the token guide from GitHub's docs (#57).
+- Backlog: PBI-1.17 becomes the Repository field (#58).
+- Spec: the branch picker (PBI-1.15) (#59).
+- Backlog: PBI-1.10 gains the markdown timing test (#60).
+- Spec: the saved repos list (PBI-1.12) (#61).
 
 ## Project created
 
