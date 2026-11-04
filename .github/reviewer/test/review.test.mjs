@@ -327,6 +327,21 @@ test("the job summary has the token counts including the cache fields", async ()
   assert.ok(text.includes(SHA.slice(0, 12)));
 });
 
+test("the usage is also written to the job log as one JSON line, cache fields included", async () => {
+  const { deps, logs } = setup();
+  await run(deps);
+  const line = logs.find((l) => l.startsWith("usage: "));
+  assert.ok(line, "a usage line is logged");
+  const data = JSON.parse(line.slice("usage: ".length));
+  assert.equal(data.head, SHA);
+  assert.equal(data.pr, "7");
+  assert.equal(data.models["claude-opus-5-5"].cacheReadInputTokens, 56000);
+  assert.equal(data.models["claude-opus-5-5"].cacheCreationInputTokens, 7800);
+  assert.equal(data.models["claude-opus-5-5"].inputTokens, 1200);
+  assert.equal(data.models["claude-opus-5-5"].outputTokens, 3400);
+  assert.equal(data.totalCostUsd, 0.5);
+});
+
 test("@mentions in the model's text are defused before posting", async () => {
   const { deps, fetchImpl } = setup({
     query: fakeQuery("Crog review: APPROVE\n\nPing @octocat and @org/team please."),

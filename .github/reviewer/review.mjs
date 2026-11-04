@@ -257,6 +257,19 @@ export async function run(deps) {
     }),
   );
 
+  // The job summary is not readable through GitHub's API, so the same numbers
+  // go to the job log as one line.
+  log(
+    `usage: ${JSON.stringify({
+      pr: cfg.pr,
+      head: cfg.head,
+      model: cfg.model,
+      turns: result?.num_turns ?? null,
+      subtype: result?.subtype ?? null,
+      totalCostUsd: result?.total_cost_usd ?? null,
+      models: result?.modelUsage ?? {},
+    })}`,
+  );
   deps.appendSummary(formatUsage({ result, head: cfg.head, pr: cfg.pr, model: cfg.model }));
 
   if (error) throw error;
