@@ -75,8 +75,10 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
    opened, the umbrella view's "Open in vizi" included; each token has
    its own "Remember" box and "Forget", plus a "Forget all"; otherwise
    as PBI-1.8 was approved (item 4): read-only, sent only to GitHub,
-   never shown. The reason: a fine-grained token belongs to one owner.
-   It changes item 4's one token to one per owner. The approval is
+   never shown. His approval was "apyr", on Clead's proposal, whose
+   reason (Clead's note, not the product owner's words) was that a
+   fine-grained token belongs to one owner. It changes item 4's one
+   token to one per owner. The approval is
    recorded as a comment on PR #40. How vizi does it is 3.8.
 
 **Clead's design (the HOW), within the approved intent.** Everything else
@@ -704,8 +706,8 @@ one token per owner (for example factoincognito and fomo-t), picked
 automatically by the owner in the address opened, the umbrella view's
 "Open in vizi" included; each token has its own "Remember" box and
 "Forget", plus a "Forget all"; otherwise as PBI-1.8: read-only, sent
-only to GitHub, never shown. The reason: a fine-grained token belongs to
-one owner.
+only to GitHub, never shown. (Clead's note: the proposal gave as its
+reason that a fine-grained token belongs to one owner.)
 
 Clead's design, within those two approvals.
 
@@ -729,9 +731,11 @@ forgets the token held at that moment.
   field there is an "Owner" field. "Use" takes the token only with an
   owner that, after trimming, matches the owner part of an address
   (`[A-Za-z0-9._-]+`, not `.` or `..`, as 3.1 reads it); vizi keeps
-  owners in lower case and compares them without regard to case. When
-  the address field holds an address vizi can read, the Owner field is
-  filled with its owner, and the user can change it. Why the user names
+  owners in lower case and compares them without regard to case. While
+  the user has not typed in the Owner field, it is filled with the owner
+  of the address in the address field, whenever that is an address vizi
+  can read; once the user has typed in it, the page leaves it alone, and
+  an emptied field is filled again. Why the user names
   it, and vizi does not ask GitHub: the page knows of no GitHub request
   that answers which owner a fine-grained token's repos belong to (not
   checked, section 4, item 17), asking would send the token before the
@@ -760,12 +764,33 @@ forgets the token held at that moment.
     `localStorage`, under the one key `vizi.githubTokens`, as JSON:
     `{"tokens": {"<owner>": "<token>", …}, "forgot": ["<owner>", …]}`.
     An owner is a name inside the value; no token is ever part of a key
-    name. `"forgot"` lists the owners the last write forgot (see "Other
-    open vizi tabs"); every write replaces it.
-  - At startup the page reads the key. A value that is not such JSON
-    is removed; an entry whose owner or token does not match the rules
-    above is dropped, and the cleaned value is written back. `"forgot"`
-    is ignored at startup.
+    name. `"forgot"` lists exactly the owners that write forgot (see
+    "Other open vizi tabs"); it is not carried over to the next write,
+    since each write raises its own `storage` event in every other tab,
+    and a tab handles those events in order.
+  - **Owners are own entries only.** In memory the tokens are a `Map`
+    from owner to token. The stored JSON is read with its own entries
+    only (`Object.entries` of the parsed `"tokens"`, never a lookup
+    such as `tokens[owner]` on a plain object), so an owner named
+    `constructor`, `toString`, `hasOwnProperty` or `__proto__`, which
+    the owner rule allows, finds only a token saved for it, never
+    something an object inherits. The value is written from the `Map`
+    in the same way.
+  - **Every write starts from what is stored.** Just before it writes,
+    the page reads the stored value, cleans it as at startup, and
+    changes only the owners the write is about: the owner saved, the
+    owner unticked, or the owners forgotten. Every other owner's entry
+    is written back as it was stored, never from this tab's memory, so
+    a token another tab forgot or unticked is never put back. Two tabs
+    writing in the very same moment can still race, since
+    `localStorage` has no transaction; reading just before the write
+    narrows that to the moment itself.
+  - At startup the page reads the key. A value that is not JSON, or
+    whose `"tokens"` is not an object or `"forgot"` not a list, is
+    removed. An entry whose owner does not match the owner rule, or
+    whose token is not a string matching the token rule, is dropped, as
+    is a `"forgot"` item that is not an owner; the cleaned value is
+    written back. `"forgot"` is ignored at startup.
   - Unticking an owner's "Remember" removes that owner's saved copy and
     keeps its token for this page only. A browser that refuses to save
     keeps the token for this page only and says so.
@@ -864,7 +889,12 @@ forgets the token held at that moment.
   file's text (checked 2026-11-04 without a token, on a public file).
   The branch and each segment of the path are percent-encoded. So a
   load with a token makes two to five requests (with `PROJECTS.md`,
-  3.9), all to `api.github.com`.
+  3.9), all to `api.github.com`. A redirect within `api.github.com`,
+  such as a 301 for a renamed or moved repo, is followed with the
+  `Authorization` header kept, so the token still reaches only GitHub;
+  what GitHub's redirects look like, and that a browser drops the
+  header on a redirect to another origin (as the Fetch standard says),
+  was not checked here.
 - **Never in an address, a log or a message.** No token is ever put in
   a URL, written to the console, or part of a message, the report or
   the page's text; messages name the host, the URL, the HTTP status and
@@ -924,22 +954,31 @@ forgets the token held at that moment.
     load, and a second tab);
   - for PBI-1.11, unit: the owner rule and lower case; the
     `vizi.githubTokens` value written and read, a broken value removed,
-    a bad entry dropped, no token in any key name; the token picked by
+    a bad entry dropped (an owner that breaks the rule, a token that is
+    not a string or breaks the rule, a `"tokens"` that is a list), no
+    token in any key name; owners named `constructor`, `__proto__`,
+    `toString` and `hasOwnProperty`: with no token saved for them a
+    lookup finds none, and a token saved for them is written, read back
+    and found; two stores on one storage, interleaved: store A forgets
+    owner X, store B, which still holds X in memory, then saves a token
+    for owner Y, and the stored value holds Y and no X, and a third
+    store that follows both events forgets X; the token picked by
     the address's owner without regard to case, and none for another
     owner; "Forget" for one owner and "Forget all"; the `storage` event
     per owner: the key removed, an owner in `"forgot"`, a new token
     adopted, a saved copy removed without `"forgot"` kept for the page;
     the 401 forgetting the refused token only, not a newer one for the
     same owner; the migration of `vizi.githubToken`;
-  - for PBI-1.11, browser: two owners' tokens, each used only for its
-    own owner's address, the umbrella view's "Open in vizi" and "Show
-    status" included; a load for an owner with no token carries none and
-    its 404 names the owner; each line masked, with its own Remember and
-    Forget; Forget for one owner hides only results loaded with that
-    owner's token, and drops a running load; Forget all; a second tab,
-    for each `storage` case above; the migration line, its "Keep for
-    this owner" and "Forget"; a 401 while a new token for the same owner
-    is entered keeps the new one.
+  - for PBI-1.11, browser: the Owner field filled from the address until
+    the user types in it, and left alone after; two owners' tokens, each
+    used only for its own owner's address, the umbrella view's "Open in
+    vizi" and "Show status" included; a load for an owner with no token
+    carries none and its 404 names the owner; each line masked, with its
+    own Remember and Forget; Forget for one owner hides only results
+    loaded with that owner's token, and drops a running load; Forget
+    all; a second tab, for each `storage` case above; the migration
+    line, its "Keep for this owner" and "Forget"; a 401 while a new
+    token for the same owner is entered keeps the new one.
 
 ### 3.9 The umbrella view (PBI-1.9)
 
@@ -991,7 +1030,9 @@ format of `PROJECTS.md`, and what counts as a pointer, is
   status is (3.3; `docs/BACKLOG-FORMAT.md` S1 to S5, blockers that wait
   on the product owner highlighted). What it could not read is listed
   under it, as built, under the heading "What could not be read", one
-  item per line ("line `<n>`: `<message>`"). A read that fails is shown
+  item per line: "line `<n>`: `<message>`", or the message only for an
+  item without a line (a missing field heading, a missing "Last update"
+  line), as in 3.5. A read that fails is shown
   in the panel with its message (3.1, 3.8). A read GitHub refuses the
   token for (401) forgets that token as 3.8 sets out and hides the
   results loaded with it, the panel included; no panel is left. There is
