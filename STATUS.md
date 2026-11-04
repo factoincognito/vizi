@@ -15,10 +15,10 @@ Last update: 2026-11-04
 Build: the first version is built and published at https://factoincognito.github.io/vizi/ (PBI-1.1 to PBI-1.3, PBI-1.5 and PBI-1.7 merged 2026-11-04).
 
 ## Current focus
-The umbrella view (PBI-1.9): the product office's layout as a tree, being built to the merged spec.
+The umbrella view (PBI-1.9): the product office's layout as a tree, built to the merged spec and in review in #35.
 
 ## Next step
-A Crog agent builds PBI-1.9; the product owner's first try of the saved token against real GitHub (`docs/SPEC.md` section 4, items 9 to 15); PBI-1.10, PBI-1.4 and PBI-1.6 after it.
+PBI-1.9 waits for review and merge (#35); then the product owner's first try of the saved token against real GitHub (`docs/SPEC.md` section 4, items 9 to 15); PBI-1.10, PBI-1.4 and PBI-1.6 after it.
 
 ## Blockers
 - Product Owner: the definition of done for this phase (`docs/NEXT_SESSION.md`, entry 1).

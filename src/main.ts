@@ -71,10 +71,14 @@ interface Project {
 }
 
 /** What reading a folder pointer's STATUS.md gave (3.9). */
-type StatusRead =
+type StatusRead = (
   | { kind: "text"; text: string }
   | { kind: "missing" }
-  | { kind: "failed"; message: string; tokenRefused: boolean };
+  | { kind: "failed"; message: string; tokenRefused: boolean }
+) & {
+  /** Whether the read carried the token: Forget then clears the panel (3.8). */
+  usedToken: boolean;
+};
 
 // ----------------------------------------------------------------- DOM helpers
 
@@ -528,7 +532,11 @@ function renderUmbrella(p: Project): void {
     tree.append(h("ul", { class: "children" }, ...p.projects.tree.map(nodeElement)));
 }
 
+/** Whether the panel's status was read with the token, even if the project itself was loaded without it. */
+let panelUsedToken = false;
+
 function clearProjectStatus(): void {
+  panelUsedToken = false;
   const box = must("project-status");
   box.replaceChildren();
   box.hidden = true;
@@ -546,7 +554,15 @@ async function showProjectStatus(pointer: Extract<Pointer, { kind: "folder" }>):
   const stale = () => id !== latestStatus || load !== latestLoad || project !== p;
   const read = await p.readProjectStatus(pointer.name, stale);
   if (stale()) return;
+  if (read.kind === "failed" && read.tokenRefused) {
+    // GitHub refused the token: forget it, as 3.8 sets out. No panel is left under the message.
+    clearProjectStatus();
+    dropToken();
+    forgetEverything(read.message);
+    return;
+  }
   const box = must("project-status");
+  panelUsedToken = read.usedToken;
   const statusPath = `${pointer.text}STATUS.md`;
   box.hidden = false;
   box.replaceChildren(
@@ -556,12 +572,6 @@ async function showProjectStatus(pointer: Extract<Pointer, { kind: "folder" }>):
   if (read.kind === "missing") {
     box.append(h("p", {}, `No STATUS.md in ${pointer.text}`));
   } else if (read.kind === "failed") {
-    if (read.tokenRefused) {
-      // GitHub refused the token: forget it, as 3.8 sets out.
-      dropToken();
-      forgetEverything(read.message);
-      return;
-    }
     box.append(h("p", {}, read.message));
   } else {
     const status = parseStatus(read.text);
@@ -745,14 +755,16 @@ async function openUrl(address: string): Promise<void> {
     async (name, stale) => {
       const path = `projects/${name}/STATUS.md`;
       // Without the file in the file list there is nothing to ask for.
-      if (!result.files.includes(path)) return { kind: "missing" };
+      if (!result.files.includes(path)) return { kind: "missing", usedToken: false };
       const current = tokens.current();
+      const usedToken = current !== null;
       const answer = await readRepoFile(withBranch, path, guardedFetch(current, stale), current);
-      if (answer.ok) return { kind: "text", text: answer.text };
+      if (answer.ok) return { kind: "text", text: answer.text, usedToken };
       return {
         kind: "failed",
         message: answer.message,
         tokenRefused: answer.kind === "token-refused",
+        usedToken,
       };
     },
   );
@@ -804,11 +816,16 @@ async function openFolder(input: HTMLInputElement): Promise<void> {
     projectsText,
     async (name) => {
       const path = `projects/${name}/STATUS.md`;
-      if (!byPath.has(path)) return { kind: "missing" };
+      if (!byPath.has(path)) return { kind: "missing", usedToken: false };
       try {
-        return { kind: "text", text: await read(path) };
+        return { kind: "text", text: await read(path), usedToken: false };
       } catch {
-        return { kind: "failed", message: `${path} could not be read.`, tokenRefused: false };
+        return {
+          kind: "failed",
+          message: `${path} could not be read.`,
+          tokenRefused: false,
+          usedToken: false,
+        };
       }
     },
   );
@@ -850,6 +867,8 @@ function dropToken(): void {
 function forgetEverything(message: string): void {
   latestLoad += 1;
   if (projectUsedToken) hideResults();
+  // A status read with the token goes too, also in a project that was loaded without it.
+  else if (panelUsedToken) clearProjectStatus();
   must("token-message").textContent = "";
   say(message);
 }
