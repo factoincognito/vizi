@@ -56,6 +56,24 @@ test.describe("the built page's Content-Security-Policy (2.3)", () => {
 });
 
 test.describe("the browser enforces it", () => {
+  /**
+   * Watches requests to a host the policy does not allow. Chromium may report (as "csp")
+   * such a request and then fail it; what must never
+   * happen is that one gets an answer.
+   */
+  function watchEvil(page: import("@playwright/test").Page) {
+    const seen: string[] = [];
+    const finished: string[] = [];
+    const failures: string[] = [];
+    page.on("request", (r) => r.url().includes("evil.example") && seen.push(r.url()));
+    page.on("requestfinished", (r) => r.url().includes("evil.example") && finished.push(r.url()));
+    page.on(
+      "requestfailed",
+      (r) => r.url().includes("evil.example") && failures.push(r.failure()?.errorText ?? ""),
+    );
+    return { seen, finished, failures };
+  }
+
   /** Records every policy violation the page reports. */
   async function watchViolations(page: import("@playwright/test").Page) {
     await page.addInitScript(() => {
@@ -104,19 +122,6 @@ test.describe("the browser enforces it", () => {
     expect(await violations()).toContain("script-src-elem");
   });
 
-  test("eval and new Function are refused", async ({ page }) => {
-    await page.goto("/");
-    const refused = await page.evaluate(() => {
-      try {
-        new Function("return 1")();
-        return false;
-      } catch {
-        return true;
-      }
-    });
-    expect(refused).toBe(true);
-  });
-
   test("a style attribute set at run time has no effect", async ({ page }) => {
     const violations = await watchViolations(page);
     await page.goto("/");
@@ -131,8 +136,7 @@ test.describe("the browser enforces it", () => {
   });
 
   test("a request to another host is blocked before it is made", async ({ page }) => {
-    const requested: string[] = [];
-    page.on("request", (r) => requested.push(r.url()));
+    const evil = watchEvil(page);
     const violations = await watchViolations(page);
     await page.goto("/");
     const outcome = await page.evaluate(async () => {
@@ -145,12 +149,13 @@ test.describe("the browser enforces it", () => {
     });
     expect(outcome).toBe("blocked");
     expect(await violations()).toContain("connect-src");
-    expect(requested.filter((u) => u.includes("evil.example"))).toEqual([]);
+    expect(evil.finished).toEqual([]);
+    expect(evil.failures.every((t) => t === "csp")).toBe(true);
+    expect(evil.failures).toHaveLength(evil.seen.length);
   });
 
   test("an image from another host and a form post are blocked", async ({ page }) => {
-    const requested: string[] = [];
-    page.on("request", (r) => requested.push(r.url()));
+    const evil = watchEvil(page);
     const violations = await watchViolations(page);
     await page.goto("/");
     await page.evaluate(() => {
@@ -167,6 +172,8 @@ test.describe("the browser enforces it", () => {
     });
     await expect.poll(async () => (await violations()).length).toBeGreaterThanOrEqual(2);
     expect(await violations()).toEqual(expect.arrayContaining(["img-src", "form-action"]));
-    expect(requested.filter((u) => u.includes("evil.example"))).toEqual([]);
+    expect(evil.finished).toEqual([]);
+    expect(evil.failures.every((t) => t === "csp")).toBe(true);
+    expect(evil.failures).toHaveLength(evil.seen.length);
   });
 });

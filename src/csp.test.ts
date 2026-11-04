@@ -66,7 +66,7 @@ describe("addCsp", () => {
     const tag = out.indexOf('<meta http-equiv="Content-Security-Policy"');
     expect(tag).toBeGreaterThan(out.indexOf('<meta charset="utf-8" />'));
     for (const later of ["<meta name=", "<link", "<script", "<style", "<title"]) {
-      expect(tag, later).toBeLessThan(out.indexOf(later));
+      expect({ later, before: tag < out.indexOf(later) }).toEqual({ later, before: true });
     }
   });
 
