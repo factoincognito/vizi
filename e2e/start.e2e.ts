@@ -279,6 +279,39 @@ test.describe("the Private repos panel (3.12)", () => {
   });
 });
 
+test.describe("the panel's text size (3.12, the approved boards)", () => {
+  test("its buttons and fields are 14 px; on a phone the Add-a-token fields are 15 px", async ({
+    page,
+  }) => {
+    await withOldKey(page);
+    await addToken(page, "acme", TOKEN);
+    const sizes = await page.evaluate(() => {
+      const size = (el: Element | null) => (el ? getComputedStyle(el).fontSize : "missing");
+      return {
+        forget: size(document.querySelector("[data-testid=token-forget]")),
+        keep: size(document.getElementById("migrate-keep")),
+        forgetIt: size(document.getElementById("migrate-forget")),
+        add: size(document.getElementById("token-use")),
+        forgetAll: size(document.getElementById("token-forget-all")),
+        migrateOwner: size(document.getElementById("migrate-owner")),
+        owner: size(document.getElementById("owner-input")),
+        token: size(document.getElementById("token-input")),
+      };
+    });
+    const fields = isPhone(page) ? "15px" : "14px";
+    expect(sizes).toEqual({
+      forget: "14px",
+      keep: "14px",
+      forgetIt: "14px",
+      add: "14px",
+      forgetAll: "14px",
+      migrateOwner: "14px",
+      owner: fields,
+      token: fields,
+    });
+  });
+});
+
 test.describe("the token guide (3.12)", () => {
   test("is folded at start, opens with the keyboard, and shows the six steps and the paragraph of src/start.ts", async ({
     page,
