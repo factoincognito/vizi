@@ -55,6 +55,20 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
    created, and GitHub Pages is switched on only for factoincognito
    repos he trusts. A domain of vizi's own stays the stronger option for
    later, if more sites go on factoincognito Pages.
+6. His intent approval of 2026-11-04 (11:06, in chat) of PBI-1.9, the
+   umbrella view: "I approve the intent of the vizi umbrella view as
+   described: the Umbrella tab, the tree from PROJECTS.md, and the links
+   per project". What was described: when vizi opens a project, from a
+   folder or by address (a private one with the saved token), that has a
+   `PROJECTS.md` at its root, an "Umbrella" tab shows the file's headings
+   as a tree with the projects under them. A repo pointer
+   (`owner/repo`) opens in vizi by its address (a private one needs the
+   token to cover that repo) and also links to the repo on GitHub. A
+   `projects/<name>/` pointer shows that folder's `STATUS.md` in vizi.
+   The tree is drawn from the file each time; nothing is stored or
+   copied. Each project's status in the tree itself is not included.
+   The approval is recorded as a comment on PR #33. How vizi does it is
+   3.9.
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -102,6 +116,8 @@ project's documentation.
 - The page reports what it could not read. There is no command-line lint
   for CI in the first version.
 - A backlog format spec ships with it: `docs/BACKLOG-FORMAT.md`.
+- Added on 2026-11-04: the umbrella view of a project with a
+  `PROJECTS.md` (3.9; PBI-1.9).
 
 Not decided: a lint mode beyond the page's report (Clead's suggestion,
 which the product owner found worth considering). The parser is
@@ -295,12 +311,13 @@ the points the text above it leaves open.
      the file list: it tells which of the three backlog paths exist, and
      feeds the documentation list and the path links (3.4);
   3. `GET https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>`,
-     once for the backlog file and once for `STATUS.md`, each only if
-     the file list has it; documentation files are not fetched (3.4).
+     once each for the backlog file, `STATUS.md` and `PROJECTS.md`
+     (3.9), each only if the file list has it; documentation files are
+     not fetched (3.4).
 
   So one load makes one or two requests to `api.github.com` (requests 1
-  and 2) and up to two to `raw.githubusercontent.com` (request 3): two
-  to four in all when the backlog file is found. If request 1 or 2 answers
+  and 2) and up to three to `raw.githubusercontent.com` (request 3): two
+  to five in all when the backlog file is found. If request 1 or 2 answers
   404, the page says "not found or not public" and offers the local
   folder instead. Any other failed request is shown with its HTTP status
   and is not retried.
@@ -814,6 +831,84 @@ PBI-1.8 builds it.
     hashes match the built page's inline blocks, the page loads with no
     policy violation, and a request to another host is blocked.
 
+### 3.9 The umbrella view (PBI-1.9)
+
+**(approved)** The product owner's intent approval of 2026-11-04 (see
+"What is decided", item 6): the Umbrella tab, the tree from
+`PROJECTS.md`, and the links per project, as described there. Each
+project's status in the tree itself is not included.
+
+Clead's design, within that intent. This is a spec ahead of its code:
+PBI-1.9 builds it. The format of `PROJECTS.md`, and what counts as a
+pointer, is `docs/BACKLOG-FORMAT.md`, section 5 (P1 to P7).
+
+- **When.** The page looks for `PROJECTS.md` at the root of the
+  project it opens, in both modes. In folder mode it reads the file
+  from the folder. In URL mode it reads it with one more request 3
+  (3.1), only if the file list has it, and, with a token held, through
+  the contents API as 3.8 sets out for every request 3. In URL mode
+  this adds one request to a load; 3.8's count is updated by the next
+  spec change to 3.8.
+- **The tab.** When the file exists, an "Umbrella" tab is added after
+  "Report". When the project has a `PROJECTS.md` but no backlog file,
+  the page opens on the Umbrella tab; otherwise it opens on the Board,
+  as before (3.2). Without the file there is no Umbrella tab.
+- **The tree.** The file's headings as nested lists, in file order, as
+  P3 nests them, with each heading's pointers under it, in file order.
+  A heading's text is rendered as inline Markdown under 3.7; a pointer
+  is shown as P4 reads it, as plain text (P4 allows only letters,
+  digits, `_`, `.`, `-` and `/`).
+- **A repo pointer** (`<owner>/<repo>`) has two links:
+  - "Open in vizi" puts `https://github.com/<owner>/<repo>` into the
+    address field and loads it in the same page, as a newer load (3.1,
+    "Two loads at once"): an answer still due for the umbrella project,
+    or for any older load, is dropped. The new project's results replace
+    the umbrella's. With a token held, the load uses it (3.8); a private
+    repo the token does not cover gets 3.8's 404 message. The page keeps
+    no history: to go back, the umbrella project is opened again, by its
+    address or by picking its folder.
+  - "On GitHub" links to `https://github.com/<owner>/<repo>` in a new
+    tab, with `rel="noopener noreferrer"`.
+- **A folder pointer** (`projects/<name>/`) has one link, "Show
+  status". It reads `projects/<name>/STATUS.md` of the same project:
+  from the folder in folder mode, or in URL mode with one request 3 for
+  that path (the contents API with a token held), only if the file list
+  has it. The status is shown under the pointer, read and shown as the
+  project's own status is (3.3; `docs/BACKLOG-FORMAT.md` S1 to S5,
+  blockers that wait on the product owner highlighted); what it could
+  not read is shown with it. Without the file the page says "No
+  STATUS.md in projects/<name>/", with no request. An answer that
+  arrives after a newer load has started, or after the page has opened
+  another project, is dropped. "Show status" reads the file again each
+  time.
+- **Drawn from the file each time.** The tree is built from
+  `PROJECTS.md` at every load, and a folder pointer's status at every
+  "Show status". Nothing about them is kept after the next load,
+  nothing is written to the browser's storage, and nothing is copied
+  anywhere. The page reads no project's status until "Show status" is
+  used, so the tree itself shows no status, as approved.
+- **Report.** What `src/projects.ts` reports (P4, P5, P7) is listed in
+  the Report tab, in its three kinds, as "`PROJECTS.md` line `<n>`:
+  `<message>`" (3.5).
+- **Tests,** all on synthetic `PROJECTS.md` fixtures written for the
+  test; the product office's own file is never copied into this repo:
+  - unit (a pure `src/projects.ts`): every rule P1 to P7 and the
+    example of `docs/BACKLOG-FORMAT.md` section 5: nesting, skipped
+    levels, pointers above the first heading, both pointer kinds and the
+    trailing `/`, `.` and `..` refused, comments and fences, the
+    reported bullet lines, ignored text and ordered items, repeats, a
+    file with no pointer;
+  - browser, with GitHub stubbed: no Umbrella tab without the file; the
+    tab and the tree with it, in both modes; the page opening on the
+    tab when there is no backlog; "Open in vizi" sets the address and
+    makes the requests of 3.1 for the new repo, and an older answer
+    arriving after it is dropped; "On GitHub" has the right URL,
+    target and `rel`; "Show status" in both modes, the missing-file
+    message with no request, and a late answer dropped; no status
+    request before "Show status" is used; the report items; with a
+    token held (once PBI-1.8 is built), "Open in vizi" and "Show
+    status" use it and no request goes to `raw.githubusercontent.com`.
+
 ---
 
 ## 4. Known unknowns
@@ -836,7 +931,8 @@ PBI-1.2's; their outcome after it (PR #9):
    in for GitHub's CORS answer, so real GitHub was not tried.
 3. **Open; PBI-1.4.** GitHub's anonymous rate limit as a browser sees
    it. One load makes one or two `api.github.com` requests (3.1,
-   requests 1 and 2) and up to two to `raw.githubusercontent.com`. The
+   requests 1 and 2) and up to three to `raw.githubusercontent.com`,
+   and each "Show status" of the umbrella view one more (3.9). The
    checks in 3.1 ran through a proxy that appears to add credentials, so
    they do not show the anonymous limit.
 4. **Open; PBI-1.4.** What an anonymous request for a private repo gets
@@ -905,3 +1001,11 @@ yet:
     save the token from a password field outside any `<form>`, and so
     may keep it, perhaps synced to an account. Browsers often ignore
     `autocomplete="off"` on password fields.
+
+Item 16 is PBI-1.9's (3.9):
+
+16. **Checked by hand, not by a test.** The product office's own
+    `PROJECTS.md` was read once, on 2026-11-04, against P1 to P7: it
+    holds headings, pointers of both kinds and text, and no line that
+    P5 would report. It cannot be a test fixture: that file is private
+    and is never copied into this public repo.

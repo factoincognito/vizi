@@ -1,7 +1,8 @@
 # Backlog file format
 
-The format of the backlog file that vizi reads, and of the `STATUS.md`
-it reads next to it. `docs/SPEC.md` is the spec of the page itself.
+The format of the backlog file that vizi reads, of the `STATUS.md` it
+reads next to it, and of the `PROJECTS.md` of an umbrella project
+(section 5). `docs/SPEC.md` is the spec of the page itself.
 
 **Date:** 2026-11-04
 **Status:** in effect with `docs/SPEC.md` (merged in PR #3); read by
@@ -16,12 +17,16 @@ it reads next to it. `docs/SPEC.md` is the spec of the page itself.
   version. His intent approval of 2026-11-04 (quoted in `docs/SPEC.md`,
   "What is decided") adds: a report tab of what could not be read, with
   line numbers, and blockers waiting on the product owner highlighted.
-  Those points are marked **(approved)** below.
+  His intent approval of the umbrella view, 2026-11-04 11:06, adds: a
+  `PROJECTS.md` at the project's root, its headings shown as a tree with
+  the projects under them. Those points are marked **(approved)**
+  below.
 - **Clead's design (the HOW), within the approved intent:** everything
   else in this file: the order the paths are tried in, the rules R0 to
-  R9, the three kinds of report item, and how `STATUS.md` is read (S1 to
-  S5). It is Clead's call, not a question for the product owner, and it
-  does not block building. It changes through a reviewed PR.
+  R9, the three kinds of report item, how `STATUS.md` is read (S1 to
+  S5), and how `PROJECTS.md` is read (P1 to P7). It is Clead's call,
+  not a question for the product owner, and it does not block building.
+  It changes through a reviewed PR.
 - **Not decided:** a lint mode beyond the page's report.
 
 The examples are made up for this file.
@@ -393,3 +398,110 @@ More Blockers sections, and how they are read:
 | `None of the CI runners start.` | one blocker, not highlighted (S4) |
 | `CI: red on main.` | one blocker, not highlighted (S5) |
 | two paragraphs: `Product Owner: approve the spec.` and `CI is red on main.` | two blockers, the first highlighted (S3, S5) |
+
+---
+
+## 5. `PROJECTS.md` (the umbrella view)
+
+**(approved)** When the project vizi opens has a `PROJECTS.md` at its
+root, its headings are shown as a tree with the projects under them
+(`docs/SPEC.md` 3.9).
+
+Clead's design, for `src/projects.ts`. The pointer rule is the same as
+the product office's own reader of the file, so both read the same
+pointers and report the same lines.
+
+**P1. Where.** Only `PROJECTS.md` at the project's root.
+
+**P2. Comments and fences first.** HTML comments are dropped (R9), and
+fences are found (R7), as in a backlog file. A line inside a comment or
+a fence is never a heading, a pointer or a report item.
+
+**P3. Headings and the tree.** A heading is as in R5: a line at column
+0 that starts with one to six `#` and a space. Its parent in the tree is
+the nearest heading above it with fewer `#`; a heading with no such
+heading above it is at the top of the tree. Levels may be skipped: a
+`###` under a `#` is that heading's child. Every heading is shown, also
+one with nothing under it.
+
+**P4. Pointer.** A line that matches exactly
+`^- ([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/?)\s*$`: a `- ` at column 0, then
+two names joined by one `/`, an optional trailing `/`, and nothing else
+but trailing spaces. It belongs to the nearest heading above it; the
+pointers above the first heading are at the top of the tree, under
+"(no heading)". There are two kinds:
+- a **folder pointer** starts with `projects/`: `projects/<name>/`
+  names the folder `projects/<name>/` of the same project;
+- any other pointer is a **repo pointer**, `<owner>/<repo>`, a GitHub
+  repo. A trailing `/` is dropped.
+
+So a GitHub account named `projects` cannot be pointed at, as in the
+product office's reader. A pointer whose owner, repo or folder name is
+`.` or `..` is not read (error, section 3).
+
+**P5. Other bullet lines are reported.** Any other line whose text,
+after any indent, starts with `-`, `*` or `+` and a space or tab is not
+a pointer and is not read (error): an indented pointer, a `*` or `+`
+bullet, or a pointer with text after it, such as
+`- acme/widgets — the main one`.
+
+**P6. Everything else is ignored:** blank lines, text paragraphs,
+ordered list items, tables and the like. They are not shown and not
+reported.
+
+**P7. Report.** Besides the errors of P4 and P5: a pointer that
+appeared earlier in the file (the same pointer, its trailing `/` aside)
+is shown again and gets a warning; a file with no pointer at all gets
+an Info item. Line numbers are as in R8.
+
+### Example
+
+This `PROJECTS.md` (made up):
+
+````markdown
+# Projects
+
+Our work, grouped by area.
+
+## Tools
+
+- acme/widgets
+- projects/notes/
+
+### Experiments
+
+- acme/lab-1/
+* acme/old
+  - acme/nested
+
+## Hardware
+<!-- - acme/hidden -->
+1. Not a pointer, not reported.
+- acme/widgets — the main one
+- acme/widgets
+```
+- acme/in-fence
+```
+````
+
+is read as this tree:
+
+- Projects
+  - Tools: `acme/widgets` (repo, line 7), `projects/notes/` (folder,
+    line 8)
+    - Experiments: `acme/lab-1` (repo, line 12; the trailing `/` is
+      dropped)
+  - Hardware: `acme/widgets` (repo, line 20)
+
+and this report (line numbers count from the example's first line):
+
+| Line | Kind | Why |
+|---|---|---|
+| 13 | not read (error) | a `*` bullet (P5) |
+| 14 | not read (error) | an indented bullet (P5) |
+| 19 | not read (error) | text after the pointer (P5) |
+| 20 | read with a warning | the same pointer as line 7 (P7) |
+
+Line 3 is text and line 18 an ordered item: both are ignored (P6). Line
+17 is a comment and is dropped, and line 22 is inside a fence, so
+neither is a pointer (P2).
