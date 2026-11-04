@@ -13,7 +13,7 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
 **Decided by the product owner.** These decisions, and nothing else:
 
 1. His decisions of 2026-11-03, listed in section 1 (also in
-   `memory/project.md`), as changed by item 3.
+   `memory/project.md`), as changed by items 3, 4 and 9.
 2. His intent approval of 2026-11-04, given in chat and recorded as a
    comment on PR #3: "I approve the intent of the vizi spec as
    summarised: inputs, board, list, status, documentation links, report
@@ -59,7 +59,8 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
    umbrella view: "I approve the intent of the vizi umbrella view as
    described: the Umbrella tab, the tree from PROJECTS.md, and the links
    per project". What was described: when vizi opens a project, from a
-   folder or by address (a private one with the saved token), that has a
+   folder or by address (a private one with the saved token; the folder
+   is replaced by item 9), that has a
    `PROJECTS.md` at its root, an "Umbrella" tab shows the file's headings
    as a tree with the projects under them. A repo pointer
    (`owner/repo`) opens in vizi by its address (a private one needs the
@@ -87,9 +88,19 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
    start page inside the page; short steps with one example each for the
    backlog file's place, how an entry is written and which markers are
    shown, the `STATUS.md` headings, `PROJECTS.md` for an umbrella, and
-   opening a private repo with a token or as a folder; a link at the end
+   opening a private repo with a token or as a folder (the folder is
+   replaced by item 9); a link at the end
    to `docs/BACKLOG-FORMAT.md` on GitHub; the text shipped in the page;
    a test that its examples read as stated. How vizi does it is 3.10.
+9. His decision of 2026-11-04 (15:15, in chat, "apyr"; recorded in the
+   product office's `DECISIONS.md`, PR #390, and as PBI-1.14 in
+   `docs/BACKLOG.md`): vizi no longer opens a local project folder. It
+   opens projects from GitHub only: public ones by address, private ones
+   with the saved token (3.8). It replaces point (4) of the decisions of
+   2026-11-03 (section 1), "local files; local mode opens a project
+   folder", and with it the folder in the inputs of item 2, in the
+   umbrella view of item 6 and in the help view of item 8. What the
+   code change must remove is in 3.11.
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -109,7 +120,7 @@ wording of the external-requests rule (section 4, item 8).
 status, its work items, their state and description, with links to the
 project's documentation.
 
-**Decided by the product owner (2026-11-03; two points replaced on
+**Decided by the product owner (2026-11-03; three points replaced on
 2026-11-04):**
 
 - vizi shows a project's backlog file as a backlog list and as a kanban
@@ -127,6 +138,9 @@ project's documentation.
     read-only token the product owner saves in the browser (3.8;
     PBI-1.8); from PBI-1.11, one such token per owner, picked by the
     owner in the address (3.8).
+  - Replaced on 2026-11-04 (15:15; item 9), the sentence above on
+    local files and the folder: no local files and no folder. vizi
+    opens projects from GitHub only, by address.
 - A project's status is read from its `STATUS.md`.
 - It is a generated web page, built with the template's web pack
   (`languages/web/`).
@@ -156,7 +170,7 @@ Clead's design, within the approved intent.
 ### 2.1 Modules and data flow
 
 ```
- folder or URL ──> source (src/main.ts) ──> file texts
+ GitHub address ──> source (src/main.ts) ──> file texts
                                               │
           ┌───────────────────────────────────┼─────────────────────┐
           v                                   v                     v
@@ -178,7 +192,7 @@ Clead's design, within the approved intent.
 - `src/markdown.ts`: a pure module. It turns Markdown text into a tree
   of allowed nodes under the rendering contract (3.7). It returns data,
   not HTML.
-- `src/main.ts`: reads the files (from the folder or from GitHub) and
+- `src/main.ts`: reads the files from GitHub and
   builds the page from the modules' results. It holds no parsing logic.
 
 ### 2.2 Build
@@ -322,15 +336,17 @@ the points the text above it leaves open.
 
 ### 3.1 Inputs
 
-- **(approved)** A local project folder, or a public GitHub repo
-  address. The backlog file is looked for as `BACKLOG.md`,
+- **(approved)** A public GitHub repo address (a local project folder
+  was approved too, and is replaced by item 9 of "What is decided").
+  The backlog file is looked for as `BACKLOG.md`,
   `docs/BACKLOG.md` and `docs/PRODUCT_BACKLOG.md`; `STATUS.md` is read.
 - **Order.** The three paths are tried in that order, and the first one
   found is read. When more than one exists, the report says so and names
   the one read. When none exists, the page says that no backlog file was
   found, and shows the status if there is one.
-- **Local folder.** The user picks the project's folder. `STATUS.md` is
-  read at the folder's root. Nothing is sent anywhere.
+- **No local folder.** From PBI-1.14 (item 9) the page opens no folder
+  and reads no local file: it has no folder input and no file input, and
+  it picks no files. Every project comes from GitHub.
 - **GitHub URL.** `https://github.com/<owner>/<repo>`, optionally
   followed by `/tree/<branch>`, where the branch is everything after
   `/tree/`, a trailing `/` dropped (branch names can hold `/`). Without
@@ -349,9 +365,11 @@ the points the text above it leaves open.
   So one load makes one or two requests to `api.github.com` (requests 1
   and 2) and up to three to `raw.githubusercontent.com` (request 3): two
   to five in all when the backlog file is found. If request 1 or 2 answers
-  404, the page says "not found or not public" and offers the local
-  folder instead. Any other failed request is shown with its HTTP status
-  and is not retried.
+  404 and no token is held for the owner, the page says: "Not found or
+  not public. If the repo is private, add a token for its owner." (3.8
+  sets out the tokens; Clead's design; with a token held for the owner,
+  3.8 sets out the message.) Any other failed request is shown with its HTTP status and
+  is not retried.
 - `api.github.com` and `raw.githubusercontent.com` both answer with
   `Access-Control-Allow-Origin: *`, so a browser page can read them
   (checked with `curl` on 2026-11-03, and again on 2026-11-04 against
@@ -372,28 +390,20 @@ the points the text above it leaves open.
   of the file's path is percent-encoded.
 - **Failures.** A failed request 3 (the backlog file or `STATUS.md`)
   fails the whole load and is shown with its HTTP status; a 404 there is
-  shown as a status, not as "not found or not public". A request that
-  cannot be made says so with the host and the reason. An answer to
+  shown as a status, not as the 404 message of request 1 or 2. A
+  request that cannot be made says so with the host and the reason. An answer to
   request 1 without a default branch is shown as "GitHub's answer for
   the repo had no default branch", and an answer to request 2 without a
   file list as "GitHub's answer for the file list was not understood".
   After any failed load, and after a refused address, the previous
   project's results are cleared and hidden.
 - **Two loads at once.** The newest load is shown. Every submitted
-  address and every picked folder starts a load, and a refused address
-  counts as one. A load's answer that arrives after a newer load has
-  started is dropped, whether it succeeded or failed, so an older error
-  never replaces a newer project. A folder picker closed without a
-  folder starts no load.
-- **The file list in URL mode** holds every file (blob) of request 2's
+  address starts a load, and a refused address counts as one. A load's
+  answer that arrives after a newer load has started is dropped, whether
+  it succeeded or failed, so an older error never replaces a newer
+  project.
+- **The file list** holds every file (blob) of request 2's
   answer; none is left out.
-- **The folder.** It is picked with a folder input
-  (`<input type="file" webkitdirectory>`), not the File System Access
-  API. The picked folder's own name is dropped from each path and shown
-  as the project's name. Files under a folder named `.git` or
-  `node_modules`, at any depth, are left out of the file list, so they
-  are neither documentation nor link targets. Every other file,
-  dot-folders such as `.github/` included, is in the list.
 - **A truncated file list.** When GitHub marks request 2's answer as
   truncated, the page reads the files it got, says so under the address,
   and adds an Info item to the report: the documentation list and the
@@ -473,15 +483,14 @@ report (3.5).
 named in entries.
 
 - A "Documentation" list of the project's `README.md` and the Markdown
-  files (`*.md`) under `docs/`, subfolders included, sorted by path. In
-  URL mode the list comes from the file list (3.1, request 2), and each
+  files (`*.md`) under `docs/`, subfolders included, sorted by path.
+  The list comes from the file list (3.1, request 2), and each
   link opens the file's github.com page
   (`https://github.com/<owner>/<repo>/blob/<branch>/<path>`) in a new
-  tab. In folder mode a link opens the file from the folder, rendered in
-  the page under 3.7.
+  tab.
 - Every code span in an entry (such as `docs/SPEC.md`) whose text,
   without a leading `./`, is the path of a file in the project becomes a
-  link, in both modes, the same way. Other code spans stay text.
+  link, the same way. Other code spans stay text.
 
 **As built (PBI-1.2).**
 
@@ -491,18 +500,12 @@ named in entries.
 - A code span names a file only when its text, after dropping one
   leading `./`, is exactly a path in the file list (3.1). Inside a
   link's label a code span is never a link (3.7).
-- **URL mode:** a relative link in rendered text (3.7 item 4) goes to
+- **Documentation list:** its entries are links to github.com only: the
+  page does not read documentation files, so it renders none.
+- **Links:** a relative link in rendered text (3.7 item 4) goes to
   the file's github.com page whether or not the path is in the file
   list: the list can be truncated, and github.com shows its own "not
   found". A code-span link is made only for a path in the file list.
-- **Folder mode:** a link to any file in the folder, from the
-  documentation list, a relative link or a code span, opens that file in
-  the Documentation tab under its path. The file is read as text. A
-  file whose name ends in `.md` (case-sensitive, as for the
-  documentation list) is rendered as Markdown under 3.7, and relative
-  links in it resolve against its own path. Any other file is shown as
-  code, as written: no Markdown, no links. A file that cannot be read
-  shows "`<path>` could not be read."
 
 ### 3.5 Report of what could not be read
 
@@ -567,7 +570,7 @@ Publishing (2.2, PR #22):
 ### 3.7 Rendering contract
 
 All text vizi shows comes from a project it does not control: a backlog,
-a `STATUS.md` or a documentation file, possibly from any public repo. It
+a `STATUS.md` or a `PROJECTS.md`, possibly from any public repo. It
 is untrusted. The contract, which `src/markdown.ts` and the page keep and
 the tests check:
 
@@ -589,9 +592,8 @@ the tests check:
 4. **Links.** A link becomes a clickable link only when its target,
    after trimming spaces and ignoring case, is:
    - an absolute `https:` or `http:` URL;
-   - a relative path, resolved against the file it appears in: in URL
-     mode to the file's github.com page, in folder mode to the file in
-     the folder (when it exists; otherwise it stays text);
+   - a relative path, resolved against the file it appears in, to the
+     file's github.com page;
    - a `#` anchor within the same document.
 
    Any other target (`javascript:`, `data:`, `vbscript:`, `file:`, any
@@ -608,7 +610,7 @@ Tests for it include, at least: `<script>` and `<img src=x onerror=…>`
 in a description (shown as text, nothing runs); a link to
 `javascript:alert(1)` and to `JaVaScRiPt:…` (no link); a remote image
 (not requested: the browser test's request list stays as in 2.3); a
-relative link in both modes.
+relative link.
 
 **As built (PBI-1.2).** `src/markdown.ts` is a small reader, not
 CommonMark. What it reads, beyond items 1 to 5:
@@ -620,7 +622,7 @@ CommonMark. What it reads, beyond items 1 to 5:
     `h4`, `###` as `h5`, and `####` and deeper as `h6`.
   - A list item starts with `-`, `*` or `+`, or with one to nine digits
     and `.` or `)`, indented at most three spaces. `+` and `)` are read
-    here, in descriptions and documentation files, although the
+    here, in descriptions, although the
     backlog parser's R0 does not read them. Bullets and ordered items do
     not share a list.
   - A block quote starts with `>`, indented at most three spaces.
@@ -679,12 +681,10 @@ CommonMark. What it reads, beyond items 1 to 5:
     slug is empty is text.
   - A link inside a link's label is shown as its text, so a link is
     never inside a link.
-  - A link to a file in folder mode is `href="#"` with the file's path,
-    opened in the page (3.4).
 - **Heading ids and anchors** (item 4): a heading gets the id
   `md-<n>-<slug>`, so a project's text cannot reach the page's own ids.
   `<n>` numbers each text the page renders (a title, a status field, a
-  blocker, a description, a documentation file), counted from 1 since
+  blocker, a description), counted from 1 since
   the page was opened, so the same description open in a board card and
   in a list row gets different ids. The slug is the heading's text in
   lower case, with every run of characters other than letters,
@@ -761,8 +761,7 @@ forgets the token held at that moment.
   and a "Use" button. The token field is outside any `<form>`, so a
   browser has no form to offer to save it from; whether a password
   manager still offers to save it is section 4, item 15. A token "Use"d
-  for an owner that already has one replaces it. Folder mode never uses
-  a token.
+  for an owner that already has one replaces it.
 - **Never shown back in full.** After "Use" the token field is cleared.
   The page then lists "Tokens in use", one line per owner:
   "`<owner>`: `github_pat_…` and the token's last four characters",
@@ -854,9 +853,10 @@ forgets the token held at that moment.
   the page takes the owner from the address and uses the token held for
   that owner, if any; the umbrella view's "Open in vizi" is such a load
   (3.9). With no token for that owner, the load goes without one, as
-  for a public repo (3.1); when GitHub then answers 404 and tokens are
-  held for other owners, the message adds "No token is held for
-  `<owner>`.". "Show status" in the umbrella view uses the token held,
+  for a public repo (3.1); when GitHub then answers 404, the message is
+  3.1's, which already says to add a token for the owner (before
+  PBI-1.14 it added "No token is held for `<owner>`." when tokens were
+  held for other owners; that sentence goes). "Show status" in the umbrella view uses the token held,
   at that moment, for the owner of the project on the page (3.9). A load
   keeps the token it started with for all its requests; a load that has
   been replaced by a newer one makes no further request with its token
@@ -974,7 +974,8 @@ forgets the token held at that moment.
     it may lack the "Contents: read" permission, or an organisation's
     token policy may stop it." The token is kept.
   - **404** on request 1 or 2: "Not found, or the token does not give
-    access to this repo. Open the project as a local folder instead."
+    access to this repo." (Without a token held for the owner the
+    message is 3.1's, which points to adding one.)
     GitHub is expected to answer 404 for a private repo the token cannot
     see (section 4, item 11). The token is kept.
   - Any other failure is shown as in 3.1.
@@ -988,7 +989,7 @@ forgets the token held at that moment.
   headers in its `Access-Control-Expose-Headers` list, and no header
   about a token's expiry is in it (read 2026-11-04 on an answer without
   a token). An expired token is met by the 401 rule.
-- **Rendering and links** are unchanged (3.7). In URL mode, links still
+- **Rendering and links** are unchanged (3.7). Links still
   go to github.com, where a private file needs the user's own GitHub
   sign-in.
 - **Tests,** all with GitHub stubbed and synthetic tokens of the form
@@ -1001,7 +1002,7 @@ forgets the token held at that moment.
     403 and 404 mapping; an exception's text that holds the token is not
     shown); browser tests in `e2e/token.e2e.ts` (the field, the masked
     line, Remember and a reload, the rule at startup, the requests,
-    folder mode, the token in no URL, console message or page text,
+    the token in no URL, console message or page text,
     401, 403 and 404, Forget and its effect on results and on a running
     load, and a second tab);
   - for PBI-1.11, unit: the owner rule and lower case; the
@@ -1058,12 +1059,10 @@ format of `PROJECTS.md`, and what counts as a pointer, is
 `docs/BACKLOG-FORMAT.md`, section 5 (P1 to P7).
 
 - **When.** The page looks for `PROJECTS.md` at the root of the
-  project it opens, in both modes. In folder mode it reads the file
-  from the folder. In URL mode it reads it with one more request 3
+  project it opens. It reads it with one more request 3
   (3.1), only if the file list has it, and, with a token for the
   project's owner, through the contents API as 3.8 sets out for every
-  request 3. In URL mode
-  this adds one request to a load (counted in 3.1 and 3.8).
+  request 3. This adds one request to a load (counted in 3.1 and 3.8).
 - **The tab.** When the file exists, an "Umbrella" tab is added after
   "Report". When the project has a `PROJECTS.md` but no backlog file,
   the page opens on the Umbrella tab; otherwise it opens on the Board,
@@ -1083,14 +1082,14 @@ format of `PROJECTS.md`, and what counts as a pointer, is
     token for its owner, or one the token does not cover, gets 3.8's 404
     message. The page keeps
     no history: to go back, the umbrella project is opened again, by its
-    address or by picking its folder.
+    address.
   - "On GitHub" links to `https://github.com/<owner>/<repo>` in a new
     tab, with `rel="noopener noreferrer"`.
 - **A folder pointer** (`projects/<name>/`) has one link, "Show status".
-  It reads `projects/<name>/STATUS.md` of the same project: from the
-  folder in folder mode, or in URL mode with one request 3 for that path
-  (the contents API, with the token held for the project's owner), only
-  if the file list has it. The status is shown in its own panel,
+  It reads `projects/<name>/STATUS.md` of the same project, with one
+  request 3 for that path (the contents API, with the token held for the
+  project's owner), only if the file list has it. The status is shown in
+  its own panel,
   "Project status", below the tree and outside it, headed with the
   folder pointer it belongs to, read and shown as the project's own
   status is (3.3; `docs/BACKLOG-FORMAT.md` S1 to S5, blockers that wait
@@ -1136,11 +1135,11 @@ format of `PROJECTS.md`, and what counts as a pointer, is
     reported bullet lines, ignored text and ordered items, repeats, a
     file with no pointer;
   - browser, with GitHub stubbed: no Umbrella tab without the file; the
-    tab and the tree with it, in both modes; the page opening on the
+    tab and the tree with it; the page opening on the
     tab when there is no backlog; "Open in vizi" sets the address and
     makes the requests of 3.1 for the new repo, and an older answer
     arriving after it is dropped; "On GitHub" has the right URL,
-    target and `rel`; "Show status" in both modes shows the status in
+    target and `rel`; "Show status" shows the status in
     the panel outside the tree, and the tree holds no status; the
     missing-file message with no request; a second "Show status"
     replaces the panel, and of two in quick succession the newer answer
@@ -1160,8 +1159,9 @@ short steps with one example each: where the backlog file goes
 (`BACKLOG.md`, `docs/BACKLOG.md`, `docs/PRODUCT_BACKLOG.md`); how an
 entry is written and which markers are shown; the `STATUS.md` headings;
 `PROJECTS.md` for an umbrella; opening a private repo with a token, or as
-a folder. A link at the end to `docs/BACKLOG-FORMAT.md` on GitHub. The
-text ships in the page. A test checks that its examples read as stated.
+a folder (the folder is replaced by item 9, so step 5 keeps the token).
+A link at the end to `docs/BACKLOG-FORMAT.md` on GitHub. The text ships
+in the page. A test checks that its examples read as stated.
 
 Clead's design, within that intent. Nothing is added to or removed from
 the five steps and the closing link. The link is not a sixth step.
@@ -1290,20 +1290,18 @@ the five steps and the closing link. The link is not a sixth step.
      Stated reading: the heading "Projects" with the child "Tools", which
      holds the repo pointer `acme/widgets` and the folder pointer
      `projects/notes/`, and nothing in the report (checked 2026-11-04).
-  5. **A private repo: with a token, or as a folder.**
-     - With a token: make a fine-grained token for the owner, limited to
-       the chosen repos, with an expiry and the repository permission
-       "Contents" set to read-only; type the owner
-       and paste the token into the fields under the address, then
-       "Use"; tick "Remember the token" to keep it in this browser (3.8).
-       It is sent only to GitHub. The example shows the token's format
-       and no token: `github_pat_<letters, digits and underscores>`. It
-       is written with the angle-bracket placeholder, which the token rule
-       of 3.8 refuses, so it cannot be mistaken for one, and no text in
-       the view holds `github_pat_` followed by ten or more letters,
-       digits or underscores.
-     - As a folder: pick the project's folder with "Or a local project
-       folder"; nothing is sent anywhere (3.1).
+  5. **A private repo: with a token.** Make a fine-grained token for
+     the owner, limited to the chosen repos, with an expiry and the
+     repository permission "Contents" set to read-only. Type the owner
+     and paste the token into the fields under the address, then "Use";
+     tick "Remember the token" to keep it in this browser (3.8). It is
+     sent only to GitHub. The example shows the token's format and no
+     token: `github_pat_<letters, digits and underscores>`. It is written
+     with the angle-bracket placeholder, which the token rule of 3.8
+     refuses, so it cannot be mistaken for one, and no text in the view
+     holds `github_pat_` followed by ten or more letters, digits or
+     underscores. The help text for the step ends: "vizi opens
+     projects from GitHub, and a private one needs this token."
      The permission name the step uses is the one 3.8 expects; it is not
      yet checked against GitHub (section 4, items 10, 11 and 19).
 - **The closing link.** After the ordered list of steps, outside it, with
@@ -1381,7 +1379,7 @@ the five steps and the closing link. The link is not a sixth step.
       accessible name;
     - each code block's text equals the constant in `src/help.ts`; the
       step titles are in order; every control label the text names
-      ("Owner", "Use", "Remember the token", "Or a local project folder")
+      ("Owner", "Use", "Remember the token")
       exists on the start page;
     - Escape and both Back buttons close it, the control is shown again,
       the focus returns to it, and a project loaded before is still
@@ -1405,6 +1403,75 @@ the five steps and the closing link. The link is not a sixth step.
     - in dark mode the view's text and background differ as on the start
       page (the check of `e2e/smoke.e2e.ts`).
 
+### 3.11 No local folder (PBI-1.14)
+
+**(approved)** The product owner's decision of 2026-11-04 (15:15, "apyr";
+see "What is decided", item 9): vizi opens projects from GitHub only,
+public ones by address, private ones with the saved token (3.8). It no
+longer opens a local project folder.
+
+Clead's design, within that decision. The sections above already read
+this way: 3.1 (inputs), 3.4 (documentation links), 3.7 (links and
+rendered texts), 3.8, 3.9, 3.10 and section 4. What the code change
+(PBI-1.14) must remove, and nothing beyond it:
+
+- the folder input (`<input type="file" webkitdirectory>`) and its label
+  "Or a local project folder", and the code that starts a load from it;
+- the folder-reading code, as far as it is used only for folders: reading
+  a picked folder's files, the file list built from them, the in-page
+  documentation view of a folder file, the `href="#"` links to folder
+  files, and the cases of the other code that serve only a folder (for
+  example the folder branch of `PROJECTS.md` and of "Show status");
+- `folderFiles`, `isMarkdownPath` and `SKIPPED` of `src/docs.ts`
+  (`isMarkdownPath` is used only by the in-page view of a folder file;
+  `SKIPPED` only by `folderFiles`), and their unit tests in
+  `src/docs.test.ts` (the `describe("folderFiles")` and
+  `describe("isMarkdownPath")` blocks). The module comments of
+  `src/docs.ts` and `src/docs.test.ts` stay, with their words about a
+  folder or the folder input's file list taken out, as they also
+  describe the documentation links;
+- the sentence "Open the project as a local folder instead." at the end
+  of both 404 messages in `src/github.ts`, and every assertion of it
+  (`src/github.test.ts`, `e2e/token.e2e.ts`, including the title of the
+  test that says the message "offers the folder"); the messages are
+  those of 3.1 and 3.8, and the sentence "No token is held for
+  `<owner>`." that `src/main.ts` adds goes too (3.8, "Which token a load
+  uses"), with its assertion;
+- the `"file"` kind of `LinkTarget` in `src/markdown.ts`, if no page
+  code uses it once the folder's resolver in `src/main.ts` is gone; the
+  tests of `src/markdown.test.ts` that use it as a neutral resolver
+  switch to the kinds that remain;
+- the tests and fixtures of folder-only behaviour: the browser tests of
+  what only a folder has (the folder input, a folder file shown in the
+  page, the page opened from disk by picking a folder), the fixture
+  folders only they use, and single fixture files only they use (such
+  as a file shown as code in the Documentation tab); the folder cases in
+  3.7 and 3.9 that have no address counterpart; and the "folder mode"
+  check in `e2e/token.e2e.ts`. A browser test that picks a folder only
+  to open a project, and checks behaviour that addresses share (the
+  umbrella tab, "On GitHub", "Show status", the report, and so on, as
+  3.9 requires), is not removed: it is rewritten to open the same
+  fixture by address with GitHub stubbed. A fixture such tests or other
+  address tests read stays.
+
+What stays: the address field, the newest-load-wins rule for addresses
+(3.1, "Two loads at once"), every request of 3.1, the saved tokens (3.8),
+the umbrella view's "folder pointer" `projects/<name>/` (a folder of the
+project on GitHub, read by request 3, not a local folder; 3.9), and the
+page opened from disk, which still opens addresses (section 4, items 2
+and 13). Code that is also used for addresses stays. The code structure
+beyond this list is not decided here.
+
+Tests: the browser tests that remain still pass with the folder removed
+and with GitHub stubbed, and a new one checks that the start page has no
+`input[type=file]`, and that the text of the start page, of the help view
+and of the 404 messages, with a token and without, holds none of
+"local project folder", "local folder", "as a folder", "project's
+folder" (the help view's "folder pointer" and "a folder of the same
+project" are allowed); and that the help view's
+step 5 has only the token way. `e2e/token.e2e.ts` is as before
+apart from its folder check and its 404 texts.
+
 ---
 
 ## 4. Known unknowns
@@ -1412,17 +1479,13 @@ the five steps and the closing link. The link is not a sixth step.
 Each is settled in the backlog item that meets it. Items 1 to 6 were
 PBI-1.2's; their outcome after it (PR #9):
 
-1. **Open for browsers other than Chromium; PBI-1.4.** Which browser
-   feature picks the folder, and whether it works on a page opened from
-   disk (`file://`). Settled for Chromium: the page uses a folder input
-   (3.1, "As built"), and the folder input reads a folder's files on the
-   built page opened from disk (browser test "picks a folder on a page
-   opened from disk (file://)", headless Chromium). The test sets the
-   files with Playwright's `setInputFiles`, so it does not show the
-   browser's own folder picker; that is part of PBI-1.4.
+1. **Removed (PBI-1.14).** It was about the browser's folder picker
+   and a folder input on a page opened from disk. The page has no folder
+   input from PBI-1.14 (item 9 of "What is decided"), so there is
+   nothing to settle. The numbers of the items stay as they are.
 2. **Open; PBI-1.4.** Whether requests to GitHub work from a page opened
-   from disk in a real browser. With GitHub's answers stubbed, URL mode
-   works on the built page opened from disk (browser test "works on a
+   from disk in a real browser. With GitHub's answers stubbed, opening
+   an address works on the built page opened from disk (browser test "works on a
    page opened from disk (file://)", headless Chromium); the stub stands
    in for GitHub's CORS answer, so real GitHub was not tried.
 3. **Open; PBI-1.4.** GitHub's anonymous rate limit as a browser sees
@@ -1432,7 +1495,7 @@ PBI-1.2's; their outcome after it (PR #9):
    checks in 3.1 ran through a proxy that appears to add credentials, so
    they do not show the anonymous limit.
 4. **Open; PBI-1.4.** What an anonymous request for a private repo gets
-   back. The page shows "not found or not public" for a 404 on request 1
+   back. The page shows its 404 message (3.1) for a 404 on request 1
    or 2, and any other status as that status (3.1).
 5. **Settled (PBI-1.2, tests added in PBI-1.5).** What the page does
    with a truncated file list is in 3.1, "As built". Tested:
@@ -1455,7 +1518,7 @@ PBI-1.2's; their outcome after it (PR #9):
    A check after the description renders is PBI-1.6. When GitHub
    truncates a list was not checked.
 6. **Settled (PBI-1.2).** A synthetic backlog of 1500 lines (the
-   template's `docs/BACKLOG.md` has about as many) loads in URL mode,
+   template's `docs/BACKLOG.md` has about as many) loads by address,
    with GitHub stubbed, and shows the board and over 400 list rows in
    under 8 seconds (browser test "a synthetic file of 1500 lines loads
    and renders in a few seconds", headless Chromium, at phone and
