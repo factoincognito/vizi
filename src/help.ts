@@ -117,10 +117,12 @@ export const HELP_STEPS: readonly HelpStep[] = [
     paragraphs: [
       [
         t(
-          "An entry is one list item at column 0: a bold marker and an ID, notes in parentheses, an em dash with a space on each side (",
+          "An entry is one list item at column 0: a bold marker and an ID, notes in parentheses, an em dash (",
         ),
-        c(" — "),
-        t("), then the title, which is the first sentence. The description follows the title."),
+        c("—"),
+        t(
+          ") with a space on each side, then the title, which is the first sentence. The description follows the title.",
+        ),
       ],
       [
         t(
@@ -181,16 +183,16 @@ export const HELP_STEPS: readonly HelpStep[] = [
     example: PROJECTS_EXAMPLE,
   },
   {
-    title: [t("A private repo: with a token, or as a folder")],
+    title: [t("A private repo: with a token")],
     paragraphs: [
       [
         t(
-          'With a token: on GitHub, make a fine-grained token for the repos\' owner, limited to the repos you choose, with an expiry, and with the repository permission "Contents" set to read-only. Type the owner in "Owner" and paste the token into the token field under it, then press "Use". To keep the token in this browser, tick "Remember the token" before "Use". The token is sent only to GitHub.',
+          'On GitHub, make a fine-grained token for the repos\' owner, limited to the repos you choose, with an expiry, and with the repository permission "Contents" set to read-only.',
         ),
       ],
       [
         t(
-          'As a folder: pick the project\'s folder with "Or a local project folder". Nothing is sent anywhere.',
+          'Under the address, type the owner in "Owner" and paste the token into "GitHub token (for private repos)", then press "Use". To keep the token in this browser, tick "Remember the token" before "Use". The token is sent only to GitHub.',
         ),
       ],
       [
@@ -198,6 +200,7 @@ export const HELP_STEPS: readonly HelpStep[] = [
           "The example shows the form of a token, not a token: the part in angle brackets stands for the rest.",
         ),
       ],
+      [t("vizi opens projects from GitHub, and a private one needs this token.")],
     ],
     example: TOKEN_EXAMPLE,
   },
