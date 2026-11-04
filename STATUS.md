@@ -12,13 +12,13 @@ all projects reads them.
 Last update: 2026-11-04
 
 ## Phase
-Design.
+Build.
 
 ## Current focus
-The spec: `docs/SPEC.md` and the backlog format spec `docs/BACKLOG-FORMAT.md` (PR #3).
+The parser and report module (PBI-1.1, PR #6): `src/backlog.ts` and `src/status.ts`.
 
 ## Next step
-Crog reviews the spec (PR #3); once it merges, the parser and report module (PBI-1.1).
+Clead reviews PR #6; once it merges, the page (PBI-1.2).
 
 ## Blockers
 None.

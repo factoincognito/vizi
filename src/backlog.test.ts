@@ -173,7 +173,8 @@ describe("R2: the ID", () => {
   it("does not look for an ID after the bold when the bold holds other text", () => {
     const r = parse("- **[NOW] urgent** AB-9 — Fix it.");
     expect(r.entries[0]?.id).toBeNull();
-    expect(r.report.map((x) => x.code)).toEqual(["text-in-bold"]);
+    expect(r.entries[0]?.text).toBe("urgent AB-9 — Fix it.");
+    expect(r.report.map((x) => x.code)).toEqual(["text-in-bold", "no-dash"]);
   });
 
   it("reads an entry without an ID, with warnings for the ID and the dash", () => {
