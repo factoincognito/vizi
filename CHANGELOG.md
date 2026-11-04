@@ -29,6 +29,13 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Backlog: PBI-1.8 intent approved (#24).
 - PBI-1.7 done: vizi is live on GitHub Pages; status and changelog (#25).
 - Spec: private repos with a saved token, a Content-Security-Policy, and the shared-origin risk (PBI-1.8) (#26).
+- PBI-1.8 waits on the defence choice; changelog (#27).
+- PBI-1.8 unblocked: the Pages-origin rule chosen (#28).
+- Spec: the chosen defence for the shared origin (#29).
+- PBI-1.8 part 1: Content-Security-Policy in the built page, with build-time hashes (#30).
+- PBI-1.8 part 2: private repos by address with a saved, read-only GitHub token (#31).
+- Backlog: PBI-1.9 the umbrella view (#32).
+- Spec: the umbrella view (PBI-1.9) (#33).
 
 ## Project created
 

@@ -60,7 +60,7 @@ Build order: Clead's proposal, from the design the spec is taken from.
   approval of 2026-11-04 recorded on it. Every Pages site of the
   factoincognito account shares the `factoincognito.github.io` browser
   storage; a custom domain can isolate vizi later if needed.
-- **[NOW] PBI-1.8** (product owner, 2026-11-04, after PBI-1.7) — Private
+- **[DONE] PBI-1.8** (2026-11-04: CSP PR #30, merge `f9427c5`, and token PR #31, merge `122d641`, each approved by a Clead-role review; live on Pages with the policy; the checks against real GitHub with a real token, SPEC section 4 items 9 to 15, are open for the product owner's first try) (product owner, 2026-11-04, after PBI-1.7) — Private
   repos by address: a fine-grained, read-only GitHub token, limited to
   chosen repos and with an expiry, pasted into vizi and, behind a
   "Remember the token" box, saved in the browser's storage, with a
@@ -79,13 +79,14 @@ Build order: Clead's proposal, from the design the spec is taken from.
   repo named `factoincognito.github.io`, and Pages only for factoincognito
   repos he trusts; a domain of vizi's own stays the stronger option for
   later (SPEC 3.8).
-- **[LATER] PBI-1.9** (product owner, 2026-11-04) — The umbrella view:
+- **[NOW] PBI-1.9** (product owner, 2026-11-04; intent approved 11:06; spec PR #33, merge `3c61bd4`) — The umbrella view:
   when vizi opens a project whose root has a `PROJECTS.md` in the product
   office's format (pointers `- owner/repo` or `- projects/<name>/` under
   headings), it shows the headings as a tree with the projects under
   them, and each project links on, to that project in vizi or to its
   repo. The tree is drawn from the file, never kept anywhere else. A spec
   change first, which needs the product owner's intent approval.
+- **[LATER] PBI-1.10** (Clead, 2026-11-04, from the code reviews of PRs #30 and #31) — Optional points, none a leak: a 401 forgets the token that is current, not the one GitHub refused (a new token entered during a load is forgotten); unticking "Remember" in one tab makes every other tab do a full Forget; the browser leak check looks at `body.outerHTML` only and should check the whole page; the token browser tests should assert that `window.__pwned` stays unset; a 429, or a 403 for the secondary rate limit, is reported as "the token may not read this repo"; Enter in the token field does nothing; `addCsp` misses a second policy spelled with an entity (harmless). Also: the spec lines #31 lists as outdated (2.2 and 2.3 "until PBI-1.8", 3.8 "a spec ahead of its code", the messages as built, a replaced load sends nothing more with the token, the no-store check as a unit test).
 - **[LATER] PBI-1.6** (Clead, 2026-11-04, from the code reviews of PRs #16 and #17) — Optional points, none a defect: check a link target again for control characters and backslashes after percent-decoding (today `%00`, `%0A` and `%5C` survive; SPEC 3.7 says a target with control characters is text); normalise heading text to NFC before making its slug, so a precomposed `Ö` and `O` plus a combining mark give the same anchor; a ~900k-character line of nested brackets takes about 1.4 s, close to the tests' 1.5 s limit; in `e2e/page.e2e.ts` two "no link" checks (around lines 207 and 370) run before the description renders, so they prove nothing — check after rendering; `showDoc` does not check after its `await` that the project is still the current one; a test for an older slow success arriving after a newer fast error.
 
 ---
