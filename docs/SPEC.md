@@ -459,8 +459,12 @@ CommonMark. What it reads, beyond items 1 to 5:
     with a host, normalised by the browser's URL parser. Every such link
     opens in a new tab with `rel="noopener noreferrer"`.
   - A target that starts with `//`, holds a `\`, or has a `:` in its
-    first path segment is text. These checks, and the scheme check
-    above, run on the target as written, before any decoding.
+    first path segment is text. These checks, the scheme check above
+    and the control-character check of item 4 run only on the target as
+    written, before any decoding. So a control character or a backslash
+    that comes from decoding survives: `[h](a%0Ab)` links to a path with
+    a line break in it, and `%00` and `%5C` pass the same way. Checking
+    again after decoding is PBI-1.6.
   - A relative target loses its `?…` or `#…` part, found in the text as
     written, and the rest is then fully percent-decoded
     (`decodeURIComponent`): `a%2Fb` names `a/b`, and `%23` or `%3F`
@@ -483,14 +487,18 @@ CommonMark. What it reads, beyond items 1 to 5:
   the page was opened, so the same description open in a board card and
   in a list row gets different ids. The slug is the heading's text in
   lower case, with every run of characters other than letters,
-  combining marks and digits, of any script, made one `-`, and `-`
-  dropped at both ends: `Översikt` gives `översikt`. A heading gets no
-  id only when its text has no letter, mark or digit. Within one text, a
-  slug that is already taken gets `-1`, then `-2` and so on, skipping
-  any that is taken. An anchor link points at `#md-<n>-<slug>` of its
-  own text, with its slug made the same way and no suffix, so it reaches
-  the first heading of that text with that slug. An anchor in a text
-  with no headings (a title, a blocker) points at no heading.
+  combining marks and numbers, of any script, made one `-`, and `-`
+  dropped at both ends: `Översikt` gives `översikt`, and `½ x` gives
+  `½-x`. A heading gets no id only when its text has no letter, mark or
+  number. Within one text, a slug that is already taken gets `-1`, then
+  `-2` and so on, skipping any that is taken. An anchor link points at
+  `#md-<n>-<slug>` of its own text, with its slug made the same way and
+  no suffix, so it reaches the heading of that text whose id is that
+  slug. That is the first heading with that slug, unless a suffixed id
+  took it: with `# A`, `# A` and `# A 1`, the ids are `a`, `a-1` and
+  `a-1-1`, so an anchor `#a-1` reaches the second `A`, not `A 1`. An
+  anchor in a text with no headings (a title, a blocker) points at no
+  heading.
 - **Images** (item 5): `![alt](url)` is a link whose text is the alt
   text, not read as Markdown, when its target is allowed under item 4;
   otherwise it is the alt text alone.
@@ -527,18 +535,22 @@ PBI-1.2's; their outcome after it (PR #9):
    with a truncated file list is in 3.1, "As built". Tested:
    - the message under the address names the truncation (browser test
      "tells that the file list was truncated");
-   - the report holds one Info item for it, and the documentation list
-     and the code-span links hold only the files GitHub sent (browser
-     test "a truncated file list: the report says so, and the
-     documentation list and code-span links hold only the files GitHub
-     sent", which also checks that a relative link still goes to
-     github.com);
+   - the report holds one Info item for it, the documentation list
+     holds only the files GitHub sent, and a relative link still goes to
+     github.com (browser test "a truncated file list: the report says
+     so, and the documentation list and code-span links hold only the
+     files GitHub sent");
    - a complete file list adds no such item (browser test "a complete
      file list adds no truncation note to the report");
    - `loadRepo` passes GitHub's `truncated` flag through (unit test in
      `src/github.test.ts`).
 
-   When GitHub truncates a list was not checked.
+   Not reliably tested: that a code-span link is made only for a file
+   GitHub sent. The same browser test checks that there is no such link,
+   but right after it opens the card, when the description may not have
+   been rendered yet, so the check can pass without looking at it.
+   A check after the description renders is PBI-1.6. When GitHub
+   truncates a list was not checked.
 6. **Settled (PBI-1.2).** A synthetic backlog of 1500 lines (the
    template's `docs/BACKLOG.md` has about as many) loads in URL mode,
    with GitHub stubbed, and shows the board and over 400 list rows in
