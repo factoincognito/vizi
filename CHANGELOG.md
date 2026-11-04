@@ -12,6 +12,10 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Spec: edge cases settled from the PBI-1.1 review, and the description indent rule for rendering (#7).
 - Backlog and changelog: PBI-1.1 done, PBI-1.2 started (#8).
 - The page (PBI-1.2): folder and public GitHub URL input, board and list, status, documentation links, report tab, and the rendering contract for untrusted content (`src/markdown.ts`, `src/github.ts`, `src/docs.ts`, `src/board.ts`, `src/main.ts`); browser tests with GitHub stubbed (#9).
+- Backlog and changelog: PBI-1.2 done; PBI-1.4 (open known unknowns) and PBI-1.5 (review follow-ups) added (#10).
+- Spec: the readings the page implements, recorded as built; known unknowns updated (#11).
+- Backlog: three more points for PBI-1.5 (#12).
+- Backlog: PBI-1.4 covers the browser's own folder picker (#13).
 
 ## Project created
 
