@@ -520,17 +520,35 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
      today), `github.com/<owner>/<repo>`,
      `https://www.github.com/<owner>/<repo>` and
      `www.github.com/<owner>/<repo>`. People copy addresses without the
-     scheme (Clead's call). The host is matched in lower case as
-     written; `http://` is not accepted;
+     scheme (Clead's call). The scheme and the host are compared
+     without regard to case: they are lower-cased, then compared, so
+     `GitHub.com/acme/widgets` and `HTTPS://GITHUB.COM/acme/widgets`
+     are accepted, as a browser reads a host. `http://` is not
+     accepted;
 
   each optionally followed by `/tree/<branch>`, and then by one `/`.
   Owner and repo follow 3.1's name rule: letters, digits, `.`, `_` and
   `-`, and neither is `.` or `..`. The branch is everything after
   `/tree/`, one trailing `/` dropped, non-empty, as 3.1 reads it; the
   text holds no `?` or `#` anywhere. A text that starts with
-  `github.com/`, `www.github.com/` or `https://` is read only as form
-  2, never as form 1, so `github.com/acme` is refused (no repo), and is
-  not taken for an owner named `github.com`.
+  `github.com/`, `www.github.com/` or `https://`, in any case, is read
+  only as form 2, never as form 1, so `github.com/acme` is refused (no
+  repo), and is not taken for an owner named `github.com`.
+  - **The branch is not decoded**, and a `%` in it is refused, with its
+    own message (below). GitHub's own tree addresses percent-encode a
+    branch's `#` and `%` (for example `/tree/a%23b` for the branch
+    `a#b`). Taken as written, such an address would load a branch named
+    `a%23b` and fail with a 404. Decoding it would give a name with `#`
+    or `%`, which the page cannot open (3.13, "Names the page cannot
+    open"), and which 3.14 does not save. So one rule holds across the
+    page: a branch with `#` or `%` is not opened.
+  - **A repo ending in `.git` is refused**, without regard to case, with
+    its own message (below). `github.com/acme/widgets.git` is a clone
+    address, which people copy from GitHub's "Code" button; it passes
+    the name rule as the repo `widgets.git`, and would make requests
+    that end in a 404. Whether GitHub allows a repo name that ends in
+    `.git` at all was not checked; if one exists, vizi cannot open it
+    by this field.
   - **`<owner>/<repo>/tree/<branch>` without the host is accepted**
     (Clead's call): it is the same grammar with or without the host, a
     repo name cannot hold `/`, so the form cannot mean anything else, and
@@ -548,9 +566,20 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
   load's answer is dropped), and `#message` says: "Type the repository
   as owner/repo, for example fomo-t/fomo-f, or paste its GitHub address
   (github.com/owner/repo, optionally with /tree/<branch>)." An
-  empty field gives the same message. This replaces today's "Enter a
-  public repo address like https://github.com/<owner>/<repo>, optionally
-  followed by /tree/<branch>.".
+  empty field gives the same message. Two cases have their own message,
+  with the same effect (no request, counted as a load):
+  - a `%` in the branch: "vizi cannot open this branch: its name holds
+    # or %, which an address writes as %23 or %25.";
+  - a repo ending in `.git`: "That is a clone address. Type the
+    repository as owner/repo, without .git."
+
+  These replace today's "Enter a public repo address like
+  https://github.com/<owner>/<repo>, optionally followed by
+  /tree/<branch>.". The tests that assert today's message change with
+  it: `e2e/csp.e2e.ts` (lines 97 and 109) and `e2e/page.e2e.ts` (lines
+  603 and 607, at `main` `90405fb`) check "Enter a public repo address";
+  they check the new message instead, with the same input, `not an
+  address`, which stays refused.
 - **The load.** Accepted text gives the reference `{owner, repo,
   branch}` (branch `null` without `/tree/`), and the load is the one of
   3.1, unchanged: its requests, messages, the newest-wins rule, and the
@@ -580,16 +609,21 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
     trailing `/`, and with spaces around; `github.com/acme/widgets`,
     `www.github.com/acme/widgets` and
     `https://www.github.com/acme/widgets/tree/main`, each the same
-    reference as the `https://github.com` form; `Acme/Widgets` kept as
-    written. Refused: empty; `acme`; `acme/`; `/acme/widgets`;
-    `acme/widgets/tree/`; `acme/widgets/issues`;
+    reference as the `https://github.com` form; `GitHub.com/acme/widgets`
+    and `HTTPS://GITHUB.COM/acme/widgets` accepted, the same reference;
+    `Acme/Widgets` kept as written. Refused: empty; `acme`; `acme/`;
+    `/acme/widgets`; `acme/widgets/tree/`; `acme/widgets/issues`;
     `acme/widgets/blob/main/x`; `acme/widgets?x=1`; `acme/widgets#x`;
     `ac me/widgets`; `../..`; `./widgets`; `acme/..`;
-    `http://github.com/acme/widgets`; `http://www.github.com/acme/widgets`;
+    `http://github.com/acme/widgets`;
+    `http://www.github.com/acme/widgets`;
     `https://example.com/acme/widgets`; `gist.github.com/acme/widgets`;
     `github.com/acme`; `github.com/acme/widgets/issues`;
-    `javascript:alert(1)`. Today's refused case `acme/widgets` moves to
-    the accepted cases;
+    `javascript:alert(1)`; and, with their own messages,
+    `acme/widgets/tree/a%23b`, `github.com/acme/widgets/tree/50%25`,
+    `acme/widgets.git`, `github.com/acme/widgets.GIT` and
+    `https://github.com/acme/widgets.git/tree/main`. Today's refused
+    case `acme/widgets` moves to the accepted cases;
   - browser: the label "Repository" for `#url-input` and the
     placeholder "owner/repo"; `acme/widgets`, `github.com/acme/widgets`
     and `https://github.com/acme/widgets` make the same requests; the short
