@@ -2148,7 +2148,9 @@ columns; the mockup's phone board, at 390 px; tested at 375 px):
   owner's row. When the focused control is gone (its row was forgotten,
   here or in another tab, the migration block went, or "Forget all
   tokens" was used and hid itself), the focus moves to the panel's
-  toggle. A load never moves the focus (3.10).
+  toggle. A load never moves the focus (3.10), with one exception from
+  PBI-1.15: a failed pick whose button had the focus (3.13,
+  "Accessibility").
 - **Messages** stay in the two `role="status"` lines, `#message` and
   `#token-message`, as today. A message is never carried by colour
   alone; the highlighted migration block also says what it is in words.
@@ -2446,17 +2448,23 @@ accept.
 - **The current branch is always an option.** When the loaded branch is
   not among the names read (past the cap below, deleted since, or the
   list could not be read), it is added first, selected.
-- **Names the page cannot open.** A name holding `?`, `#` or `%` is
-  listed but disabled, with " (cannot be opened in vizi)" after it:
-  3.1 uses the branch as written in request 3 and in github.com links,
+- **Names the page cannot open.** A name holding `#` or `%` is listed
+  but disabled, with " (cannot be opened in vizi)" after it: 3.1 uses
+  the branch as written in the anonymous request 3 (the
+  raw.githubusercontent.com URL) and in github.com links (`blobUrl`),
   where those characters would end or change the path, and an address
-  cannot carry `?` or `#` at all (3.1, "As built"). Git refuses spaces
-  and control characters in branch names, so the names left are safe as
-  written. (Clead's design; a later item can encode them if one is
-  needed.)
+  cannot carry `#` at all (3.1, "As built"). Git refuses `?`, spaces
+  and control characters in branch names (`git check-ref-format`), so
+  `?` cannot reach the list; the page disables it too, as a defence.
+  The browser's URL parser encodes the other characters git allows in
+  a path, so the names left are safe as written. (Clead's design; the
+  alternative, encoding the branch in those two URLs, is section 4,
+  item 27.)
 - **While the list loads**, the select holds the current branch only,
   `#branch-picker` has `aria-busy="true"`, "Open branch" is disabled,
-  and the message line says "Reading the branches…".
+  and the message line says "Reading the branches…". When the list has
+  been read, or has failed, "Open branch" is enabled and `aria-busy`
+  removed; so no pick can start while the list loads.
 
 #### Which request lists the branches
 
@@ -2487,7 +2495,9 @@ accept.
   - The `2022-11-28` data is the REST API version a request without an
     `X-GitHub-Api-Version` header gets; vizi sends none. That GitHub
     serves that version by default was not checked in this
-    documentation.
+    documentation. It does not matter here: the file for the other
+    version in it, `src/rest/data/fpt-2026-03-10/branches.json`, is the
+    same blob, `f998136e515c2576ed4d157974d7b1f4383a01f3`.
 - **The token.** The request goes with the token that the load it
   follows used (3.8, "A load keeps the token it started with for all
   its requests"): with one, in the `Authorization` header with
@@ -2495,23 +2505,26 @@ accept.
   a token is; without one, anonymously, which the documentation allows
   for a public repo (`allowsPublicRead`). The permission it needs is
   "Contents" read, which the read-only token of 3.8 and of the guide of
-  3.12 already has; it needs no other permission (`"additional-permissions":
-  false`). Metadata read, which GitHub adds to such a token itself
-  (3.12), is not what this request needs. So the token stays read-only
-  and nothing changes in 3.8 or in the guide. Like every request, the
+  3.12 already has; it needs no other permission
+  (`"additional-permissions": false`). Metadata read, which GitHub
+  adds to such a token itself (3.12), is not what this request needs.
+  So the token stays read-only and nothing changes in 3.8 or in the
+  guide. Like every request, the
   token is in no URL and no message (3.8).
 - **Pages and the cap** (Clead's design). The page asks for page 1,
   then the next page only while the page before held exactly 100
-  names, up to page 3: at most three requests and 300 names. It does
-  not read the `link` header: whether `api.github.com` exposes it to a
-  page (its `Access-Control-Expose-Headers`) was not checked, and
-  counting a page's names needs no header. The requests run one after
-  another, never in parallel.
-- **Past the cap.** When page 3 also held 100 names, the repo may have
-  more. The page lists the 300 names it read, adds the current branch if
-  it is not among them, and the message line says: "vizi lists the
-  first 300 branches GitHub gives. To open another branch, open its
-  address with /tree/<branch>." That address keeps working (the
+  items (the answer's array length, counted before any item is skipped
+  or a repeat dropped), up to page 3: at most three requests and 300
+  items. It does not read the `link` header: whether `api.github.com`
+  exposes it to a page (its `Access-Control-Expose-Headers`) was not
+  checked, and counting a page's items needs no header. The requests
+  run one after another, never in parallel.
+- **Past the cap.** When page 3 also held 100 items, the repo may have
+  more. The page lists the names it read, adds the current branch if it
+  is not among them, and the message line says: "vizi lists the first
+  300 branches GitHub gives. To open another branch, paste its address,
+  https://github.com/<owner>/<repo>/tree/<branch>, with the owner,
+  repo and branch filled in." That address keeps working (the
   approved intent; 3.1, and PBI-1.17's field accepts a pasted full
   address). In which order GitHub gives the branches, and so which 300
   are listed, was not checked.
@@ -2548,9 +2561,11 @@ accept.
   branch, through the same code as an address, so its requests, the
   token chosen by the owner at that moment (3.8), the messages and the
   report are all as for an address with `/tree/<branch>`. It counts as a
-  newer load (3.1, "Two loads at once"): an answer of any older load,
-  the branch list's included, is dropped; and a second pick before the
-  first has answered makes the first one older, so the newest pick wins.
+  newer load (3.1, "Two loads at once"): an answer of any older load is
+  dropped, and a second pick before the first has answered makes the
+  first one older, so the newest pick wins. A pick cannot happen while
+  the branch list loads: "Open branch" is disabled until it has been
+  read or has failed (see "While the list loads").
 - While it runs, the select and "Open branch" stay usable; the message
   line `#message` says "Loading…", as for any load.
 - On success the results are those of the new branch, the heading reads
@@ -2566,8 +2581,8 @@ accept.
   write its own URL, keeps no history (3.9, 3.10), and a pick adds no
   history entry and no hash.
 - The address field is left as it is (it is PBI-1.17's, and the picker
-  never touches it, see above). Using the field's "Open" again opens what
-  the field says, which may be another branch than the picked one.
+  never touches it, see above). Using the field's "Open" again opens
+  what the field says, which may be another branch than the picked one.
 - What PBI-1.12 ("Saved repos") saves for a picked branch is for its
   own spec.
 
@@ -2580,7 +2595,9 @@ these effects (Clead's design):
 - **401 with a token:** 3.8's rule: the token is forgotten if it is
   still the one held for that owner, the results loaded with it are
   hidden (the picker with them), and the message is 3.8's "GitHub
-  refused the token for `<owner>`…".
+  refused the token for `<owner>`…", in the page's message line
+  `#message`, not in `#branch-message`, which is hidden with the
+  picker.
 - **403 with `X-RateLimit-Remaining: 0`, any other 403, a 404, any
   other status, a network failure or an answer not understood:** the
   project stays shown; the picker holds what it read before the failure
@@ -2602,11 +2619,16 @@ these effects (Clead's design):
 - "Open branch" is a native button; its accessible name is its text.
 - The row is a `role="group"` labelled "Branch". `aria-busy` is set
   while the list loads, and the message line is a `role="status"`.
-- Focus: the picker never moves the focus; after "Open branch" it stays
-  on the button, which stays in the page while the load runs and after
-  it succeeds. When a load started by it fails and hides the results
-  (the button with them), the focus moves to the message line `#message`
-  (`tabindex="-1"`), which holds the failure's message.
+- Focus: after "Open branch" the focus stays on the button, which stays
+  in the page while the load runs and after it succeeds. The picker
+  moves the focus in one case only, the one exception to 3.12's "A load
+  never moves the focus": when a load started by "Open branch" fails
+  and hides the results, and the focus is on "Open branch" at that
+  moment (so it would be left on a hidden element), it moves to the
+  message line `#message` (`tabindex="-1"`), which holds the failure's
+  message. While the help view (3.10) is open, the wrapper that holds
+  `#message` is hidden and the focus is in the view, so the focus is
+  left alone; nothing else moves it either.
 - Sizes and colours are 3.12's: the select and the button 44 px high on
   a phone and 40 px on desktop, `--control-border` for the select's
   border, the secondary style for "Open branch", the 2 px focus ring;
@@ -2652,12 +2674,15 @@ Test first (2.2), with GitHub stubbed and synthetic data.
   - `src/branches.test.ts`: a page answer read into names, skipping
     items that are not objects or have no `name` string, and an empty
     name; a duplicate listed once; an answer that is not an array is a
-    failure; pages merged in order; the cap (pages of 100, 100 and 100:
-    300 names and "more may exist"; 100 and 37: 137 names and not);
+    failure; pages merged in order; the cap (pages of 100, 100 and 100
+    items: "more may exist", also when one item of a page is skipped or
+    a repeat, so the page counts 100 items for 99 names; 100 and 37
+    items: not);
     the order (the default first with " (default)", then by character
     codes, so `B` before `a`); no default mark when the default is not
     known; the current branch added first when it is not in the list;
-    names with `?`, `#` or `%` disabled, and others not.
+    names with `#` or `%` disabled, and `?` too as a defence, and
+    others not.
   - `src/github.test.ts`, `listBranches` with a stubbed fetcher: the
     URL of each page (`/branches?per_page=100&page=<n>`); page 2 asked
     only after a page of 100, and never a page 4; with a token, each
@@ -2680,8 +2705,8 @@ Test first (2.2), with GitHub stubbed and synthetic data.
     also when the option is changed with the arrow keys;
   - "Open branch" with the loaded branch selected makes no request;
   - newest wins: two picks in a row, the first answered last, show the
-    second; a pick while the branch list is still due drops the list's
-    answer; an address load while the list is due drops it too;
+    second; "Open branch" is disabled while the branch list is due; an
+    address load while the list is due drops the list's answer;
   - an address with `/tree/<branch>`: no request 1, the select shows that
     branch, and no option is marked default;
   - the cap: three pages of 100 give 300 options, the message, and no
@@ -2699,7 +2724,11 @@ Test first (2.2), with GitHub stubbed and synthetic data.
     holds);
   - accessibility: the label and the group's name; `aria-busy` while
     the list loads; the focus stays on "Open branch" after a pick, and
-    is on `#message` after a pick that fails;
+    is on `#message` after a pick that fails while the focus was on
+    "Open branch"; a pick that fails while the focus is elsewhere, and
+    one that fails while the help view is open (the view opened after
+    the pick, its focus on the view's `h2`), leave the focus where it
+    was;
   - phone: no sideways scroll with a 200-character branch name; the
     select and the button at least 44 px high;
   - the CSP test of `e2e/csp.e2e.ts` passes with the picker shown, with
@@ -2861,7 +2890,7 @@ Items 20 to 23 are PBI-1.16's (3.12):
     and it was read there, so this changes nothing unless a newer
     release is wanted.
 
-Items 24 to 26 are PBI-1.15's (3.13):
+Items 24 to 27 are PBI-1.15's (3.13):
 
 24. **Open; PBI-1.15.** In which order GitHub's "List branches" gives
     the branches, so which 300 the cap keeps for a repo with more. The
@@ -2872,6 +2901,14 @@ Items 24 to 26 are PBI-1.15's (3.13):
 26. **Open; PBI-1.15.** Whether a browser fires a closed select's
     change event at each arrow key. 3.13 opens a branch only with "Open
     branch", so the picker does not depend on it. Not checked.
+
+27. **Open; PBI-1.15.** The alternative to disabling branch names that
+    hold `#` or `%` (3.13, "Names the page cannot open"): encode each
+    `/`-separated segment of the branch in the anonymous request 3 and
+    in `blobUrl`, as request 2 and the contents API already encode it,
+    so every name git allows can be opened. Whether
+    raw.githubusercontent.com accepts encoded segments was not checked.
+    Until it is, the names stay disabled.
 
 Item 18 gains a point from 3.13: the documentation of "List branches"
 (`github/docs` at `e44c283`) says of `owner` and `repo` "The name is not
