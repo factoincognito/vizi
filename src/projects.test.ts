@@ -74,6 +74,12 @@ describe("the example of BACKLOG-FORMAT section 5", () => {
   });
 
   it("reports lines 13, 14 and 19 as not read and line 20 as read with a warning, nothing else", () => {
+    expect(r.report.map((i) => [i.line, i.kind])).toEqual([
+      [13, "error"],
+      [14, "error"],
+      [19, "error"],
+      [20, "warning"],
+    ]);
     expect(summary(r)).toEqual([
       [13, "error"],
       [14, "error"],

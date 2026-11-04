@@ -657,3 +657,91 @@ test.describe("with a token held (3.8, 3.9)", () => {
     expect(gets(stub).every((s) => !("authorization" in s.headers))).toBe(true);
   });
 });
+
+test.describe("a status read with the token, in a project loaded without one (3.8, 3.9)", () => {
+  /** Opens the hub with no token, then takes one (saved or not) and shows the notes status. */
+  async function tokenlessUmbrellaThenToken(
+    page: Page,
+    context: BrowserContext,
+    remember: boolean,
+  ) {
+    const stub = await stubGithub(context);
+    await page.goto("/");
+    await openUrl(page, HUB);
+    await expect(umbrellaTab(page)).toBeVisible();
+    await page.locator("#token-input").fill(TOKEN);
+    await page.locator("#token-remember").setChecked(remember);
+    await page.locator("#token-use").click();
+    await expect(page.getByTestId("token-line")).toBeVisible();
+    await showStatus(page, "projects/notes/").click();
+    await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("Notes phase.");
+    // The status read carried the token although the umbrella itself was loaded without it.
+    const read = gets(stub).find((s) => s.url === NOTES_API);
+    expect(read?.headers.authorization).toBe(`Bearer ${TOKEN}`);
+    return stub;
+  }
+
+  test("Forget the token clears the panel, and the tokenless umbrella stays", async ({
+    page,
+    context,
+  }) => {
+    await tokenlessUmbrellaThenToken(page, context, false);
+    await page.getByRole("button", { name: "Forget the token" }).click();
+    await expect(panel(page)).toBeHidden();
+    await expect(panel(page)).toBeEmpty();
+    await expect(page.locator("body")).not.toContainText("Notes phase");
+    expect(await treeOutline(page)).toEqual(EXPECTED_TREE);
+  });
+
+  test("the key removed in another tab clears the panel", async ({ page, context }) => {
+    await tokenlessUmbrellaThenToken(page, context, true);
+    const other = await context.newPage();
+    await other.goto("/");
+    await other.evaluate(() => localStorage.removeItem("vizi.githubToken"));
+    await expect(page.getByTestId("token-line")).toBeHidden();
+    await expect(panel(page)).toBeHidden();
+    await expect(page.locator("body")).not.toContainText("Notes phase");
+    expect(await treeOutline(page)).toEqual(EXPECTED_TREE);
+  });
+
+  test("a status read without a token stays when a token is taken and forgotten", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context);
+    await page.goto("/");
+    await openUrl(page, HUB);
+    await showStatus(page, "projects/notes/").click();
+    await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("Notes phase.");
+    await page.locator("#token-input").fill(TOKEN);
+    await page.locator("#token-use").click();
+    await page.getByRole("button", { name: "Forget the token" }).click();
+    await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("Notes phase.");
+  });
+
+  test("a read that replaces a token read without one is not cleared by Forget", async ({
+    page,
+    context,
+  }) => {
+    await tokenlessUmbrellaThenToken(page, context, false);
+    await page.getByRole("button", { name: "Forget the token" }).click();
+    await showStatus(page, "projects/odd/").click();
+    await expect(panel(page).getByTestId("pstatus-focus")).toHaveText("Odd focus.");
+    await page.locator("#token-input").fill(TOKEN);
+    await page.locator("#token-use").click();
+    await page.getByRole("button", { name: "Forget the token" }).click();
+    await expect(panel(page).getByTestId("pstatus-focus")).toHaveText("Odd focus.");
+  });
+
+  test("a 401 on Show status leaves no empty panel", async ({ page, context }) => {
+    await stubGithub(context, { status: (url) => (url === NOTES_API ? 401 : undefined) });
+    await page.goto("/");
+    await openUrl(page, HUB);
+    await page.locator("#token-input").fill(TOKEN);
+    await page.locator("#token-use").click();
+    await showStatus(page, "projects/notes/").click();
+    await expect(page.locator("#message")).toContainText("GitHub refused the token");
+    await expect(panel(page)).toBeHidden();
+    await expect(panel(page)).toBeEmpty();
+  });
+});
