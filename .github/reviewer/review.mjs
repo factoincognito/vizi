@@ -268,8 +268,10 @@ export async function run(deps) {
   log(`Posted the verdict for PR #${cfg.pr}, head ${cfg.head}.`);
 }
 
-function gitShow(ref, path) {
+/** A file as it is on a commit: `git show <ref>:<path>`, run in `cwd` (default: here). */
+export function readDocFromGit(path, ref, cwd = process.cwd()) {
   return execFileSync("git", ["show", `${ref}:${path}`], {
+    cwd,
     encoding: "utf8",
     maxBuffer: 20 * 1024 * 1024,
   });
@@ -281,7 +283,7 @@ async function main() {
     env: process.env,
     fetch: globalThis.fetch,
     query,
-    readDoc: gitShow,
+    readDoc: readDocFromGit,
     readInstructions: () =>
       readFileSync(fileURLToPath(new URL("./instructions.md", import.meta.url)), "utf8"),
     appendSummary: (text) => {

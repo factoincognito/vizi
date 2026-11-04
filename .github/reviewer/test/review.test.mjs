@@ -3,7 +3,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { BOUNDARY_MARKER, run } from "../review.mjs";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { BOUNDARY_MARKER, readDocFromGit, run } from "../review.mjs";
 
 const SHA = "a".repeat(40);
 const BASE = "b".repeat(40);
@@ -392,4 +397,22 @@ test("a PR number or SHA that is not what it should be is refused", async () => 
     await assert.rejects(run(deps), new RegExp(key));
     assert.equal(fetchImpl.calls.length, 0, key);
   }
+});
+
+test("the real document reader returns a file as it is on the given commit", () => {
+  const dir = mkdtempSync(join(tmpdir(), "crog-git-"));
+  const git = (...args) =>
+    execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], {
+      cwd: dir,
+      encoding: "utf8",
+    }).trim();
+  git("init", "-q");
+  writeFileSync(join(dir, "doc.md"), "first\n");
+  git("add", "doc.md");
+  git("commit", "-q", "-m", "one");
+  const first = git("rev-parse", "HEAD");
+  writeFileSync(join(dir, "doc.md"), "second\n");
+  git("commit", "-q", "-am", "two");
+  assert.equal(readDocFromGit("doc.md", first, dir), "first\n");
+  assert.throws(() => readDocFromGit("missing.md", first, dir));
 });
