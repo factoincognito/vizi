@@ -68,6 +68,8 @@ export type LoadResult =
       backlogPath: string | null;
       backlogText: string | null;
       statusText: string | null;
+      /** The root PROJECTS.md (3.9), or null when the file list has none. */
+      projectsText: string | null;
     }
   | {
       ok: false;
@@ -86,7 +88,8 @@ export type LoadResult =
       message: string;
     };
 
-type Failure = Extract<LoadResult, { ok: false }>;
+export type LoadFailure = Extract<LoadResult, { ok: false }>;
+type Failure = LoadFailure;
 
 const failure = (kind: Failure["kind"], status: number | null, message: string): Failure => ({
   ok: false,
@@ -116,16 +119,17 @@ function resetTime(seconds: string | null): string | null {
 }
 
 /**
- * Reads a repo through GitHub's API. Without a token it is the anonymous
- * reading of 3.1. With one (3.8) every request goes to api.github.com with
- * the token in an Authorization header, and the files are read through the
- * contents API; the token is never part of a URL or of a message.
+ * The requests of one repo, as 3.1 and 3.8 set them out: `get` makes one
+ * request and turns what comes back into text or a failure, and `file`
+ * reads one file (request 3) from raw.githubusercontent.com, or with a
+ * token through the contents API. The token is never part of a URL or of
+ * a message.
  */
-export async function loadRepo(
-  ref: RepoRef,
+function makeRequests(
+  ref: { owner: string; repo: string },
   fetcher: Fetcher,
-  token: string | null = null,
-): Promise<LoadResult> {
+  token: string | null,
+) {
   const api = `https://api.github.com/repos/${ref.owner}/${ref.repo}`;
   const raw = (branch: string, path: string) =>
     `https://raw.githubusercontent.com/${ref.owner}/${ref.repo}/${branch}/${path}`;
@@ -214,6 +218,36 @@ export async function loadRepo(
     }
   };
 
+  /** Request 3: one file of the repo at a branch. */
+  const file = (branch: string, path: string) =>
+    token === null ? get(raw(branch, path), false) : get(contents(branch, path), false, true);
+  return { api, get, file };
+}
+
+/** One file of a repo, read the way request 3 reads it (3.9, "Show status"). */
+export async function readRepoFile(
+  ref: { owner: string; repo: string; branch: string },
+  path: string,
+  fetcher: Fetcher,
+  token: string | null = null,
+): Promise<{ ok: true; text: string } | LoadFailure> {
+  const answer = await makeRequests(ref, fetcher, token).file(ref.branch, path);
+  return "ok" in answer ? answer : { ok: true, text: answer.text };
+}
+
+/**
+ * Reads a repo through GitHub's API. Without a token it is the anonymous
+ * reading of 3.1. With one (3.8) every request goes to api.github.com with
+ * the token in an Authorization header, and the files are read through the
+ * contents API; the token is never part of a URL or of a message.
+ */
+export async function loadRepo(
+  ref: RepoRef,
+  fetcher: Fetcher,
+  token: string | null = null,
+): Promise<LoadResult> {
+  const { api, get, file } = makeRequests(ref, fetcher, token);
+
   let branch = ref.branch;
   if (branch === null) {
     const r1 = await get(api, true);
@@ -243,20 +277,21 @@ export async function loadRepo(
   let backlogText: string | null = null;
   let statusText: string | null = null;
   if (backlogPath !== null) {
-    const r3 =
-      token === null
-        ? await get(raw(branch, backlogPath), false)
-        : await get(contents(branch, backlogPath), false, true);
+    const r3 = await file(branch, backlogPath);
     if ("ok" in r3) return r3;
     backlogText = r3.text;
   }
   if (files.includes("STATUS.md")) {
-    const r4 =
-      token === null
-        ? await get(raw(branch, "STATUS.md"), false)
-        : await get(contents(branch, "STATUS.md"), false, true);
+    const r4 = await file(branch, "STATUS.md");
     if ("ok" in r4) return r4;
     statusText = r4.text;
+  }
+  // 3.9: the umbrella view's file, at the root only.
+  let projectsText: string | null = null;
+  if (files.includes("PROJECTS.md")) {
+    const r5 = await file(branch, "PROJECTS.md");
+    if ("ok" in r5) return r5;
+    projectsText = r5.text;
   }
   return {
     ok: true,
@@ -267,5 +302,6 @@ export async function loadRepo(
     backlogPath,
     backlogText,
     statusText,
+    projectsText,
   };
 }
