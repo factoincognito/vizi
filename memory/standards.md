@@ -64,7 +64,9 @@ anything.)
 
 ## 7. Reviewer independence — hard constraint
 The review must run as a separate invocation from the implementation
-conversation. Inputs: {diff, docs/SPEC.md, memory/standards.md} only.
+conversation. Inputs: {diff, docs/SPEC.md, memory/standards.md,
+CLAUDE.md} only (CLAUDE.md added 2026-11-04, by the product owner, for
+the CI reviewer of the PO-68 pilot).
 Do not load design-time memory or implementation conversation history
 into the review context. This is structural, not conventional.
 

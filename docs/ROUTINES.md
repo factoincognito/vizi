@@ -73,8 +73,7 @@ The review Routine must receive **only**:
 - `memory/standards.md`
 - `CLAUDE.md` (added for the CI reviewer, PO-68 pilot, by the product owner's
   instruction to the pilot session on 2026-11-04, recorded in product-office
-  `BACKLOG.md` PO-68; `memory/standards.md` section 7 still lists three inputs
-  and changes in the PR that makes the CI verdict count)
+  `BACKLOG.md` PO-68; `memory/standards.md` section 7 lists the same four)
 
 It must **not** receive:
 - The implementation conversation history

@@ -114,6 +114,7 @@ You own the HOW — everything from Adam's WHAT to working code.
 | Technical specification | `docs/SPEC.md` |
 | ADR log | `docs/decisions/` |
 | Routines and trigger wiring | `docs/ROUTINES.md` |
+| The CI reviewer (pilot) | `.github/reviewer/README.md` |
 | Change history | `CHANGELOG.md` |
 
 ### Change execution model
@@ -144,6 +145,36 @@ Adam's change-control model (stated 2026-07-23, updated 2026-09-30):
    above: the review, CI and intent-approval requirements still apply.
 6. **When unsure** whether something needs a review, or whether to act
    alone, ask Adam.
+7. **The CI reviewer is Crog for this repo's PRs during the pilot**
+   (Adam, 2026-11-04, the PO-68 pilot). Crog's reviews run in GitHub
+   Actions: `.github/workflows/crog-review.yml` runs a script on the
+   Claude Agent SDK (`.github/reviewer/`, on Opus, paid by the
+   organization's API credits), not `anthropics/claude-code-action`.
+   While the pilot lasts:
+   - Wherever this file says Crog reviews, the workflow's verdict
+     comment is that review: `Crog review: APPROVE` or
+     `Crog review: CHANGES NEEDED`, ending `Head reviewed: <SHA>`. Only
+     a verdict whose SHA is the PR's current head counts. Rule 5 is
+     unchanged for everything the workflow did not review.
+   - Clead's review of Crog's code is unchanged: the workflow stands in
+     for Crog's side only.
+   - The workflow reads the diff, `CLAUDE.md`, `memory/standards.md`
+     and `docs/SPEC.md`, and nothing else; what it lists under "What I
+     did not check" it did not review. Which of that the PR description
+     must answer for is an open question for the product owner
+     (`docs/NEXT_SESSION.md`, entry 2).
+   - A PR that changes this rule, the workflow or the reviewer is not
+     reviewed by the workflow it changes: a separate Crog agent on Opus
+     gives the required review, and a CI verdict on it is extra.
+   - Where the workflow did not review a head (a `[claim]` PR, a draft,
+     a fork, a diff over its cap, a failed run, a key or credits that
+     ran out), Clead starts Crog as a separate agent on Opus, as in
+     rule 5.
+   - The workflow only reads code and writes one PR comment. It never
+     merges, approves through GitHub's review API or pushes; merging
+     stays as in rule 4.
+   - The pilot ends when the product owner ends it. Then rule 5 alone
+     applies, and this rule is removed in a PR of its own.
 
 How Clead executes: Clead works in its own clone of the repo, commits
 to a branch, pushes, and opens the PR through the GitHub API. Crog is
@@ -161,8 +192,10 @@ Which model and effort each role runs on (Adam, 2026-10-01):
 - **Opus for review and design.** Reviews of code, process and
   architecture changes (docs-only ones included) and architecture design
   drafts run in a separate agent started on Opus, including the Crog
-  agents Clead starts to review. Merge-only runs and the writing of
-  docs, backlog and changelog use the default model.
+  agents Clead starts to review. The CI reviewer (rule 7 above) runs on
+  Opus 5.5, set in `.github/reviewer/review.mjs`; moving it to another
+  model is the product owner's decision. Merge-only runs and the writing
+  of docs, backlog and changelog use the default model.
 - **Clead recommends the switch.** Clead cannot read or change the
   model or effort of its own session. Before a task that warrants a
   different setting, Clead says which one it recommends and waits for

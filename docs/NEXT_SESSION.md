@@ -45,17 +45,16 @@ phase; it adds no new PBI.
 this; once he decides, Clead writes it into `memory/project.md` and
 removes this entry.
 
-### 2. What the CI reviewer sees — new, a question for the product owner
+### 2. What the CI reviewer sees — a question for the product owner
 
 **Previous assumption:** the CI reviewer (PO-68 pilot) gets the diff,
 `memory/standards.md`, `docs/SPEC.md` and `CLAUDE.md`, as the pilot's brief
 says.
 **Revised assessment:** two gaps, found in the reviews of PR #68.
-(a) `memory/standards.md` section 7 lists three inputs, without `CLAUDE.md`,
-and the contract in `docs/ROUTINES.md` said the same; the brief of
-2026-11-04 adds `CLAUDE.md`. `docs/ROUTINES.md` now lists four; section 7
-changes in the PR that makes the CI verdict count (a process change,
-reviewed by Crog).
+(a) `memory/standards.md` section 7 listed three inputs, without
+`CLAUDE.md`, and the contract in `docs/ROUTINES.md` said the same; the
+brief of 2026-11-04 adds `CLAUDE.md`. Resolved: both list four now, and the
+CI reviewer is Crog in `CLAUDE.md`, rule 7.
 (b) The Review Standard asks the reviewer to check the test coverage table
 and the red run (section 4) and to judge each `Test-exempt:` reason. The
 first two live in the PR description and the third in commit messages,
@@ -90,6 +89,24 @@ cover the polyfill; the other fix is turning the polyfill off in
 **Action:** Clead tells the PBI-1.16 builder (this entry is the pointer),
 adds the Inter section to the existing file instead of creating it, and
 reports the finding to the product owner.
+
+### 4. Follow-ups of the CI reviewer pilot — new, small, none blocks the pilot
+
+**Previous assumption:** the CI reviewer as merged in #68 needs nothing more.
+**Revised assessment:** from the round 3 review of #68 and the first live
+runs (non-blocking points, all Clead's call):
+- The `realDeps` wiring test checks `fetch` and `query` only as functions;
+  assert they are `globalThis.fetch` and the SDK's `query`.
+- The real `appendSummary` (writes `GITHUB_STEP_SUMMARY`) and `log` are not
+  exercised by a test; point `GITHUB_STEP_SUMMARY` at a temporary file.
+- The SDK makes an extra small call on Haiku with the whole prompt as input
+  (about 57,000 uncached input tokens, about $0.006 per review), which the
+  script does not use; look for an option that turns it off.
+- `hasVerdictFor` trusts any comment by the Actions bot that starts
+  `Crog review:`; actions are pinned by major tag, as in `ci.yml`.
+**Impact on plan:** none now.
+**Action:** Clead does them in one small PR when the pilot is judged, or
+drops them if the pilot ends.
 
 ---
 
