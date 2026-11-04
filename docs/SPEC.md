@@ -366,9 +366,9 @@ the points the text above it leaves open.
   and 2) and up to three to `raw.githubusercontent.com` (request 3): two
   to five in all when the backlog file is found. If request 1 or 2 answers
   404 and no token is held for the owner, the page says: "Not found or
-  not public. If the repo is private, add a token for its owner (3.8)."
-  (Clead's design; with a token held for the owner, 3.8 sets out the
-  message.) Any other failed request is shown with its HTTP status and
+  not public. If the repo is private, add a token for its owner." (3.8
+  sets out the tokens; Clead's design; with a token held for the owner,
+  3.8 sets out the message.) Any other failed request is shown with its HTTP status and
   is not retried.
 - `api.github.com` and `raw.githubusercontent.com` both answer with
   `Access-Control-Allow-Origin: *`, so a browser page can read them
@@ -390,8 +390,8 @@ the points the text above it leaves open.
   of the file's path is percent-encoded.
 - **Failures.** A failed request 3 (the backlog file or `STATUS.md`)
   fails the whole load and is shown with its HTTP status; a 404 there is
-  shown as a status, not as the 404 message of request 1 or 2. A request that
-  cannot be made says so with the host and the reason. An answer to
+  shown as a status, not as the 404 message of request 1 or 2. A
+  request that cannot be made says so with the host and the reason. An answer to
   request 1 without a default branch is shown as "GitHub's answer for
   the repo had no default branch", and an answer to request 2 without a
   file list as "GitHub's answer for the file list was not understood".
@@ -853,9 +853,10 @@ forgets the token held at that moment.
   the page takes the owner from the address and uses the token held for
   that owner, if any; the umbrella view's "Open in vizi" is such a load
   (3.9). With no token for that owner, the load goes without one, as
-  for a public repo (3.1); when GitHub then answers 404 and tokens are
-  held for other owners, the message adds "No token is held for
-  `<owner>`.". "Show status" in the umbrella view uses the token held,
+  for a public repo (3.1); when GitHub then answers 404, the message is
+  3.1's, which already says to add a token for the owner (before
+  PBI-1.14 it added "No token is held for `<owner>`." when tokens were
+  held for other owners; that sentence goes). "Show status" in the umbrella view uses the token held,
   at that moment, for the owner of the project on the page (3.9). A load
   keeps the token it started with for all its requests; a load that has
   been replaced by a newer one makes no further request with its token
@@ -1421,23 +1422,37 @@ rendered texts), 3.8, 3.9, 3.10 and section 4. What the code change
   documentation view of a folder file, the `href="#"` links to folder
   files, and the cases of the other code that serve only a folder (for
   example the folder branch of `PROJECTS.md` and of "Show status");
-- `folderFiles` of `src/docs.ts`, with its module comment about the
-  folder input's file list, and its unit tests in `src/docs.test.ts`
-  (the `describe("folderFiles")` block);
+- `folderFiles`, `isMarkdownPath` and `SKIPPED` of `src/docs.ts`
+  (`isMarkdownPath` is used only by the in-page view of a folder file;
+  `SKIPPED` only by `folderFiles`), and their unit tests in
+  `src/docs.test.ts` (the `describe("folderFiles")` and
+  `describe("isMarkdownPath")` blocks). The module comments of
+  `src/docs.ts` and `src/docs.test.ts` stay, with their words about a
+  folder or the folder input's file list taken out, as they also
+  describe the documentation links;
 - the sentence "Open the project as a local folder instead." at the end
   of both 404 messages in `src/github.ts`, and every assertion of it
-  (`src/github.test.ts`, `e2e/token.e2e.ts`); the messages are those of
-  3.1 and 3.8;
+  (`src/github.test.ts`, `e2e/token.e2e.ts`, including the title of the
+  test that says the message "offers the folder"); the messages are
+  those of 3.1 and 3.8, and the sentence "No token is held for
+  `<owner>`." that `src/main.ts` adds goes too (3.8, "Which token a load
+  uses"), with its assertion;
 - the `"file"` kind of `LinkTarget` in `src/markdown.ts`, if no page
   code uses it once the folder's resolver in `src/main.ts` is gone; the
   tests of `src/markdown.test.ts` that use it as a neutral resolver
   switch to the kinds that remain;
-- the tests and fixtures of folder mode: the browser tests that pick a
-  folder (including the test on a page opened from disk that does so),
-  the fixture folders only they use, and single fixture files only they
-  use (such as a file shown as code in the Documentation tab); the tests
-  of the folder cases in 3.7 and 3.9; and the "folder mode" check in
-  `e2e/token.e2e.ts`. A fixture that address tests also read stays.
+- the tests and fixtures of folder-only behaviour: the browser tests of
+  what only a folder has (the folder input, a folder file shown in the
+  page, the page opened from disk by picking a folder), the fixture
+  folders only they use, and single fixture files only they use (such
+  as a file shown as code in the Documentation tab); the folder cases in
+  3.7 and 3.9 that have no address counterpart; and the "folder mode"
+  check in `e2e/token.e2e.ts`. A browser test that picks a folder only
+  to open a project, and checks behaviour that addresses share (the
+  umbrella tab, "On GitHub", "Show status", the report, and so on, as
+  3.9 requires), is not removed: it is rewritten to open the same
+  fixture by address with GitHub stubbed. A fixture such tests or other
+  address tests read stays.
 
 What stays: the address field, the newest-load-wins rule for addresses
 (3.1, "Two loads at once"), every request of 3.1, the saved tokens (3.8),
@@ -1451,10 +1466,11 @@ Tests: the browser tests that remain still pass with the folder removed
 and with GitHub stubbed, and a new one checks that the start page has no
 `input[type=file]`, and that the text of the start page, of the help view
 and of the 404 messages, with a token and without, holds none of
-"local folder", "Pick a folder", "Open the project as a local folder"
-(the help view's "folder pointer" is allowed); and that the help view's
+"local project folder", "local folder", "as a folder", "project's
+folder" (the help view's "folder pointer" and "a folder of the same
+project" are allowed); and that the help view's
 step 5 has only the token way. `e2e/token.e2e.ts` is as before
-without its folder check.
+apart from its folder check and its 404 texts.
 
 ---
 
@@ -1468,8 +1484,8 @@ PBI-1.2's; their outcome after it (PR #9):
    input from PBI-1.14 (item 9 of "What is decided"), so there is
    nothing to settle. The numbers of the items stay as they are.
 2. **Open; PBI-1.4.** Whether requests to GitHub work from a page opened
-   from disk in a real browser. With GitHub's answers stubbed, opening an address
-   works on the built page opened from disk (browser test "works on a
+   from disk in a real browser. With GitHub's answers stubbed, opening
+   an address works on the built page opened from disk (browser test "works on a
    page opened from disk (file://)", headless Chromium); the stub stands
    in for GitHub's CORS answer, so real GitHub was not tried.
 3. **Open; PBI-1.4.** GitHub's anonymous rate limit as a browser sees
