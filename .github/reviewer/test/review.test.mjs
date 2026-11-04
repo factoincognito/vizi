@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { BOUNDARY_MARKER, readDocFromGit, realDeps, run } from "../review.mjs";
+import { BOUNDARY_MARKER, REVIEW_FREE_FILES, readDocFromGit, realDeps, run } from "../review.mjs";
 
 const SHA = "a".repeat(40);
 const BASE = "b".repeat(40);
@@ -458,7 +458,7 @@ test("only these GitHub calls are made: read the diff of base...head, list and p
 
 const REVIEW_FREE = ["docs/BACKLOG.md", "CHANGELOG.md", "STATUS.md", "docs/NEXT_SESSION.md"];
 
-function assertSkipped({ deps, query, fetchImpl, summary }, label) {
+function assertSkipped({ query, fetchImpl, summary, logs }, label) {
   assert.equal(query.seen.params.length, 0, `no model call: ${label}`);
   assert.equal(posts(fetchImpl).length, 0, `no comment: ${label}`);
   const diffCalls = fetchImpl.calls.filter(
@@ -466,13 +466,21 @@ function assertSkipped({ deps, query, fetchImpl, summary }, label) {
   );
   assert.equal(diffCalls.length, 0, `the diff is not fetched: ${label}`);
   assert.match(summary.join("\n"), /skipped/i, `the job summary says so: ${label}`);
-  assert.equal(deps.env.ANTHROPIC_API_KEY, "sk-test-key");
+  // The job summary cannot be read through GitHub's API; the log line can.
+  const line = logs.find((l) => l.startsWith("Skipped: "));
+  assert.ok(line, `a Skipped: log line: ${label}`);
+  assert.ok(line.includes("PR #7"), `the log line names the PR: ${label}`);
+  assert.ok(line.includes(SHA), `the log line names the head: ${label}`);
 }
 
 function assertReviewed({ query, fetchImpl }, label) {
   assert.equal(query.seen.params.length, 1, `one model call: ${label}`);
   assert.equal(posts(fetchImpl).length, 1, `one comment: ${label}`);
 }
+
+test("the review-free set is exactly the four paths the product owner named", () => {
+  assert.deepEqual([...REVIEW_FREE_FILES].sort(), [...REVIEW_FREE].sort());
+});
 
 test("a PR that changes only review-free files is skipped: no comment, no model call, the job succeeds", async () => {
   const cases = [
@@ -486,8 +494,10 @@ test("a PR that changes only review-free files is skipped: no comment, no model 
     const s = setup({ fetch: fakeFetch({ files }) });
     await run(s.deps); // resolves: the job succeeds
     assertSkipped(s, JSON.stringify(files));
+    const line = s.logs.find((l) => l.startsWith("Skipped: "));
     for (const { filename } of files) {
       assert.ok(s.summary.join("\n").includes(filename), `summary names ${filename}`);
+      assert.ok(line.includes(filename), `log line names ${filename}`);
     }
   }
 });
@@ -559,7 +569,13 @@ test("a file list GitHub may have cut (300 files or more) is never skipped", asy
 });
 
 test("a failing or malformed file-list request stops the run before any model call", async () => {
-  for (const over of [{ filesStatus: 404 }, { files: "not-a-list" }]) {
+  for (const over of [
+    { filesStatus: 404 },
+    { files: "not-a-list" },
+    // An entry without a filename: malformed, not silently ignored.
+    { files: [{ status: "modified" }] },
+    { files: [{ filename: "STATUS.md", status: "modified" }, { status: "modified" }] },
+  ]) {
     const s = setup({ fetch: fakeFetch(over) });
     await assert.rejects(run(s.deps), /404|file list/i);
     assert.equal(s.query.seen.params.length, 0, JSON.stringify(over));
@@ -591,6 +607,12 @@ test("the 1-hour cache write count reaches the job log line and the job summary"
   const text = summary.join("\n");
   assert.match(text, /cache write 1h/i);
   assert.match(text, /7,654/);
+});
+
+test("the 1-hour cell says n/a when the SDK does not report the field", async () => {
+  const { deps, summary } = setup(); // usage() has no cacheCreationEphemeral1hInputTokens
+  await run(deps);
+  assert.match(summary.join("\n"), /\| 7,800 \| n\/a \| 0\.5000 \|/);
 });
 
 test("missing configuration stops the run before any network call", async () => {

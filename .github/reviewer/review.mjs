@@ -1,10 +1,12 @@
 // Crog's pull request review in CI (PO-68 pilot), on the Claude Agent SDK.
 //
-// Reads the diff of base...head and three review documents (as they are on the
-// base commit), asks the model for a verdict, and posts ONE comment on the pull
-// request. It never merges, never approves through GitHub's review API and never
-// pushes: the only GitHub calls are listed in `github()` below, and the workflow
-// test asserts them.
+// Reads the changed files of base...head first: a pull request that changes only
+// review-free files (REVIEW_FREE_FILES) is skipped, with no model call and no
+// comment. Otherwise it reads the diff of base...head and three review documents
+// (as they are on the base commit), asks the model for a verdict, and posts ONE
+// comment on the pull request. It never merges, never approves through GitHub's
+// review API and never pushes: the only GitHub calls are listed in `github()`
+// below, and the workflow test asserts them.
 
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
