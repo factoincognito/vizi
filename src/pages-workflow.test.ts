@@ -1,99 +1,84 @@
 /// <reference types="node" />
 import { readFileSync } from "node:fs";
+import { parse } from "yaml";
 
-// Checks the GitHub Pages workflow as text, without a YAML library: the file's layout is
-// fixed (two-space indent, one block per job), and a change to it must change these checks.
-const workflowPath = ".github/workflows/pages.yml";
-const read = (path: string): string => readFileSync(path, "utf8");
+// Parses the GitHub Pages workflow and compares its structure, so layout (comments, blank
+// lines, quoting, key order) cannot hide a change: any added trigger, permission, job or step
+// makes the comparison fail.
+type Step = Record<string, unknown>;
+type Workflow = { jobs: Record<string, { steps?: Step[] } & Record<string, unknown>> } & Record<
+  string,
+  unknown
+>;
 
-/** The text of one top-level job: from "  <name>:" to the next job or the end of the file. */
-function job(workflow: string, name: string): string {
-  const jobs = workflow.split(/^jobs:\s*$/m)[1] ?? "";
-  const match = new RegExp(
-    `^  ${name}:\\s*$([\\s\\S]*?)(?=^  [\\w-]+:\\s*$|(?![\\s\\S]))`,
-    "m",
-  ).exec(jobs);
-  if (!match) {
-    throw new Error(`job "${name}" not found in ${workflowPath}`);
-  }
-  return match[1] ?? "";
-}
+const load = (path: string): Workflow => parse(readFileSync(path, "utf8")) as Workflow;
+const dropNames = (steps: Step[] = []): Step[] => steps.map(({ name: _name, ...rest }) => rest);
 
 describe("GitHub Pages workflow", () => {
-  const workflow = read(workflowPath);
+  const pages = load(".github/workflows/pages.yml");
+  const ci = load(".github/workflows/ci.yml");
 
-  /** The indented lines under a top-level key, exactly as written (blank lines dropped). */
-  const topBlock = (key: string): string | undefined => {
-    const head = workflow.split(/^jobs:/m)[0] ?? "";
-    const block = new RegExp(`^${key}:[ \\t]*\\n((?: {2}.*\\n|\\n)+)`, "m").exec(head)?.[1];
-    return block?.replace(/\n+/g, "\n");
-  };
-  /** The indented lines under "    permissions:" of a job, or undefined if it has none. */
-  const jobPermissions = (name: string): string | undefined =>
-    /^ {4}permissions:[ \t]*\n((?: {6}\S.*\n)+)/m.exec(job(workflow, name))?.[1];
-
-  test("runs on a push to main and by hand, and on nothing else", () => {
-    expect(topBlock("on")).toBe("  push:\n    branches: [main]\n  workflow_dispatch:\n");
+  test("is exactly this structure: triggers, permissions, concurrency, two jobs and their steps", () => {
+    const { name, jobs, ...top } = pages;
+    expect(name).toBe("Pages");
+    expect(top).toEqual({
+      // A push to main and a manual run, nothing else (no pull_request, no schedule).
+      on: { push: { branches: ["main"] }, workflow_dispatch: null },
+      // Read-only contents for everything; a job that needs more says so itself.
+      permissions: { contents: "read" },
+      concurrency: { group: "pages", "cancel-in-progress": false },
+    });
+    // Exactly these two jobs; neither is named `build`, the required check of ci.yml.
+    expect(Object.keys(jobs).sort()).toEqual(["deploy", "site"]);
+    const { steps: siteSteps, ...site } = jobs.site as Workflow["jobs"][string];
+    const { steps: deploySteps, ...deploy } = jobs.deploy as Workflow["jobs"][string];
+    // `site` sets no permissions of its own, so it keeps contents: read.
+    expect(site).toEqual({ "runs-on": "ubuntu-latest", "timeout-minutes": 15 });
+    expect(dropNames(siteSteps)).toEqual([
+      { uses: "actions/checkout@v7", with: { "persist-credentials": false } },
+      {
+        uses: "actions/setup-node@v7",
+        with: { "node-version": "24", cache: "npm" },
+      },
+      { run: "npm ci" },
+      { run: "npm run build" },
+      { uses: "actions/upload-pages-artifact@v5", with: { path: "dist" } },
+    ]);
+    expect(deploy).toEqual({
+      needs: "site",
+      // Also stops a manual run started from another branch.
+      if: "github.ref == 'refs/heads/main'",
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 10,
+      permissions: { pages: "write", "id-token": "write" },
+      environment: {
+        name: "github-pages",
+        // biome-ignore lint/suspicious/noTemplateCurlyInString: a GitHub Actions expression, not a template
+        url: "${{ steps.deployment.outputs.page_url }}",
+      },
+    });
+    expect(dropNames(deploySteps)).toEqual([{ id: "deployment", uses: "actions/deploy-pages@v5" }]);
   });
 
-  test("gives the whole workflow read-only contents and nothing more", () => {
-    expect(topBlock("permissions")).toBe("  contents: read\n");
-    expect(workflow.match(/^permissions:/gm)).toHaveLength(1);
+  test("builds with the toolchain and npm scripts CI uses", () => {
+    const ciSteps = dropNames(ci.jobs.build?.steps);
+    const siteSteps = dropNames(pages.jobs.site?.steps);
+    // Same Node.js setup and the same install command.
+    expect(ciSteps).toContainEqual(siteSteps[1]);
+    expect(ciSteps).toContainEqual({ run: "npm ci" });
+    // CI builds through test:e2e, which must still start with npm run build.
+    expect(ciSteps).toContainEqual({ run: "npm run test:e2e" });
+    const { scripts } = JSON.parse(readFileSync("package.json", "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    expect(scripts["test:e2e"]).toMatch(/^npm run build && /);
+    expect(scripts.build).toBe("vite build");
   });
 
-  test("the site job sets no permissions of its own, so it keeps contents: read", () => {
-    expect(job(workflow, "site")).not.toMatch(/^ {4}permissions:/m);
-  });
-
-  test("grants pages: write and id-token: write to the deploy job, and nothing else", () => {
-    expect(jobPermissions("deploy")).toBe("      pages: write\n      id-token: write\n");
-  });
-
-  test("deploys only from main, even when started by hand from another branch", () => {
-    expect(job(workflow, "deploy")).toMatch(/^ {4}if: github\.ref == 'refs\/heads\/main'\s*$/m);
-  });
-
-  test("uses a concurrency group that lets a running deploy finish", () => {
-    expect(workflow).toMatch(
-      /^concurrency:\s*\n {2}group: pages\s*\n {2}cancel-in-progress: false\s*$/m,
+  test("uses the same checkout version as CI", () => {
+    const ciCheckout = dropNames(ci.jobs.build?.steps).find((step) =>
+      String(step.uses).startsWith("actions/checkout@"),
     );
-  });
-
-  test("builds with the npm scripts CI uses: npm ci, then npm run build", () => {
-    const ci = read(".github/workflows/ci.yml");
-    const site = job(workflow, "site");
-    expect(ci).toContain("run: npm ci");
-    expect(site).toContain("run: npm ci");
-    expect(ci).toContain("npm run test:e2e"); // CI builds through this script, which runs npm run build
-    expect(read("package.json")).toMatch(/"test:e2e": "npm run build && playwright test"/);
-    expect(site).toMatch(/run: npm run build\s*$/m);
-  });
-
-  test("uses Node.js and checkout as CI does, without keeping the token in git config", () => {
-    const ci = read(".github/workflows/ci.yml");
-    const site = job(workflow, "site");
-    for (const line of ["actions/checkout@v7", "actions/setup-node@v7", 'node-version: "24"']) {
-      expect(ci).toContain(line);
-      expect(site).toContain(line);
-    }
-  });
-
-  test("uploads dist/ with the official Pages actions, pinned to a major version", () => {
-    const site = job(workflow, "site");
-    expect(site).toMatch(
-      /uses: actions\/upload-pages-artifact@v\d+\s*\n\s+with:\s*\n\s+path: dist\s*$/m,
-    );
-    expect(job(workflow, "deploy")).toMatch(/uses: actions\/deploy-pages@v\d+/);
-  });
-
-  test("deploys after the build job and to the github-pages environment", () => {
-    const deploy = job(workflow, "deploy");
-    expect(deploy).toMatch(/needs: site/);
-    expect(deploy).toMatch(/environment:\s*\n\s+name: github-pages/);
-  });
-
-  test("leaves the required build check alone: no job here is named build", () => {
-    expect(workflow).not.toMatch(/^ {2}build:\s*$/m);
-    expect(workflow).not.toMatch(/^\s+name: build\s*$/m);
+    expect(dropNames(pages.jobs.site?.steps)[0]?.uses).toBe(ciCheckout?.uses);
   });
 });
