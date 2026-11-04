@@ -168,10 +168,12 @@ function renderStatus(p: Project): void {
   if (s.blockers === null) {
     blockers.append(h("p", { class: "muted", "data-testid": "blockers-missing" }, "not given"));
   } else {
-    if (s.blockers.length === 0 || s.none) {
+    if (s.none) {
       blockers.append(
         h("p", { "data-testid": "blockers-none" }, "None", s.remark ? ` — ${s.remark}` : ""),
       );
+    } else if (s.blockers.length === 0) {
+      blockers.append(h("p", { "data-testid": "blockers-none" }, "No blockers listed"));
     }
     if (s.blockers.length > 0) {
       blockers.append(
@@ -435,18 +437,29 @@ function build(
   };
 }
 
+/** After a failed load the previous project's results are not left under the error message. */
+function hideResults(): void {
+  project = null;
+  must("results").hidden = true;
+  for (const id of ["status", "board", "list-body", "doc-list", "doc-view", "report-body"]) {
+    must(id).replaceChildren();
+  }
+}
+
 async function openUrl(address: string): Promise<void> {
   const ref = parseGithubUrl(address);
   if (!ref) {
     say(
       "Enter a public repo address like https://github.com/<owner>/<repo>, optionally followed by /tree/<branch>.",
     );
+    hideResults();
     return;
   }
   say("Loading…");
   const result = await loadRepo(ref, (url) => fetch(url));
   if (!result.ok) {
     say(result.message);
+    hideResults();
     return;
   }
   const withBranch = { owner: ref.owner, repo: ref.repo, branch: result.branch };

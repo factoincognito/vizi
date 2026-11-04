@@ -20,13 +20,14 @@ export const BACKLOG_PATHS: readonly string[] = [
 ];
 
 const NAME = /^[A-Za-z0-9._-]+$/;
+const isName = (s: string) => NAME.test(s) && s !== "." && s !== "..";
 
 /** `https://github.com/<owner>/<repo>`, optionally followed by `/tree/<branch>`. */
 export function parseGithubUrl(input: string): RepoRef | null {
   const m = /^https:\/\/github\.com\/([^/?#]+)\/([^/?#]+)(?:\/tree\/([^?#]+?))?\/?$/.exec(
     input.trim(),
   );
-  if (!m?.[1] || !m[2] || !NAME.test(m[1]) || !NAME.test(m[2])) return null;
+  if (!m?.[1] || !m[2] || !isName(m[1]) || !isName(m[2])) return null;
   return { owner: m[1], repo: m[2], branch: m[3] ?? null };
 }
 

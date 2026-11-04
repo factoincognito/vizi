@@ -17,7 +17,7 @@ export function projectFilePath(codeText: string, files: string[]): string | nul
 }
 
 /** Folders whose files are never part of the project listing. */
-const SKIPPED = (segment: string) => segment.startsWith(".") || segment === "node_modules";
+const SKIPPED = (segment: string) => segment === ".git" || segment === "node_modules";
 
 /**
  * The project's file paths from the relative paths of a picked folder

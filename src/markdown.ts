@@ -75,7 +75,16 @@ export function resolvePath(base: string, rel: string): string | null {
 export function classifyTarget(raw: string, opts: RenderOptions): LinkTarget | null {
   const t = raw.trim();
   if (t === "" || hasControl(t)) return null;
-  if (t.startsWith("#")) return t.length > 1 ? { kind: "anchor", id: t.slice(1) } : null;
+  if (t.startsWith("#")) {
+    let raw = t.slice(1);
+    try {
+      raw = decodeURIComponent(raw);
+    } catch {
+      // A bad escape is kept as written.
+    }
+    const id = slugify(raw);
+    return id === "" ? null : { kind: "anchor", id };
+  }
   if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(t)) {
     if (!/^https?:\/\//i.test(t)) return null;
     try {
@@ -107,17 +116,24 @@ function push(out: Inline[], node: Inline): void {
 
 const PUNCT = /[!-/:-@[-`{-~]/;
 
-/** Index of the `]` that closes the `[` at `open`, or -1. */
-function closingBracket(s: string, open: number): number {
-  let depth = 0;
-  for (let i = open; i < s.length; i++) {
+/** For each `[` that has a matching `]`, the index of that `]`. One pass, backslash escapes respected. */
+function matchBrackets(s: string): Map<number, number> {
+  const pairs = new Map<number, number>();
+  const stack: number[] = [];
+  for (let i = 0; i < s.length; i++) {
     const c = s.charAt(i);
     if (c === "\\") i++;
-    else if (c === "[") depth++;
-    else if (c === "]" && --depth === 0) return i;
+    else if (c === "[") stack.push(i);
+    else if (c === "]") {
+      const open = stack.pop();
+      if (open !== undefined) pairs.set(open, i);
+    }
   }
-  return -1;
+  return pairs;
 }
+
+/** A link destination longer than this is not read, which keeps a hostile line from costing quadratic time. */
+const MAX_DESTINATION = 4096;
 
 /** Reads `(destination "title")` starting at the `(`. Returns the destination and the index after `)`. */
 function readDestination(s: string, open: number): { dest: string; end: number } | null {
@@ -126,13 +142,14 @@ function readDestination(s: string, open: number): { dest: string; end: number }
   let dest: string;
   if (s.charAt(i) === "<") {
     const close = s.indexOf(">", i + 1);
-    if (close < 0 || s.slice(i + 1, close).includes("\n")) return null;
+    if (close < 0 || close - i > MAX_DESTINATION || s.slice(i + 1, close).includes("\n"))
+      return null;
     dest = s.slice(i + 1, close);
     i = close + 1;
   } else {
     const start = i;
     let depth = 0;
-    for (; i < s.length; i++) {
+    for (; i < s.length && i - start < MAX_DESTINATION; i++) {
       const c = s.charAt(i);
       if (c === " ") break;
       if (c === "(") depth++;
@@ -155,11 +172,13 @@ function readDestination(s: string, open: number): { dest: string; end: number }
 }
 
 export function renderInline(src: string, opts: RenderOptions = {}): Inline[] {
-  return parseInline(src, opts, 0);
+  return parseInline(src, opts, 0, false);
 }
 
-function parseInline(src: string, opts: RenderOptions, depth: number): Inline[] {
+/** `inLink`: the text is a link's label, where a link is shown as its text (no link inside a link). */
+function parseInline(src: string, opts: RenderOptions, depth: number, inLink: boolean): Inline[] {
   const out: Inline[] = [];
+  const brackets = matchBrackets(src);
   /** For each delimiter, the position from which a closing search already failed. */
   const failedFrom = new Map<string, number>();
   const failed = (key: string, at: number) => {
@@ -200,7 +219,7 @@ function parseInline(src: string, opts: RenderOptions, depth: number): Inline[] 
         let code = src.slice(i + n, close);
         if (code.length > 2 && code.startsWith(" ") && code.endsWith(" ") && code.trim() !== "")
           code = code.slice(1, -1);
-        const target = opts.codePathLink?.(code) ?? null;
+        const target = inLink ? null : (opts.codePathLink?.(code) ?? null);
         const node: Inline = { t: "code", text: code };
         push(out, target ? { t: "link", target, children: [node] } : node);
         i = close + n;
@@ -219,23 +238,24 @@ function parseInline(src: string, opts: RenderOptions, depth: number): Inline[] 
       }
     }
 
-    if ((c === "[" || (c === "!" && src.charAt(i + 1) === "[")) && !failed("[", i)) {
+    if (c === "[" || (c === "!" && src.charAt(i + 1) === "[")) {
       const image = c === "!";
       const open = image ? i + 1 : i;
-      const close = closingBracket(src, open);
+      const close = brackets.get(open) ?? -1;
       const dest =
         close >= 0 && src.charAt(close + 1) === "(" ? readDestination(src, close + 1) : null;
       if (dest) {
         const label = src.slice(open + 1, close);
         const target = classifyTarget(dest.dest, opts);
         const children =
-          image || depth >= MAX_DEPTH ? [textNode(label)] : parseInline(label, opts, depth + 1);
-        if (target) push(out, { t: "link", target, children });
+          image || depth >= MAX_DEPTH
+            ? [textNode(label)]
+            : parseInline(label, opts, depth + 1, true);
+        if (target && !inLink) push(out, { t: "link", target, children });
         else for (const child of children) push(out, child);
         i = dest.end;
         continue;
       }
-      fail("[", i);
     }
 
     if ((c === "*" || c === "_") && depth < MAX_DEPTH) {
@@ -257,7 +277,7 @@ function parseInline(src: string, opts: RenderOptions, depth: number): Inline[] 
           break;
         }
         if (close >= 0) {
-          const children = parseInline(src.slice(i + len, close), opts, depth + 1);
+          const children = parseInline(src.slice(i + len, close), opts, depth + 1, inLink);
           push(out, { t: double ? "strong" : "em", children });
           i = close + len;
           continue;
@@ -276,12 +296,16 @@ function parseInline(src: string, opts: RenderOptions, depth: number): Inline[] 
 
 const FENCE = /^( {0,3})(`{3,}|~{3,})(.*)$/;
 
+/** The id a heading gets and a `#anchor` link points at: lower case, runs of other characters become one hyphen. */
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function slugOf(inlines: Inline[]): string {
-  const text = inlines
-    .map((n) => (n.t === "text" || n.t === "code" ? n.text : slugText(n)))
-    .join("")
-    .toLowerCase();
-  return text.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return slugify(inlines.map(slugText).join(""));
 }
 function slugText(n: Inline): string {
   return n.t === "text" || n.t === "code" ? n.text : n.children.map(slugText).join("");
@@ -330,7 +354,7 @@ export function render(text: string, opts: RenderOptions = {}): Block[] {
 
 function parseBlocks(lines: string[], opts: RenderOptions, depth: number): Block[] {
   const out: Block[] = [];
-  const inline = (s: string) => parseInline(s, opts, 0);
+  const inline = (s: string) => parseInline(s, opts, 0, false);
   let i = 0;
   while (i < lines.length) {
     const line = lines[i] ?? "";
