@@ -27,6 +27,8 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - PBI-1.7: vizi is published on GitHub Pages by `.github/workflows/pages.yml`; structure tests of the workflow with the `yaml` devDependency; a sub-path check of the built page (#22).
 - Spec: published on GitHub Pages (#23).
 - Backlog: PBI-1.8 intent approved (#24).
+- PBI-1.7 done: vizi is live on GitHub Pages; status and changelog (#25).
+- Spec: private repos with a saved token, a Content-Security-Policy, and the shared-origin risk (PBI-1.8) (#26).
 
 ## Project created
 

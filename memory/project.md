@@ -20,7 +20,8 @@ approved on 2026-11-04.
 - Local mode opens a project folder, not a single file, so documentation
   links work for private projects.
 - URL mode reads public GitHub repos only, with no token. Private repos
-  are not read by URL.
+  are not read by URL (2026-11-03). Replaced on 2026-11-04: private repos
+  by address with a saved, read-only GitHub token (PBI-1.8).
 - Shows the project's status, read from its `STATUS.md`.
 - A generated web page, built with the template's web pack. The first
   version is opened locally, not deployed (2026-11-03). Replaced on
