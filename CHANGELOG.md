@@ -22,6 +22,11 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Page and load (PBI-1.5 part 2): the newest load wins, non-Markdown files open as code, a stricter stray-request guard in the browser tests, tests for a truncated file list (#17).
 - PBI-1.5 done; PBI-1.6 (review follow-ups) added; changelog for #14 to #17 (#18).
 - Spec: matches the code after PBI-1.5 (link decoding, heading ids, two loads at once, files shown as code) (#19).
+- Changelog for #18 and #19 (#20).
+- Backlog: PBI-1.7 GitHub Pages and PBI-1.8 saved token (#21).
+- PBI-1.7: vizi is published on GitHub Pages by `.github/workflows/pages.yml`; structure tests of the workflow with the `yaml` devDependency; a sub-path check of the built page (#22).
+- Spec: published on GitHub Pages (#23).
+- Backlog: PBI-1.8 intent approved (#24).
 
 ## Project created
 

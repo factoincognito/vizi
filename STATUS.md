@@ -12,14 +12,13 @@ all projects reads them.
 Last update: 2026-11-04
 
 ## Phase
-Build: the first version is built (PBI-1.1 parser, PBI-1.2 page, PBI-1.3 template link, all merged 2026-11-04).
+Build: the first version is built and published at https://factoincognito.github.io/vizi/ (PBI-1.1 to PBI-1.3, PBI-1.5 and PBI-1.7 merged 2026-11-04).
 
 ## Current focus
-The first version in the product owner's hands: open the built page (`npm run build`, then `dist/index.html`) and load a project folder.
+The first version in the product owner's hands, on the published page; private repos by address with a saved token (PBI-1.8) next.
 
 ## Next step
-The product owner tries the first version and says what to change; then PBI-1.4 (the known unknowns, checked in a real browser) and PBI-1.6 (review follow-ups).
+Clead writes the PBI-1.8 spec change, then a Crog agent builds it; PBI-1.4 (known unknowns, checked in a real browser) and PBI-1.6 (review follow-ups) after it.
 
 ## Blockers
 - Product Owner: the definition of done for this phase (`docs/NEXT_SESSION.md`, entry 1).
-- Product Owner: set the repo's Pages source to "GitHub Actions" (Settings, Pages), so the PBI-1.7 deploy job can publish `https://factoincognito.github.io/vizi/`.
