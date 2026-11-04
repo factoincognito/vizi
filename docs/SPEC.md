@@ -124,9 +124,10 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
     and, next to adding a token, that a saved token can be used in vizi
     by everyone with access to this browser, and that on a shared
     computer the token is better used only for the page, without saving
-    it (16:17 to 16:18). His decision of 16:36 on a prefilled address
-    (PBI-1.17) is not part of it. How vizi does it is 3.12; the token
-    behaviour of 3.8 does not change.
+    it (16:17 to 16:18). PBI-1.17 is not part of it: his decision of
+    17:07 (recorded in the same file, #399), one "Repository" field for
+    `owner/repo`, which replaces his prefill decision of 16:36. How vizi
+    does it is 3.12; the token behaviour of 3.8 does not change.
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -796,10 +797,10 @@ forgets the token held at that moment.
   manager still offers to save it is section 4, item 15. A token "Use"d
   for an owner that already has one replaces it.
   From PBI-1.16 the fields are in the "Private repos" panel, under "Add
-  a token": "Owner", "Fine-grained token, read-only" (the token field, relabelled),
-  "Remember in this browser" (the "Remember the token" box) and "Add"
-  (the "Use" button), with the same behaviour; 3.12 sets out where
-  every control of this section goes and what it is called.
+  a token": "Owner", "Fine-grained token, read-only" (the token field,
+  relabelled), "Remember in this browser" (the "Remember the token" box)
+  and "Add" (the "Use" button), with the same behaviour; 3.12 sets out
+  where every control of this section goes and what it is called.
 - **Never shown back in full.** After "Use" the token field is cleared.
   The page then lists "Tokens in use", one line per owner:
   "`<owner>`: `github_pat_…` and the token's last four characters",
@@ -1564,8 +1565,10 @@ not in the approved version:
   texts below are **Clead's drafts within those decisions**, not
   approved copy; the boards read for this spec (a later version of the
   canvas) show an earlier draft of both, by Clead too;
-- the prefilled address on the boards is PBI-1.17's (16:36), see "Not
-  in this item".
+- the prefilled address on the boards carries out the decision of
+  16:36, which the decision of 17:07 replaced (a "Repository" field for
+  `owner/repo`, PBI-1.17), so it is no one's now; see "Not in this
+  item".
 
 The values are written out below, so this spec does not depend on the
 canvas. Every difference from the boards is listed with its reason under
@@ -1582,16 +1585,21 @@ panels' folded or opened state is not kept.
 
 **Not in this item.**
 
-- The address field's input: its label text, value, placeholder and
-  input behaviour belong to PBI-1.17 (the product owner's decision of
-  2026-11-04, 16:36, with its own spec change), which is built before
-  this item (`docs/BACKLOG.md`: right after PBI-1.13, before PBI-1.14).
-  The product owner is also weighing an "owner/repo" field in place of
-  the prefill, so PBI-1.17 owns the field's input, whichever it
-  becomes. This item leaves all of that as PBI-1.17 has built it, and
-  does not test it. It sets only the row (the field and "Open") and
-  its layout. The boards' prefilled `https://github.com/` is
-  PBI-1.17's.
+- The address field's input. PBI-1.17 (the product owner's decision
+  of 2026-11-04, 17:07, "Apyr", on Clead's recommendation, recorded in
+  the product office's `DECISIONS.md`, #399) makes it one "Repository"
+  field, where the user types `owner/repo`; a full GitHub address
+  pasted into it, with or without `/tree/<branch>`, still works, and
+  the token is still picked by the owner. It replaces the 16:36
+  decision to prefill `https://github.com/`. PBI-1.17 has its own spec
+  change and is built before this item (`docs/BACKLOG.md`: right after
+  PBI-1.13, before PBI-1.14). The field's label text, value,
+  placeholder and input behaviour are PBI-1.17's: this item leaves them
+  as PBI-1.17 has built them, and does not test them. It sets only the
+  row (the field and "Open") and its layout.
+- "Open a project from GitHub" stays as approved copy: it is the
+  section's heading (below). The "Repository" field's label, and how
+  it sits under that heading, are PBI-1.17's to settle in its spec.
 - A local folder: the page has none (PBI-1.14, 3.11), which is built
   before this item. The redesign has no folder input.
 - The branch picker (PBI-1.15) and the saved repos list (PBI-1.12) come
@@ -1630,15 +1638,19 @@ needs it.
 
 #### "Open a project from GitHub"
 
-- A `<form id="url-form">` (as today) with: the field's label above
-  the row (15 px, weight 600; its text is PBI-1.17's, the boards show
-  "Open a project from GitHub"); on one row, the address field
-  `#url-input` (48 px high, grows to fill the row, 16 px text, radius
-  8 px) and the button `#open-url`, "Open" (48 px high, padding 0 24 px,
-  16 px, weight 600, the primary style), 8 px apart. Submitting it
-  starts the load of 3.1, as today; Enter in the field submits.
-- The field's attributes, value and placeholder are as PBI-1.17 leaves
-  them; this item changes only its size and style.
+- The section's heading, an `h2` that labels the section, word for
+  word "Open a project from GitHub" (15 px, weight 600), approved copy.
+  On the boards it is the field's label; from PBI-1.17 the
+  "Repository" field has its own label, whose text, and how it sits
+  under the heading, are PBI-1.17's.
+- A `<form id="url-form">` (as today) with, on one row, the address
+  field `#url-input` (48 px high, grows to fill the row, 16 px text,
+  radius 8 px) and the button `#open-url`, "Open" (48 px high, padding
+  0 24 px, 16 px, weight 600, the primary style), 8 px apart.
+  Submitting it starts the load of 3.1, as today; Enter in the field
+  submits.
+- The field's label, attributes, value and placeholder are as PBI-1.17
+  leaves them; this item changes only the field's size and style.
 - Under the row, one line of static text (14 px, muted), word for word:
   "Public repos open without a token. Private repos need a token for
   their owner. All access is read-only: vizi never changes anything on
@@ -1689,13 +1701,14 @@ token.
    - the masked token of 3.8, "`github_pat_…`" and the token's last four
      characters (`data-testid="token-text"`, monospace, 14 px, muted).
      The token is never shown in full (3.8);
-   - a checkbox "Remember in this browser" (`data-testid="token-remember-owner"`,
-     18 px box, 14 px label), ticked exactly when the owner's token is
-     saved. Ticking or unticking it is 3.8's "Remember" for that owner:
-     ticking saves it, unticking removes the saved copy and keeps the
-     token for this page only; a browser that refuses to save leaves it
-     unticked and the message line of the panel says 3.8's "The browser
-     would not save the token; it is kept for this page only.";
+   - a checkbox "Remember in this browser"
+     (`data-testid="token-remember-owner"`, 18 px box, 14 px label),
+     ticked exactly when the owner's token is saved. Ticking or
+     unticking it is 3.8's "Remember" for that owner: ticking saves it,
+     unticking removes the saved copy and keeps the token for this page
+     only; a browser that refuses to save leaves it unticked and the
+     message line of the panel says 3.8's "The browser would not save
+     the token; it is kept for this page only.";
    - a button "Forget" (`data-testid="token-forget"`, 40 px high, the
      secondary style, accessible name "Forget the token for
      `<owner>`", as today). It is 3.8's "Forget" for that owner, with
@@ -1778,10 +1791,10 @@ is folded whenever the page opens, and its state is not stored.
 
 Opened, it shows an ordered list (14 px, line height 1.45, 6 px apart).
 Its text is **Clead's draft within the decision of 16:11**, not approved
-copy (the decision came after the approved version). The steps follow GitHub's own documentation (see "The guide, checked
-against GitHub's documentation"); the words in bold are GitHub's labels,
-written exactly as GitHub's documentation writes them, and nothing else
-is bold:
+copy (the decision came after the approved version). The steps follow
+GitHub's own documentation (see "The guide, checked against GitHub's
+documentation"); the words in bold are GitHub's labels, written exactly
+as GitHub's documentation writes them, and nothing else is bold:
 
 1. On GitHub, click your profile picture in the upper-right corner, then
    **Settings**. In the left sidebar, click **Developer settings**, then,
@@ -1952,7 +1965,8 @@ images, fonts and icons", and the `third-party-code-policy` skill, read
   files are expected to match them.
 - The three files are committed as `src/fonts/inter-latin-400.woff2`,
   `inter-latin-600.woff2` and `inter-latin-700.woff2`. The exact command,
-  the fontTools and Brotli versions, and the SHA-256 of the three source files and
+  the fontTools and Brotli versions, and the SHA-256 of the three source
+  files and
   of the three results are recorded in their `THIRD-PARTY-NOTICES.md`
   entry, so the subset can be made again.
 - Characters outside the range fall back to the system stack: a
@@ -2048,11 +2062,10 @@ page uses; the browser test checks them again, below). Text, at least
 17.62, 15.22; `--muted` on `--bg` 7.46, 7.94; `--muted` on `--card` 6.95,
 7.17; `--accent` on `--bg` 6.67, 8.96; `--accent` on `--card` 6.22,
 8.09; `--on-accent` on `--accent` 6.67, 8.32; `--on-accent` on
-`--accent-hover` 10.07, 10.94; `--alert-fg` on `--alert-bg` 10.62, 9.21. Placeholders
-(`::placeholder`, also text) use `--muted`: 7.46 light and 7.94 dark on
-`--bg`, 7.17 on the dark address field's `--card`, 6.79 light on
-`--alert-bg` in the migration block's field (whose background is
-`--bg`, so 7.46 there).
+`--accent-hover` 10.07, 10.94; `--alert-fg` on `--alert-bg` 10.62, 9.21.
+Placeholders (`::placeholder`, also text) use `--muted`: 7.46 light and
+7.94 dark on `--bg` (the migration block's field included, whose
+background is `--bg`), and 7.17 on the dark address field's `--card`.
 Field borders and the focus ring, at least 3:1 (WCAG 1.4.11):
 `--control-border` on `--card` 3.16 light, 3.97 dark, on `--bg` 3.39,
 4.40; `--alert-border` on `--alert-bg` 3.83, 4.86; `--accent` as the
@@ -2086,8 +2099,9 @@ columns; the mockup's phone board, at 390 px; tested at 375 px):
 
 #### Accessibility
 
-- **Labels.** Every field has a visible `<label for>`: "Open a project
-  from GitHub", the two "Owner" fields, "Fine-grained token, read-only".
+- **Labels.** Every field has a visible `<label for>`: the address
+  field's (its text is PBI-1.17's), the two "Owner" fields,
+  "Fine-grained token, read-only".
   Every checkbox is inside its label. The two Owner fields are told
   apart by their groups: the migration block is a `role="group"`
   labelled by its sentence, "Add a token" a `role="group"` labelled by
@@ -2101,11 +2115,11 @@ columns; the mockup's phone board, at 390 px; tested at 375 px):
   nothing in it can be focused. Not `<details>`: a button with
   `aria-expanded` is what the approved mockup has, and it keeps the
   "Private repos" toggle inside the `h2`.
-- **Headings.** The `h1` in the header; the panel's `h2` holding its
-  toggle; "Add a token" an `h3`. The results' `h2` (the project's name)
-  and their `h3` are as today. No level is skipped on the start page.
-  (3.10's heading test looks only at the `h1` and the help view's
-  section, so it is not affected.)
+- **Headings.** The `h1` in the header; the `h2` "Open a project from
+  GitHub"; the panel's `h2` holding its toggle; "Add a token" an `h3`.
+  The results' `h2` (the project's name) and their `h3` are as today. No
+  level is skipped on the start page. (3.10's heading test looks only at
+  the `h1` and the help view's section, so it is not affected.)
 - **Keyboard.** Every control is a native element in the page's tab
   order, in the order of the page: the help control, the address field,
   "Open", the panel's toggle, then, when opened, each row's checkbox and
@@ -2166,9 +2180,12 @@ changes to approved copy.
    documentation has. The full list is under "The guide, checked
    against GitHub's documentation".
 7. **The address field's label, value and placeholder are not set
-   here**: they are PBI-1.17's, which is built before this item (see
-   "Not in this item"). The boards' prefilled `https://github.com/` is
-   PBI-1.17's.
+   here**: they are PBI-1.17's, which is built before this item (the
+   decision of 17:07, a "Repository" field for `owner/repo`; see "Not
+   in this item"). The boards' prefilled `https://github.com/` carries
+   out the 16:36 decision, which 17:07 replaced, so no one builds it.
+   "Open a project from GitHub", the boards' label for the field, stays
+   as the section's heading.
 8. **A footer with the font notice**, which the mockup does not have:
    the third-party policy's rule 5.
 9. **The rows no longer say "saved in this browser" or "for this page
@@ -2226,8 +2243,8 @@ help always names controls the page has:
 
 - `index.html`: `<div id="app">` in place of `<main id="app">`.
 - `src/main.ts`: `mount()` builds the header, `main` and footer; the
-  address row's layout (the field's input as PBI-1.17 leaves it) and
-  the access line; the panel
+  address section's heading and the row's layout (the field's label
+  and input as PBI-1.17 leaves them) and the access line; the panel
   (toggle, summary, rows, migration block, "Add a token", the note, the
   guide, "Forget all tokens") in place of `mountToken()`'s fields and
   lists; `tokenLine()` builds the new row; `renderTokens()` also updates
@@ -2289,7 +2306,8 @@ Test first, as everywhere (2.2). With GitHub stubbed, synthetic tokens
     PBI-1.16 build".
 - **Browser (Playwright), a new `e2e/start.e2e.ts`:**
   - the header: the `h1` "vizi backlog visualizer", the help control in
-    the header; the address field and "Open" on one row on desktop, and
+    the header; the `h2` "Open a project from GitHub", word for word;
+    the address field and "Open" on one row on desktop, and
     "Open" under the field on a phone; the access line word for word.
     The field's label, value, placeholder and input are PBI-1.17's and
     are not tested here;
