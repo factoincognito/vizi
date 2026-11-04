@@ -41,6 +41,10 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Backlog: PBI-1.10 gains #35's follow-ups (#36).
 - Backlog: PBI-1.11 tokens per owner, PBI-1.12 saved repos (#37).
 - A flaky token browser test now waits for the new load's requests (#38).
+- PBI-1.9 done; PBI-1.11 now; changelog for #34 to #38 (#39).
+- Spec: one saved token per owner (PBI-1.11) (#40).
+- Backlog: PBI-1.13 the help view (#41).
+- PBI-1.11: one saved GitHub token per owner, picked by the owner in the address, with Remember and Forget per owner, Forget all, and the move of an earlier saved token (#42).
 
 ## Project created
 
