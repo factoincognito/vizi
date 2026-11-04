@@ -6,7 +6,8 @@
 
 1. The author opens the PR (Crog for code, Clead for docs, process and
    its own config changes).
-2. Clead starts the review directly. No automation triggers it yet:
+2. Clead starts the review directly, except where the CI reviewer reviews
+   (section "CI review" below, PO-68 pilot). No other automation triggers it:
    `review.yml` only posts a `<!-- clead-review-ready -->` marker
    comment on PRs that touch `src/`, and nothing reads it.
 3. The reviewer posts the verdict on the PR. Fix loop until approved,
@@ -17,7 +18,8 @@
 
 Adam is not in this loop and never relays messages. How Clead reaches
 Crog today: by starting Crog as a separate agent from its own session,
-with only the diff and `memory/standards.md` as input. Clead cannot
+with only the diff and the review documents of `memory/standards.md`
+section 7 as input. Clead cannot
 reach a Crog session running in Adam's VS Code (tested 2026-09-30 with
 Remote Control from a cloud Clead session: not reachable).
 
@@ -73,8 +75,7 @@ The review Routine must receive **only**:
 - `memory/standards.md`
 - `CLAUDE.md` (added for the CI reviewer, PO-68 pilot, by the product owner's
   instruction to the pilot session on 2026-11-04, recorded in product-office
-  `BACKLOG.md` PO-68; `memory/standards.md` section 7 still lists three inputs
-  and changes in the PR that makes the CI verdict count)
+  `BACKLOG.md` PO-68; `memory/standards.md` section 7 lists the same four)
 
 It must **not** receive:
 - The implementation conversation history
