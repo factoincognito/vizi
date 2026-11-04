@@ -57,7 +57,7 @@ describe("GitHub Pages workflow", () => {
     const site = job(workflow, "site");
     expect(ci).toContain("run: npm ci");
     expect(site).toContain("run: npm ci");
-    expect(ci).toContain("npm run build"); // CI builds through test:e2e, which runs npm run build
+    expect(ci).toContain("npm run test:e2e"); // CI builds through this script, which runs npm run build
     expect(read("package.json")).toMatch(/"test:e2e": "npm run build && playwright test"/);
     expect(site).toMatch(/run: npm run build\s*$/m);
   });
