@@ -1228,12 +1228,6 @@ the five steps and the closing link. The link is not a sixth step.
     the start page can be focused.
   - The view's `<section>` sits outside the wrapper, as its sibling under
     the `h1`, so hiding the wrapper never hides the view.
-  - From PBI-1.16 (3.12) the `h1` and the control are in the page's
-    `<header>`, and the wrapper and the view's `<section>` are siblings
-    in `<main>`. The control is then outside the wrapper, so opening the
-    view sets `hidden` on the control as well as on the wrapper, and
-    closing removes both. The footer's link (3.12, "The font") is
-    hidden with them. Everything else above holds.
   - A load that is under way carries on and fills the wrapper's content
     unseen. Opening the view starts no load and cancels none, and a load
     never moves the focus.
@@ -1361,15 +1355,8 @@ the five steps and the closing link. The link is not a sixth step.
      holds `github_pat_` followed by ten or more letters, digits or
      underscores. The help text for the step ends: "vizi opens
      projects from GitHub, and a private one needs this token."
-     The permission name the step uses, "Contents", is GitHub's display
-     name for it, and read is one of its access levels, as GitHub's
-     documentation gives them (checked for PBI-1.16, 3.12; section 4,
-     item 19). From PBI-1.16 the controls the step names change with
-     the start page (3.12): the step says to open "Private repos", type
-     the owner and paste the token under "Add a token", then "Add", and
-     to tick "Remember in this browser" to keep it in this browser. The
-     help text changes in the same PR as the controls, so the step
-     always names controls the page has.
+     The permission name the step uses is the one 3.8 expects; it is not
+     yet checked against GitHub (section 4, items 10, 11 and 19).
 - **The closing link.** After the ordered list of steps, outside it, with
   no heading and no example: a link "The full format, `docs/BACKLOG-FORMAT.md`,
   on GitHub" to
@@ -1383,9 +1370,7 @@ the five steps and the closing link. The link is not a sixth step.
     the closing link is after it. (3.7 keeps `h1` and `h2` for the page.
     The hidden wrapper holds the page's own `h2` of the results and
     `h3` of "Tokens in use", and a loaded project's headings from `h3`;
-    none is read while the wrapper is hidden. From PBI-1.16 it holds the
-    "Private repos" panel's `h2` and its "Add a token" `h3` in place of
-    "Tokens in use", 3.12.)
+    none is read while the wrapper is hidden.)
   - Keyboard: the control, the Back buttons and the final link are native
     elements in the page's tab order, and work with Enter and Space. On
     opening, the focus moves to the view's `h2` (`tabindex="-1"`). Escape
@@ -1452,8 +1437,7 @@ the five steps and the closing link. The link is not a sixth step.
       accessible name;
     - each code block's text equals the constant in `src/help.ts`; the
       step titles are in order; every control label the text names
-      ("Owner", "Use", "Remember the token"; from PBI-1.16 "Private repos",
-      "Owner", "Add", "Remember in this browser", 3.12)
+      ("Owner", "Use", "Remember the token")
       exists on the start page;
     - Escape and both Back buttons close it, the control is shown again,
       the focus returns to it, and a project loaded before is still
@@ -1567,10 +1551,25 @@ saved token can be used by anyone with access to this browser; on a
 shared computer, use the token for the page only, without saving it)
 add to it.
 
-The mockup is the approved look and copy: its texts, structure,
-spacing, colours and font. Its values are written out below, so this
-spec does not depend on the canvas. Every difference from it is listed
-with its reason under "Differences from the mockup".
+**What is approved, and what is Clead's draft.** The approval (15:48)
+is of the canvas version 1793803575-d7d4. What it shows is the approved
+look and copy: the structure, spacing, colours and font, and the texts
+of the header, the address section's line, the panel's toggle and
+summary, the owner rows, the earlier-token block, "Add a token" and its
+labels, and "Forget all tokens". Three parts came after it, so they are
+not in the approved version:
+
+- the token guide carries out the decision of 16:11, and the
+  saved-token note carries out the decisions of 16:17 to 16:18. Their
+  texts below are **Clead's drafts within those decisions**, not
+  approved copy; the boards read for this spec (a later version of the
+  canvas) show an earlier draft of both, by Clead too;
+- the prefilled address on the boards is PBI-1.17's (16:36), see "Not
+  in this item".
+
+The values are written out below, so this spec does not depend on the
+canvas. Every difference from the boards is listed with its reason under
+"Differences from the mockup".
 
 Clead's design, within that intent. **This is a presentation change.**
 The token behaviour of 3.8 does not change: per-owner tokens, the token
@@ -1583,11 +1582,16 @@ panels' folded or opened state is not kept.
 
 **Not in this item.**
 
-- The prefilled address (PBI-1.17, the product owner's decision of
-  2026-11-04, 16:36): later work, with its own spec change. The address
-  field stays empty, with today's placeholder
-  `https://github.com/owner/repo`. The mockup's prefilled
-  `https://github.com/` is PBI-1.17's.
+- The address field's input: its label text, value, placeholder and
+  input behaviour belong to PBI-1.17 (the product owner's decision of
+  2026-11-04, 16:36, with its own spec change), which is built before
+  this item (`docs/BACKLOG.md`: right after PBI-1.13, before PBI-1.14).
+  The product owner is also weighing an "owner/repo" field in place of
+  the prefill, so PBI-1.17 owns the field's input, whichever it
+  becomes. This item leaves all of that as PBI-1.17 has built it, and
+  does not test it. It sets only the row (the field and "Open") and
+  its layout. The boards' prefilled `https://github.com/` is
+  PBI-1.17's.
 - A local folder: the page has none (PBI-1.14, 3.11), which is built
   before this item. The redesign has no folder input.
 - The branch picker (PBI-1.15) and the saved repos list (PBI-1.12) come
@@ -1626,16 +1630,15 @@ needs it.
 
 #### "Open a project from GitHub"
 
-- A `<form id="url-form">` (as today) with: the label "Open a project
-  from GitHub" (15 px, weight 600) for `#url-input`; on one row, the
-  address field `#url-input` (48 px high, grows to fill the row, 16 px
-  text, radius 8 px) and the button `#open-url`, "Open" (48 px high,
-  padding 0 24 px, 16 px, weight 600, the primary style), 8 px apart.
-  Submitting it starts the load of 3.1, as today; Enter in the field
-  submits.
-- The address field keeps today's attributes: `type="text"`,
-  `autocomplete="off"`, the placeholder `https://github.com/owner/repo`,
-  and an empty value (PBI-1.17 is later).
+- A `<form id="url-form">` (as today) with: the field's label above
+  the row (15 px, weight 600; its text is PBI-1.17's, the boards show
+  "Open a project from GitHub"); on one row, the address field
+  `#url-input` (48 px high, grows to fill the row, 16 px text, radius
+  8 px) and the button `#open-url`, "Open" (48 px high, padding 0 24 px,
+  16 px, weight 600, the primary style), 8 px apart. Submitting it
+  starts the load of 3.1, as today; Enter in the field submits.
+- The field's attributes, value and placeholder are as PBI-1.17 leaves
+  them; this item changes only its size and style.
 - Under the row, one line of static text (14 px, muted), word for word:
   "Public repos open without a token. Private repos need a token for
   their owner. All access is read-only: vizi never changes anything on
@@ -1722,24 +1725,31 @@ token.
 3. **"Add a token"**, a group labelled by its `h3` "Add a token" (15 px,
    weight 600), with 18 px above it, a 1 px line above that, and 14 px
    between the migration block and the line:
-   - on desktop, one grid row of three columns, 170 px, the rest and 96
-     px, 8 px apart, aligned at the bottom:
+   - on desktop, one grid row of two columns, 170 px and the rest, 8 px
+     apart, aligned at the bottom:
      - the label "Owner" (13 px, muted) over `#owner-input` (44 px high,
        placeholder "owner", `autocomplete="off"`, spellcheck off);
      - the label "Fine-grained token, read-only" (13 px, muted) over
        `#token-input` (44 px high, `type="password"`, placeholder
        "github_pat_…", `autocomplete="off"`, spellcheck off);
-     - the button `#token-use`, "Add" (44 px high, the primary style);
-   - under it, the checkbox `#token-remember`, "Remember in this
-     browser", off until the user ticks it (3.8);
+   - under it, one row: the checkbox `#token-remember`, "Remember in
+     this browser", off until the user ticks it (3.8), at the left, and
+     the button `#token-use`, "Add" (44 px high, at least 96 px wide,
+     the primary style), at the right. The box comes before "Add" in
+     the page and in the tab order, because "Add" reads the box when it
+     is used (3.8; `src/main.ts`): a box ticked after "Add" saves
+     nothing. The phone board has this order; the desktop board put
+     "Add" in the fields' row (see "Differences from the mockup");
    - the panel's message line `#token-message` (`role="status"`, as
      today), which takes no space while empty;
-   - the saved-token note `#token-note` (13 px, muted), word for word:
-     "If you tick Remember, the token is saved in this browser: anyone
-     who can use this browser on this device can open your private repos
-     with it. On a shared computer, leave Remember unticked: the token
-     then lasts only until you close or reload this page. Other
-     factoincognito Pages sites share this page's origin and can reach
+   - the saved-token note `#token-note` (13 px, muted), Clead's draft
+     within the decisions of 16:17 to 16:18 (its first two sentences)
+     and 3.8, "The shared origin" (its last), word for word: "If you
+     tick Remember, the token is saved in this browser: anyone who can
+     use this browser on this device can open your private repos with
+     it. On a shared computer, leave Remember unticked: the token then
+     lasts only until you close or reload this page. Other
+     factoincognito Pages sites share this page's storage and can reach
      the tokens, saved or not.";
    - the token guide (below), folded.
 
@@ -1767,7 +1777,8 @@ read-only token?", with `aria-expanded` (`false` at first) and
 is folded whenever the page opens, and its state is not stored.
 
 Opened, it shows an ordered list (14 px, line height 1.45, 6 px apart).
-The steps follow GitHub's own documentation (see "The guide, checked
+Its text is **Clead's draft within the decision of 16:11**, not approved
+copy (the decision came after the approved version). The steps follow GitHub's own documentation (see "The guide, checked
 against GitHub's documentation"); the words in bold are GitHub's labels,
 written exactly as GitHub's documentation writes them, and nothing else
 is bold:
@@ -1790,9 +1801,10 @@ is bold:
    owner.
 
 After the list, one paragraph: "If the owner is an organisation that
-requires approval of fine-grained tokens, GitHub asks for a
-justification under **Resource owner**, and the token reads only public
-repos until an organisation owner approves it."
+requires approval of fine-grained tokens, you can enter a justification
+below **Resource owner**. The token is then pending, and reads only
+public repos, until an organisation administrator approves it. A token
+made by an owner of the organisation is approved at once."
 
 The guide's text, like the access line and the note, is static data in
 a module (`src/start.ts`), built into the one inline script, rendered
@@ -1829,16 +1841,23 @@ What the documentation says, step by step, and where the guide takes it:
 | 6 | "Click **Generate token**." |
 | Note | "Optionally, if the resource owner is an organization that requires approval for fine-grained personal access tokens, below the resource owner, in the box, enter a justification for the request." "… your token will be marked as `pending` until it is reviewed by an organization administrator. Your token will only be able to read public resources until it is approved. If you are an owner of the organization, your request is automatically approved." |
 
-What the guide does not say, and why:
+How the guide differs from the earlier draft on the boards (both
+Clead's): every step is reworded to the documentation's labels and
+order. Step 1 gains the profile picture, the left sidebar and the email
+check; step 2 "Under **Token name**" and "Under **Expiration**"; step 3
+a sentence on one token per owner; step 4 "**Selected repositories**";
+step 5 the Metadata sentence and "read access, not write"; step 6 says
+"copy the token" in place of "copy it: GitHub shows it only once"; and
+the organisation paragraph is new. What the guide does not say, and
+why:
 
-- **"Read-only".** The mockup's step said to set Contents to
+- **"Read-only".** The earlier draft said to set Contents to
   "Read-only". The documentation names the access levels `read` and
   `write` and does not give the label GitHub's token page shows for
   them, so the guide says "read access, not write" instead of a label
-  that was not checked. That is the one wording change against the
-  mockup's guide.
-- **"GitHub shows it only once".** The mockup's last step said so; the
-  section read does not say it, so the guide does not.
+  that was not checked.
+- **"GitHub shows it only once".** The earlier draft's last step said
+  so; the section read does not say it, so the guide does not.
 - Description, single sign-on and the token limit: optional or not
   about this use; left out to keep the steps short.
 
@@ -1908,8 +1927,9 @@ images, fonts and icons", and the `third-party-code-policy` skill, read
   Google Fonts link asked for `wght@400;600;700`). No italic: the
   start page has none; the rendered Markdown's emphasis is drawn by the
   browser as an oblique of the regular face.
-- Each is subset with fontTools (MIT licence) 4.68.0, run by hand once,
-  not in the build and not in CI, with the Brotli module for WOFF2:
+- Each is subset with fontTools 4.68.0 (MIT licence), run by hand once,
+  not in the build and not in CI, with the Python Brotli module 1.2.1
+  (MIT licence) for WOFF2; the output's bytes depend on both versions:
 
   ```
   pyftsubset Inter-<Weight>.woff2 \
@@ -1921,11 +1941,18 @@ images, fonts and icons", and the `third-party-code-policy` skill, read
 
   The range covers ASCII, Latin-1 (Swedish included), the dashes, curly
   quotes, the bullet, the ellipsis of the masked token and an arrow. A
-  trial run on 2026-11-04 gave files of 14336, 14712 and 14600 bytes
-  (about 58 KB in the page as base64, against about 455 KB unsubset).
+  trial run on 2026-11-04, with those two versions, gave files of 14336,
+  14712 and 14600 bytes (about 58 KB in the page as base64, against
+  about 455 KB unsubset), with the SHA-256 (400)
+  `09f7060b39c4ab7cf05a457d226c1c73bf2108eddce324a7c9239a7899932e46`,
+  (600) `734665df975d0e5d308812a9cbade0df719eefe837f950815fff29a84a910b1e`
+  and (700)
+  `0fa8884cf33c85e2be6c8aef4e22a6d855ecaae049a267fcdc95cb47fc3ca6a9`;
+  Crog's review of PR #57 got the same sizes and hashes. The builder's
+  files are expected to match them.
 - The three files are committed as `src/fonts/inter-latin-400.woff2`,
   `inter-latin-600.woff2` and `inter-latin-700.woff2`. The exact command,
-  the fontTools version and the SHA-256 of the three source files and
+  the fontTools and Brotli versions, and the SHA-256 of the three source files and
   of the three results are recorded in their `THIRD-PARTY-NOTICES.md`
   entry, so the subset can be made again.
 - Characters outside the range fall back to the system stack: a
@@ -1946,9 +1973,11 @@ images, fonts and icons", and the `third-party-code-policy` skill, read
   `data:` URLs only, so the page's own inlined fonts load, and a font
   from any host is still refused. `'self'` is not used: the fonts are
   in the document, and a page opened from disk has no useful `'self'`.
-  Since `style-src` allows only the build's own hashed style, no other
-  `@font-face` can reach the page, so `data:` admits only the build's
-  fonts.
+  A font can reach the page in two ways, and both stay closed to
+  anything but the build: an `@font-face` rule needs a style, and
+  `style-src` allows only the build's own hashed style; the `FontFace`
+  API needs a script, and `script-src` allows only the build's own
+  hashed script. So `data:` admits only the build's fonts.
 - `font-family` for the page: `Inter, system-ui, sans-serif`. Code, the
   masked token and the umbrella view's pointers use the monospace stack
   `ui-monospace, Menlo, Consolas, monospace`, as the mockup does for the
@@ -1982,7 +2011,8 @@ rule 5; the repo has none yet). Its entry for Inter:
   own, and the files in `src/fonts/` are under the OFL 1.1, not under
   vizi's licence;
 - how the subset was made: the source files and their SHA-256, the
-  command, fontTools 4.68.0 (MIT), and the SHA-256 of the results.
+  command, fontTools 4.68.0 (MIT) and Brotli 1.2.1 (MIT), and the
+  SHA-256 of the results.
 
 #### Light, dark and phone
 
@@ -2018,7 +2048,11 @@ page uses; the browser test checks them again, below). Text, at least
 17.62, 15.22; `--muted` on `--bg` 7.46, 7.94; `--muted` on `--card` 6.95,
 7.17; `--accent` on `--bg` 6.67, 8.96; `--accent` on `--card` 6.22,
 8.09; `--on-accent` on `--accent` 6.67, 8.32; `--on-accent` on
-`--accent-hover` 10.07, 10.94; `--alert-fg` on `--alert-bg` 10.62, 9.21.
+`--accent-hover` 10.07, 10.94; `--alert-fg` on `--alert-bg` 10.62, 9.21. Placeholders
+(`::placeholder`, also text) use `--muted`: 7.46 light and 7.94 dark on
+`--bg`, 7.17 on the dark address field's `--card`, 6.79 light on
+`--alert-bg` in the migration block's field (whose background is
+`--bg`, so 7.46 there).
 Field borders and the focus ring, at least 3:1 (WCAG 1.4.11):
 `--control-border` on `--card` 3.16 light, 3.97 dark, on `--bg` 3.39,
 4.40; `--alert-border` on `--alert-bg` 3.83, 4.86; `--accent` as the
@@ -2045,7 +2079,9 @@ columns; the mockup's phone board, at 390 px; tested at 375 px):
   high, 15 px text); then "Remember in this browser" and "Add" (44 px
   high, padding 0 22 px) at both ends of one line; then the message
   line, the note and the guide's toggle (at least 44 px high);
-- every control at least 44 px high; no sideways scroll at 375 px, long
+- every control at least 44 px high, a checkbox counting by its label,
+  which holds the box and is the target a tap hits; no sideways scroll
+  at 375 px, long
   owner names wrapping (`overflow-wrap: anywhere`, as today).
 
 #### Accessibility
@@ -2074,7 +2110,7 @@ columns; the mockup's phone board, at 390 px; tested at 375 px):
   order, in the order of the page: the help control, the address field,
   "Open", the panel's toggle, then, when opened, each row's checkbox and
   "Forget", the migration block's field, "Keep" and "Forget it", the Add
-  fields, "Add", "Remember in this browser", the guide's toggle, "Forget
+  fields, "Remember in this browser", "Add", the guide's toggle, "Forget
   all tokens", and the footer's link. Enter and Space work on buttons
   and checkboxes. No key is caught by the start page; Escape stays the
   help view's (3.10).
@@ -2091,6 +2127,12 @@ columns; the mockup's phone board, at 390 px; tested at 375 px):
 - **Contrast** as in the table above. Text is real text.
 
 #### Differences from the mockup, and why
+
+Against the boards read for this spec. Points 3 to 6 are about the note
+and the guide, which are Clead's drafts within the decisions of 16:11
+and 16:17 to 16:18 (see the start of this section): they list how the
+drafts here differ from Clead's earlier drafts on the boards, not
+changes to approved copy.
 
 1. **The help link is a button**, styled as the mockup's link. The
    mockup has `<a href="#help">`; 3.10 settles that the view has no hash
@@ -2111,16 +2153,22 @@ columns; the mockup's phone board, at 390 px; tested at 375 px):
 4. **The note keeps the shared-origin sentence on a phone**, which the
    phone board leaves out: 3.8 asks for it next to the token field.
 5. **The note says the tokens are reachable "saved or not"**, where the
-   mockup says "saved tokens": 3.8, "The shared origin", sets out that
-   another site on the origin can also script into the page and read a
-   token held only in memory. The mockup's wording would say less than
-   is true.
-6. **The guide says "read access, not write"** in place of the mockup's
-   "**Read-only**", and drops "GitHub shows it only once": neither is
-   in GitHub's documentation as read (above). It adds the email check
-   and the organisation-approval paragraph, which the documentation has.
-7. **The address field is empty**, with today's placeholder; the
-   mockup's prefilled `https://github.com/` is PBI-1.17's, later.
+   board says "saved tokens too": 3.8, "The shared origin", sets out
+   that another site on the same origin can also script into the page
+   and read a token held only in memory, which is not in storage. The
+   board's wording would say less than is true. The note keeps the
+   board's plain words "share this page's storage".
+6. **The guide is reworded to GitHub's documentation**: every step
+   takes the documentation's labels and order, it says "read access,
+   not write" in place of "**Read-only**", it drops "GitHub shows it
+   only once" (neither is in the documentation as read), and it adds
+   the email check and the organisation-approval paragraph, which the
+   documentation has. The full list is under "The guide, checked
+   against GitHub's documentation".
+7. **The address field's label, value and placeholder are not set
+   here**: they are PBI-1.17's, which is built before this item (see
+   "Not in this item"). The boards' prefilled `https://github.com/` is
+   PBI-1.17's.
 8. **A footer with the font notice**, which the mockup does not have:
    the third-party policy's rule 5.
 9. **The rows no longer say "saved in this browser" or "for this page
@@ -2133,12 +2181,53 @@ columns; the mockup's phone board, at 390 px; tested at 375 px):
 11. **Monospace for code and the masked token**, as the mockup itself
     does for the masked token; Inter for all other text. "One font
     everywhere" is read as one text font.
+12. **On desktop, "Add" is beside "Remember in this browser", under the
+    fields**, where the desktop board puts it at the end of the fields'
+    row and the box under that row. "Add" reads the box when it is
+    used, so the box comes first in the page and in the tab order;
+    putting it first only visually (CSS order) would make the tab order
+    differ from what is seen. The phone board already has this order.
+
+#### Changes to the help view at the PBI-1.16 build
+
+3.10 is not changed by this spec: PR #45 is building it now. The build
+of PBI-1.16 makes these changes to the help view, in `src/help.ts`, its
+tests and the text of 3.10, in the same PR as the start page, so the
+help always names controls the page has:
+
+1. **Where the control is** (3.10, "Opening and closing", first
+   bullet): no longer 'under the "Vizi - backlog visualizer" heading',
+   but in the page's `<header>`, at the right of the `h1` "vizi backlog
+   visualizer" (on a phone, under it).
+2. **What opening hides** (3.10, second and third bullets): the `h1`
+   and the control are in the `<header>`, and the wrapper and the view's
+   `<section>` are siblings in `<main>`. The control is then outside the
+   wrapper, so opening the view sets `hidden` on the control and on the
+   footer as well as on the wrapper, and closing removes all three.
+   Everything else in 3.10 holds.
+3. **Step 5's controls**: the step says to open "Private repos", type
+   the owner and paste the token under "Add a token", tick "Remember in
+   this browser" to keep it in this browser, and then "Add" (the box
+   before "Add", as the page has them).
+4. **Step 5's permission**: "the repository permission "Contents" with
+   read access", the words the token guide uses, in place of "set to
+   read-only"; and the sentence that the permission name is not yet
+   checked becomes: checked against GitHub's documentation (section 4,
+   item 19).
+5. **The heading note** (3.10, "Accessibility"): the hidden wrapper
+   holds the "Private repos" panel's `h2` and its "Add a token" `h3`, in
+   place of the `h3` of "Tokens in use".
+6. **The tests** (3.10, "Tests"): the control labels the help text
+   names are "Private repos", "Owner", "Remember in this browser" and
+   "Add", and they exist on the start page, inside the panel; the unit
+   test checks that step 5 says "read access".
 
 #### What changes in `src/` and around it (no code here)
 
 - `index.html`: `<div id="app">` in place of `<main id="app">`.
 - `src/main.ts`: `mount()` builds the header, `main` and footer; the
-  address section with its new label and the access line; the panel
+  address row's layout (the field's input as PBI-1.17 leaves it) and
+  the access line; the panel
   (toggle, summary, rows, migration block, "Add a token", the note, the
   guide, "Forget all tokens") in place of `mountToken()`'s fields and
   lists; `tokenLine()` builds the new row; `renderTokens()` also updates
@@ -2156,10 +2245,8 @@ columns; the mockup's phone board, at 390 px; tested at 375 px):
   line, the note, the guide's steps and paragraph as text and bold
   parts, the footer notice), the docs commit the guide was checked
   against, and the summary function.
-- `src/help.ts` (PBI-1.13, in PR #45 today): step 5's control names
-  change with the controls: open "Private repos", type the owner and
-  paste the token under "Add a token", then "Add"; tick "Remember in
-  this browser" to keep it (3.10).
+- `src/help.ts` (PBI-1.13, in PR #45 today): as listed under "Changes
+  to the help view at the PBI-1.16 build".
 - `src/style.css`: the colour variables above, the three `@font-face`
   rules, the font stacks, the layout of the header, start column,
   address row, panel, rows, migration block, "Add a token", guide and
@@ -2187,8 +2274,9 @@ Test first, as everywhere (2.2). With GitHub stubbed, synthetic tokens
     access", "Only select repositories", "Selected repositories",
     "Permissions", "Contents", "Metadata", "Generate token"), and each of
     them appears; the text does not hold "classic", and no bold part
-    reads "Read-only"; no part matches `github_pat_[A-Za-z0-9_]{10,}`; the recorded docs commit
-    is `e44c283a7f901f63aead1ea13cf9062956706e24`;
+    reads "Read-only"; no part matches `github_pat_[A-Za-z0-9_]{10,}`;
+    the recorded docs commit is
+    `e44c283a7f901f63aead1ea13cf9062956706e24`;
   - `src/fonts.test.ts`: each of the three files starts with the WOFF2
     signature `wOF2`, is under 20 KB, and, its table directory read and
     its data decompressed with Node's Brotli, holds a `name` table with
@@ -2197,11 +2285,14 @@ Test first, as everywhere (2.2). With GitHub stubbed, synthetic tokens
     `THIRD-PARTY-NOTICES.md`; `licenses/OFL-1.1-Inter.txt` holds the
     copyright line and "SIL OPEN FONT LICENSE Version 1.1";
   - `src/csp.test.ts`: the policy, exactly, now with `font-src data:`;
-  - `src/help.test.ts`: the control labels step 5 names.
+  - `src/help.test.ts`: as under "Changes to the help view at the
+    PBI-1.16 build".
 - **Browser (Playwright), a new `e2e/start.e2e.ts`:**
   - the header: the `h1` "vizi backlog visualizer", the help control in
-    the header; the address field's label, placeholder and empty value;
-    the access line word for word; Enter in the address field loads;
+    the header; the address field and "Open" on one row on desktop, and
+    "Open" under the field on a phone; the access line word for word.
+    The field's label, value, placeholder and input are PBI-1.17's and
+    are not tested here;
   - the panel folded at start, `aria-expanded="false"`, its body hidden,
     the summary as stated; opening it with Enter and with Space, then
     folding it; the focus stays on the toggle; reloading folds it again
@@ -2223,14 +2314,25 @@ Test first, as everywhere (2.2). With GitHub stubbed, synthetic tokens
   - tab order as listed under "Accessibility";
   - contrast: for every visible text element of the start page, with the
     panel and the guide opened and a migration block shown, the ratio of
-    its computed colour to its computed background is at least 4.5:1;
-    for every field, its border to its background at least 3:1;
-  - the font: after `document.fonts.ready`, `document.fonts.check` is
-    true for Inter at 400, 600 and 700, and the computed `font-family`
-    of the body starts with Inter;
+    its computed colour to its background is at least 4.5:1, and so for
+    every field's placeholder (its `::placeholder` colour) against the
+    field; for every field, its border to the background around it at
+    least 3:1. "Its background" is the nearest opaque background: the
+    element's own computed background colour if it is opaque, otherwise
+    that of the nearest ancestor whose background is opaque (most
+    elements' own background is transparent);
+  - **the font loaded:** after `document.fonts.ready`, the test calls
+    `document.fonts.load` for Inter at 400, 600 and 700, then checks
+    that `document.fonts` holds exactly three `FontFace`s with the
+    family "Inter", one each with the weights 400, 600 and 700, each
+    with the `status` "loaded". (`document.fonts.check` is not used: it
+    returns true when no face in the set matches, and the computed
+    `font-family` is the declaration, not the font in use, so neither
+    shows that Inter loaded);
   - phone: no sideways scroll at 375 px with the panel and the guide
     opened, two rows and a migration block; the Open button under the
-    field; every button at least 44 px high.
+    field; every control at least 44 px high: every button, field and
+    toggle, and every checkbox's label (the box's tap target).
 - **Every 3.8 behaviour test still passes on the new controls.**
   `e2e/token.e2e.ts` keeps every test and every assertion's meaning. Its
   changes are only of how it reaches the controls and of texts the
@@ -2245,7 +2347,9 @@ Test first, as everywhere (2.2). With GitHub stubbed, synthetic tokens
   The unit tests of `src/token.ts` and `src/github.ts` do not change.
 - **The policy still blocks everything else.** `e2e/csp.e2e.ts` runs as
   today, with no violation and no console error, with the panel and the
-  guide opened, and adds: the page's fonts load with no violation; a
+  guide opened, and adds: the page's fonts load with no violation, by
+  the same check as `e2e/start.e2e.ts` (three "Inter" faces, 400, 600
+  and 700, each with the `status` "loaded"); a
   font from another host (an `@font-face` added at run time through
   `document.fonts.add` with a remote URL, and a stylesheet added at run
   time) is blocked; a script added at run time, a style attribute, a
