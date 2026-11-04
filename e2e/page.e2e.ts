@@ -7,23 +7,20 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { test as base, expect, type Page, type Route } from "@playwright/test";
+import { isAllowedRequest } from "./guard";
 
 /**
- * Every test: any request other than the page's own document and the two
- * GitHub hosts of 3.1 fails the test (SPEC 2.3, 3.7 item 5).
+ * Every test: any request other than the page's own document (served, or
+ * opened from disk) and the two GitHub hosts of 3.1 fails the test (SPEC
+ * 2.3, 3.7 item 5).
  */
 const test = base.extend<{ guard: undefined }>({
   guard: [
     async ({ page, baseURL }, use) => {
       const stray: string[] = [];
+      const own = [`${baseURL}/`, pathToFileURL(join(__dirname, "..", "dist", "index.html")).href];
       page.on("request", (r) => {
-        const u = r.url();
-        const ok =
-          u === `${baseURL}/` ||
-          u.startsWith("file:") ||
-          u.startsWith("https://api.github.com/") ||
-          u.startsWith("https://raw.githubusercontent.com/");
-        if (!ok) stray.push(u);
+        if (!isAllowedRequest(r.url(), own)) stray.push(r.url());
       });
       await use(undefined);
       expect(stray, "requests the page should not make").toEqual([]);
@@ -185,6 +182,40 @@ test.describe("GitHub URL input (3.1)", () => {
     await expect(page.locator("#message")).toContainText("truncated");
   });
 
+  test("a truncated file list: the report says so, and the documentation list and code-span links hold only the files GitHub sent", async ({
+    page,
+  }) => {
+    // docs/guide.md is in the backlog's text but not in the (truncated) list.
+    await stubGithub(page, {
+      truncated: true,
+      tree: ["README.md", "STATUS.md", "docs/BACKLOG.md"],
+    });
+    await page.goto("/");
+    await openUrl(page);
+    await page.getByRole("tab", { name: /^Report/ }).click();
+    const note = page
+      .locator('[data-testid="report-item"][data-kind="info"]')
+      .filter({ hasText: "file list was truncated" });
+    await expect(note).toHaveCount(1);
+    await expect(note).toContainText("documentation list and file links may be incomplete");
+    await page.getByRole("tab", { name: "Documentation" }).click();
+    await expect(page.getByTestId("doc-link")).toHaveText(["README.md", "docs/BACKLOG.md"]);
+    await page.getByRole("tab", { name: "Board" }).click();
+    const card = page.locator('[data-testid="card"][data-id="WG-1"]');
+    await card.locator("summary").click();
+    // The code span names a file that is not in the list: no link. The relative link still goes to github.com.
+    await expect(card.locator('a:has(code:text("docs/guide.md"))')).toHaveCount(0);
+    await expect(card.locator('a[href$="/blob/main/docs/guide.md"]')).toHaveCount(1);
+  });
+
+  test("a complete file list adds no truncation note to the report", async ({ page }) => {
+    await stubGithub(page);
+    await page.goto("/");
+    await openUrl(page);
+    await page.getByRole("tab", { name: /^Report/ }).click();
+    await expect(page.getByTestId("report-item").filter({ hasText: "truncated" })).toHaveCount(0);
+  });
+
   test("works on a page opened from disk (file://)", async ({ page }) => {
     await stubGithub(page);
     await page.goto(pathToFileURL(join(here, "..", "dist", "index.html")).href);
@@ -237,7 +268,8 @@ test.describe("status (3.3)", () => {
     });
     await page.goto("/");
     await openUrl(page);
-    await expect(page.getByTestId("blockers-none")).toHaveText("No blockers listed");
+    await expect(page.getByTestId("blockers-empty")).toHaveText("No blockers listed");
+    await expect(page.getByTestId("blockers-none")).toHaveCount(0);
     await stubGithubStatus(page, "# Status\n## Phase\nx\n");
     await openUrl(page);
     await expect(page.getByTestId("blockers-missing")).toHaveText("not given");
@@ -252,6 +284,7 @@ test.describe("status (3.3)", () => {
     await openUrl(page);
     await expect(page.getByTestId("blockers-none")).toContainText("None");
     await expect(page.getByTestId("blockers-none")).toContainText("Waiting on nothing.");
+    await expect(page.getByTestId("blockers-empty")).toHaveCount(0);
     await expect(page.getByTestId("blocker")).toHaveCount(0);
   });
 });
@@ -414,6 +447,116 @@ test.describe("rendering contract (3.7)", () => {
   });
 });
 
+/**
+ * A second repo, acme/slow, whose first answer waits until `release()`.
+ * `finished` resolves when its last answer has been sent.
+ */
+async function stubSlowRepo(page: Page, answer: "files" | "error") {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let finish!: () => void;
+  const finished = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const cors = { "access-control-allow-origin": "*" };
+  await page.route(/\/acme\/slow/, async (route: Route) => {
+    const url = route.request().url();
+    if (url === "https://api.github.com/repos/acme/slow") {
+      await gate;
+      if (answer === "error") {
+        await route.fulfill({ status: 500, headers: cors, body: "" });
+        finish();
+        return;
+      }
+      return route.fulfill({
+        status: 200,
+        headers: cors,
+        body: JSON.stringify({ default_branch: "main" }),
+      });
+    }
+    if (url.endsWith("recursive=1")) {
+      return route.fulfill({
+        status: 200,
+        headers: cors,
+        body: JSON.stringify({
+          truncated: false,
+          tree: [{ path: "docs/BACKLOG.md", type: "blob" }],
+        }),
+      });
+    }
+    await route.fulfill({ status: 200, headers: cors, body: "- **[NOW] SL-1** — Slow.\n" });
+    finish();
+  });
+  return { release, finished };
+}
+
+/** Gives the page time to act on an answer it has just been sent (in the page, so no test clock is involved). */
+const settle = (page: Page) => page.evaluate(() => new Promise<void>((r) => setTimeout(r, 150)));
+
+test.describe("a late answer from an older load (3.1)", () => {
+  const SLOW = "https://github.com/acme/slow";
+
+  test("is ignored when a newer address was submitted", async ({ page }) => {
+    await stubGithub(page);
+    const slow = await stubSlowRepo(page, "files");
+    await page.goto("/");
+    await openUrl(page, SLOW);
+    await openUrl(page);
+    await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
+    slow.release();
+    await slow.finished;
+    await settle(page);
+    await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
+    await expect(page.getByTestId("card").filter({ hasText: "SL-1" })).toHaveCount(0);
+    await expect(page.getByTestId("card").filter({ hasText: "WG-1" })).toHaveCount(1);
+  });
+
+  test("does not show its error over the newer load's results", async ({ page }) => {
+    await stubGithub(page);
+    const slow = await stubSlowRepo(page, "error");
+    await page.goto("/");
+    await openUrl(page, SLOW);
+    await openUrl(page);
+    await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
+    slow.release();
+    await slow.finished;
+    await settle(page);
+    await expect(page.locator("#results")).toBeVisible();
+    await expect(page.locator("#message")).not.toContainText("500");
+    await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
+  });
+
+  test("is ignored when a refused address was submitted after it", async ({ page }) => {
+    await stubGithub(page);
+    const slow = await stubSlowRepo(page, "files");
+    await page.goto("/");
+    await openUrl(page, SLOW);
+    await openUrl(page, "not an address");
+    await expect(page.locator("#message")).toContainText("Enter a public repo address");
+    slow.release();
+    await slow.finished;
+    await settle(page);
+    await expect(page.locator("#message")).toContainText("Enter a public repo address");
+    await expect(page.locator("#results")).toBeHidden();
+  });
+
+  test("is ignored when a folder was picked after it", async ({ page }) => {
+    await stubGithub(page);
+    const slow = await stubSlowRepo(page, "files");
+    await page.goto("/");
+    await openUrl(page, SLOW);
+    await page.locator("#folder-input").setInputFiles(project);
+    await expect(page.locator("#project-name")).toHaveText("project");
+    slow.release();
+    await slow.finished;
+    await settle(page);
+    await expect(page.locator("#project-name")).toHaveText("project");
+    await expect(page.getByTestId("card").filter({ hasText: "SL-1" })).toHaveCount(0);
+  });
+});
+
 test.describe("local folder input (3.1, 3.4)", () => {
   test("reads a project folder: board, status, docs; opens a doc in the page; resolves relative links", async ({
     page,
@@ -440,6 +583,23 @@ test.describe("local folder input (3.1, 3.4)", () => {
     await view.getByRole("link", { name: "readme" }).click();
     await expect(view.locator(".md h3")).toHaveText("Widget");
     expect(stray).toEqual([]);
+  });
+
+  test("shows a file that is not Markdown as code, as written", async ({ page }) => {
+    await page.goto("/");
+    await page.locator("#folder-input").setInputFiles(project);
+    await page.getByRole("tab", { name: "Documentation" }).click();
+    await page.getByTestId("doc-link").filter({ hasText: "docs/guide.md" }).click();
+    const view = page.locator("#doc-view");
+    await view.getByRole("link", { name: "the source" }).click();
+    await expect(view.locator("h2")).toHaveText("src/index.ts");
+    await expect(view.locator("pre code")).toContainText("// # Not a heading, and *not emphasis*");
+    await expect(view.locator("pre code")).toContainText("[not a link](https://example.com)");
+    await expect(view.locator(".md")).toHaveCount(0);
+    await expect(view.locator("a")).toHaveCount(0);
+    await expect(view.locator("script")).toHaveCount(0);
+    const pwned = await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned);
+    expect(pwned).toBeUndefined();
   });
 
   test("picks a folder on a page opened from disk (file://)", async ({ page }) => {
