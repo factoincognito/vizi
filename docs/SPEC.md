@@ -10,10 +10,10 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
 
 ## What is decided, and what is Clead's design
 
-**Decided by the product owner.** Two sets of decisions, and nothing else:
+**Decided by the product owner.** These decisions, and nothing else:
 
 1. His decisions of 2026-11-03, listed in section 1 (also in
-   `memory/project.md`).
+   `memory/project.md`), as changed by item 3.
 2. His intent approval of 2026-11-04, given in chat and recorded as a
    comment on PR #3: "I approve the intent of the vizi spec as
    summarised: inputs, board, list, status, documentation links, report
@@ -32,6 +32,13 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
    > synthetic data and no network; the web pack's no-external-requests
    > rule read as covering what the page loads at startup, so fetching a
    > backlog after an address is typed is allowed.
+3. His decision of 2026-11-04 (08:56, "apyr", on Clead's
+   recommendation): vizi is published on GitHub Pages at
+   `https://factoincognito.github.io/vizi/`, built and deployed by a
+   workflow on every merge to `main` (PBI-1.7). It replaces "the first
+   version is opened locally, not deployed" of 2026-11-03 (section 1).
+   His intent approval of this spec change is recorded as a comment on
+   PR #23.
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -51,7 +58,8 @@ wording of the external-requests rule (section 4, item 8).
 status, its work items, their state and description, with links to the
 project's documentation.
 
-**Decided by the product owner (2026-11-03):**
+**Decided by the product owner (2026-11-03; one point replaced on
+2026-11-04):**
 
 - vizi shows a project's backlog file as a backlog list and as a kanban
   board, with columns by marker (`NOW`, `NEXT`, `LATER` and so on). It
@@ -65,8 +73,12 @@ project's documentation.
   projects.
 - A project's status is read from its `STATUS.md`.
 - It is a generated web page, built with the template's web pack
-  (`languages/web/`). The first version is opened locally, not
-  deployed; deployment comes later.
+  (`languages/web/`).
+  - 2026-11-03: the first version is opened locally, not deployed;
+    deployment comes later.
+  - Replaced on 2026-11-04: vizi is published on GitHub Pages at
+    `https://factoincognito.github.io/vizi/`, built and deployed by a
+    workflow on every merge to `main` (2.2; PBI-1.7).
 - The page reports what it could not read. There is no command-line lint
   for CI in the first version.
 - A backlog format spec ships with it: `docs/BACKLOG-FORMAT.md`.
@@ -120,10 +132,41 @@ with Jest, test first; `src/main.ts` is covered by the Playwright tests
 test. No fixture is copied from a real project's backlog or status file.
 No test reaches the network (2.3).
 
-The first version is opened locally, not deployed. The pack's
-`deploy.yml` is in `languages/web/` and not in `.github/workflows/`, so
-it does not run in this repo (checked at `0191768`). Deployment, when it
-comes, is its own backlog item.
+**Published on GitHub Pages** (product owner, 2026-11-04; PBI-1.7,
+workflow in PR #22). Clead's design for how:
+
+- `.github/workflows/pages.yml` builds the page and deploys `dist/` to
+  `https://factoincognito.github.io/vizi/` on every push to `main`
+  (every merge), and when started by hand (`workflow_dispatch`). A run
+  started by hand from another branch builds but does not deploy: the
+  deploy job runs only for `refs/heads/main`.
+- Its job `site` runs `npm ci` and `npm run build`, the scripts CI uses,
+  with the same `checkout` and `setup-node` actions and Node.js 24. The
+  job `deploy` runs after it and deploys with GitHub's own Pages actions
+  (`configure-pages`, `upload-pages-artifact` with the path `dist`,
+  `deploy-pages`, each pinned to a major version) to the `github-pages`
+  environment.
+- Permissions: `contents: read` for the workflow; `pages: write` and
+  `id-token: write` for the `deploy` job only. One deploy runs at a
+  time (concurrency group `pages`), and a running deploy is allowed to
+  finish.
+- It has no `pull_request` trigger and no job named `build`, so it never
+  touches the required `build` check of `ci.yml`.
+- It publishes only once the repo's Pages source is set to "GitHub
+  Actions", a setting only the product owner can change; until then the
+  deploy job is expected to fail (PR #22; not checked).
+- The site is served under `/vizi/`. The single file has no
+  root-relative reference, so Vite's default `base` stays.
+- The pack's Cloudflare `deploy.yml` stays in `languages/web/`, unused:
+  it is not in `.github/workflows/` (checked at `0191768`).
+
+**Browser storage.** Every Pages site of the factoincognito account is
+served from one origin, `https://factoincognito.github.io`, so they all
+share that origin's browser storage (local storage, IndexedDB and the
+like). vizi stores nothing in the browser today: `src/` uses no storage
+API. Anything vizi saves later, such as the token of PBI-1.8, can be
+read by every other factoincognito Pages site; a custom domain would
+give vizi an origin of its own.
 
 ### 2.3 The web pack's "no external requests" rule
 
@@ -141,7 +184,17 @@ Clead's design: the load check stays as it is. The only requests the
 page ever makes are the GitHub requests of 3.1, after the user enters a
 URL. Content the page shows never makes a request of its own (3.7). The
 browser tests stub GitHub's answers with Playwright routes, so no test
-reaches the network.
+reaches the network. Publishing on GitHub Pages (2.2) does not change
+this reading: what the page loads at startup is still only its own
+document.
+
+**No Content-Security-Policy.** Clead's design: the page sets none,
+neither as a header nor as a `<meta>` tag. GitHub Pages cannot send
+custom response headers, and the single-file build inlines the page's
+script and style, so a `<meta>` policy would need `'unsafe-inline'` or
+hashes made at each build. Untrusted content is handled by the rendering
+contract (3.7): no source text is inserted as HTML, and content loads
+nothing.
 
 ---
 
@@ -362,6 +415,20 @@ on synthetic fixtures (PBI-1.1); `src/markdown.ts` with Jest and the
 page with Playwright, with GitHub's answers stubbed (PBI-1.2). Every
 rule of `docs/BACKLOG-FORMAT.md` and every point of 3.7 gets at least
 one test, written before the code.
+
+Publishing (2.2, PR #22):
+
+- `src/pages-workflow.test.ts` (Jest) reads `pages.yml` as text and
+  checks its triggers, its permissions, that it deploys only from
+  `main`, its concurrency, that it builds with the scripts and toolchain
+  CI uses, the Pages actions and their major-version pins, that `deploy`
+  runs after `site` to the `github-pages` environment, and that no job
+  is named `build`.
+- `e2e/subpath.e2e.ts` (Playwright) reads the built `dist/index.html`
+  and checks that it has no root-relative `src`, `href`, `action`,
+  `poster`, `url()` or `import`, and no external script or stylesheet,
+  so the page works under `/vizi/`.
+- The deploy itself, and the live site, are not tested.
 
 ### 3.7 Rendering contract
 
