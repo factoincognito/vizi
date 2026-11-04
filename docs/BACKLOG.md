@@ -51,7 +51,7 @@ Build order: Clead's proposal, from the design the spec is taken from.
   `factoincognito/ai-project-template-v2`, through that repo's own flow.
 - **[LATER] PBI-1.4** (Clead, 2026-11-04, from the code review of PR #9) — Settle the known unknowns of `docs/SPEC.md` section 4 that PBI-1.2 left open, each checked in a real browser on the product owner's computer, not through this session's proxy: folder picking with the browser's own folder picker (the tests set the files directly), in Chromium and in other browsers; GitHub requests from a page opened from disk; GitHub's anonymous rate limit; what GitHub answers for a private repo. Record each result in the spec.
 - **[DONE] PBI-1.5** (2026-11-04: PR #16, merge `d5bb2c3`, and PR #17, merge `c94918b`, each approved by a Clead-role review in round 1) (Clead, 2026-11-04, from the code review of PR #9, round 2) — The review's optional points, none a defect: heading slugs keep Unicode letters and digits (today `Översikt` becomes `versikt`); the same 4096-character limit for both link destination forms (one is 4095); the cost of a 1 MB hostile line (about 4 s); the stray-request test guard allows only the page's own file; separate test ids for "No blockers listed" and "None"; duplicate heading ids when one description shows in a board card and a list row; non-`.md` files shown as code in folder mode; a late answer from an older load ignored when a newer address was submitted. Added from the review of PR #11: the doc comment on `folderFiles` in `src/docs.ts` still says dot-folders are skipped, while the code skips only `.git` and `node_modules`; relative link targets fully percent-decoded (today `decodeURI` leaves `%2F` and `%23` as written); tests for the report's Info item and the documentation list when GitHub's file list is truncated (today only the message under the address is tested).
-- **[NEXT] PBI-1.7** (product owner, 2026-11-04) — Publish vizi on
+- **[DONE] PBI-1.7** (2026-11-04: workflow PR #22, merge `8054f14`, Clead-role review approved in round 3; spec PR #23, merge `bec8392`; Pages source set by the product owner 09:44; the first deploy before that failed with GitHub's 404 "Ensure GitHub Pages has been enabled", runs 41801704611 and 41801782427 after it succeeded; the live page answered 200 and made no request but its own, checked from this session) (product owner, 2026-11-04) — Publish vizi on
   GitHub Pages (`https://factoincognito.github.io/vizi/`): a workflow
   builds the page and deploys it on every merge to `main`. The product
   owner sets the repo's Pages source to "GitHub Actions" (a setting a
@@ -60,7 +60,7 @@ Build order: Clead's proposal, from the design the spec is taken from.
   approval of 2026-11-04 recorded on it. Every Pages site of the
   factoincognito account shares the `factoincognito.github.io` browser
   storage; a custom domain can isolate vizi later if needed.
-- **[LATER] PBI-1.8** (product owner, 2026-11-04, after PBI-1.7) — Private
+- **[NEXT] PBI-1.8** (product owner, 2026-11-04, after PBI-1.7) — Private
   repos by address: a fine-grained, read-only GitHub token, limited to
   chosen repos and with an expiry, pasted into vizi and, behind a
   "Remember the token" box, saved in the browser's storage, with a
@@ -68,7 +68,9 @@ Build order: Clead's proposal, from the design the spec is taken from.
   on 2026-11-04 (09:27, in chat); it replaces "no token, no private repos
   by address" (2026-11-03). Expiry chosen by the product owner. A spec
   change first (records the approval), then the code. Check first that
-  GitHub accepts such a token from the published page. Consider a
+  GitHub accepts such a token from the published page. The spec change
+  also records that the first deploy failed until Pages was enabled (SPEC
+  2.2 says "not checked"; now checked, see PBI-1.7). Consider a
   Content-Security-Policy that limits where the page may send data, since
   the token sits in storage shared by all factoincognito Pages sites
   (Clead-role review of PR #22).

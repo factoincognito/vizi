@@ -23,8 +23,10 @@ approved on 2026-11-04.
   are not read by URL.
 - Shows the project's status, read from its `STATUS.md`.
 - A generated web page, built with the template's web pack. The first
-  version is opened locally, not deployed (2026-11-03). From 2026-11-04
-  it is also published on GitHub Pages (PBI-1.7).
+  version is opened locally, not deployed (2026-11-03). Replaced on
+  2026-11-04: it is published on GitHub Pages,
+  https://factoincognito.github.io/vizi/ (PBI-1.7); a local build still
+  works.
 - The page reports what it could not read. No command-line lint for CI
   in the first version.
 - A backlog format spec ships with it.
