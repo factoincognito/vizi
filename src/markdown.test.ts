@@ -226,6 +226,8 @@ describe("3.7 item 4: links", () => {
   it("makes a # anchor a link within the document", () => {
     expect(classifyTarget("#hello-world", {})).toEqual({ kind: "anchor", id: "hello-world" });
     expect(classifyTarget("#", {})).toBeNull();
+    expect(classifyTarget("#My Heading!", {})).toEqual({ kind: "anchor", id: "my-heading" });
+    expect(classifyTarget("#---", {})).toBeNull();
   });
 
   it("resolves a relative path against the file it appears in, through resolveFile", () => {
@@ -274,6 +276,44 @@ describe("3.7 item 4: links", () => {
     expect(
       links(renderInline('[a](https://example.com/a_(b) "title") [c](<https://example.com/c d>)')),
     ).toEqual([external("https://example.com/a_(b)"), external("https://example.com/c%20d")]);
+  });
+});
+
+describe("a bracket that is not a link does not stop a later link", () => {
+  const ext = (href: string): LinkTarget => ({ kind: "external", href, newTab: true });
+
+  it.each([
+    ["[NOW] see [docs](https://x.example/a)", ["https://x.example/a"]],
+    ["[a] [b](https://x.example)", ["https://x.example/"]],
+    ["x [ y [z](https://a.example)", ["https://a.example/"]],
+    ["[a] then [b](https://x.example/i.png)", ["https://x.example/i.png"]],
+    [
+      "[a](https://x.example) [b] [c](https://y.example)",
+      ["https://x.example/", "https://y.example/"],
+    ],
+    ["[a](bad target with spaces) and [c](https://y.example)", ["https://y.example/"]],
+    ["[a]( and [c](https://y.example)", ["https://y.example/"]],
+    ["\\[a](x) [c](https://y.example)", ["https://y.example/"]],
+  ])("%s", (input, hrefs) => {
+    expect(links(renderInline(input))).toEqual(hrefs.map(ext));
+  });
+
+  it("keeps the text of every bracket that is not a link", () => {
+    expect(textOf(renderInline("[NOW] see [docs](https://x.example/a) [x]"))).toBe(
+      "[NOW] see docs [x]",
+    );
+  });
+
+  it("shows a link inside a link's label as its text, not as a nested link", () => {
+    const tree = renderInline("[[x](https://a.example)](https://b.example)");
+    expect(links(tree)).toEqual([ext("https://b.example/")]);
+    expect(textOf(tree)).toBe("x");
+  });
+
+  it("reads links in a paragraph after a bracket, in blocks as well", () => {
+    expect(links(render("- [NOW] item\n\nsee [a] and [b](https://x.example)"))).toEqual([
+      ext("https://x.example/"),
+    ]);
   });
 });
 

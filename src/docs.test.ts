@@ -54,15 +54,17 @@ describe("folderFiles", () => {
     expect(folderFiles(["proj/BACKLOG.md", "proj/docs/a.md"])).toEqual(["BACKLOG.md", "docs/a.md"]);
   });
 
-  it("skips files inside dot-folders and node_modules", () => {
+  it("skips files inside .git and node_modules only, so .github paths are kept", () => {
     expect(
       folderFiles([
         "proj/.git/config",
         "proj/node_modules/x/y.md",
+        "proj/sub/node_modules/z.md",
         "proj/.github/w.yml",
+        "proj/.hidden/a.md",
         "proj/ok.md",
       ]),
-    ).toEqual(["ok.md"]);
+    ).toEqual([".github/w.yml", ".hidden/a.md", "ok.md"]);
   });
 
   it("keeps a path with no folder part as it is", () => {

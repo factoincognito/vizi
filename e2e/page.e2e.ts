@@ -6,7 +6,31 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { expect, type Page, type Route, test } from "@playwright/test";
+import { test as base, expect, type Page, type Route } from "@playwright/test";
+
+/**
+ * Every test: any request other than the page's own document and the two
+ * GitHub hosts of 3.1 fails the test (SPEC 2.3, 3.7 item 5).
+ */
+const test = base.extend<{ guard: undefined }>({
+  guard: [
+    async ({ page, baseURL }, use) => {
+      const stray: string[] = [];
+      page.on("request", (r) => {
+        const u = r.url();
+        const ok =
+          u === `${baseURL}/` ||
+          u.startsWith("file:") ||
+          u.startsWith("https://api.github.com/") ||
+          u.startsWith("https://raw.githubusercontent.com/");
+        if (!ok) stray.push(u);
+      });
+      await use(undefined);
+      expect(stray, "requests the page should not make").toEqual([]);
+    },
+    { auto: true },
+  ],
+});
 
 const here = __dirname;
 const project = join(here, "fixtures", "project");
@@ -120,6 +144,17 @@ test.describe("GitHub URL input (3.1)", () => {
     await expect(page.locator("#message")).toContainText("Not found or not public");
   });
 
+  test("hides the results of the previous load when a later load fails", async ({ page }) => {
+    await stubGithub(page);
+    await page.goto("/");
+    await openUrl(page);
+    await expect(page.getByTestId("column").first()).toBeVisible();
+    await openUrl(page, "https://github.com/acme/other");
+    await expect(page.locator("#message")).toContainText("Not found or not public");
+    await expect(page.locator("#results")).toBeHidden();
+    await expect(page.getByTestId("column")).toHaveCount(0);
+  });
+
   test("shows another HTTP status with the status", async ({ page }) => {
     await stubGithub(page, { apiStatus: 403 });
     await page.goto("/");
@@ -158,6 +193,13 @@ test.describe("GitHub URL input (3.1)", () => {
   });
 });
 
+/** Replaces the STATUS.md answer of an already stubbed page. */
+async function stubGithubStatus(page: Page, status: string) {
+  await page.route("https://raw.githubusercontent.com/acme/widgets/main/STATUS.md", (r) =>
+    r.fulfill({ status: 200, headers: { "access-control-allow-origin": "*" }, body: status }),
+  );
+}
+
 test.describe("status (3.3)", () => {
   test("shows the fields above the board, Last update, and highlights blockers waiting on the product owner", async ({
     page,
@@ -185,6 +227,20 @@ test.describe("status (3.3)", () => {
     await openUrl(page);
     await expect(page.locator("#status")).toContainText("No STATUS.md");
     await expect(page.getByTestId("column").first()).toBeVisible();
+  });
+
+  test("says 'No blockers listed' for an empty Blockers section, and 'not given' for a missing one", async ({
+    page,
+  }) => {
+    await stubGithub(page, {
+      status: "# Status\nLast update: 2026-11-04\n## Phase\nx\n## Blockers\n\n",
+    });
+    await page.goto("/");
+    await openUrl(page);
+    await expect(page.getByTestId("blockers-none")).toHaveText("No blockers listed");
+    await stubGithubStatus(page, "# Status\n## Phase\nx\n");
+    await openUrl(page);
+    await expect(page.getByTestId("blockers-missing")).toHaveText("not given");
   });
 
   test("shows None for a status without blockers", async ({ page }) => {
