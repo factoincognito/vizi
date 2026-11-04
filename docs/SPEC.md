@@ -69,6 +69,15 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
    copied. Each project's status in the tree itself is not included.
    The approval is recorded as a comment on PR #33. How vizi does it is
    3.9.
+7. His intent approval of 2026-11-04 (11:57, in chat, "apyr") of
+   PBI-1.11: vizi holds one token per owner (for example factoincognito
+   and fomo-t), picked automatically by the owner in the address
+   opened, the umbrella view's "Open in vizi" included; each token has
+   its own "Remember" box and "Forget", plus a "Forget all"; otherwise
+   as PBI-1.8 was approved (item 4): read-only, sent only to GitHub,
+   never shown. The reason: a fine-grained token belongs to one owner.
+   It changes item 4's one token to one per owner. The approval is
+   recorded as a comment on PR #40. How vizi does it is 3.8.
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -104,7 +113,8 @@ project's documentation.
     read by URL.
   - Replaced on 2026-11-04: private repos too, with a fine-grained,
     read-only token the product owner saves in the browser (3.8;
-    PBI-1.8).
+    PBI-1.8); from PBI-1.11, one such token per owner, picked by the
+    owner in the address (3.8).
 - A project's status is read from its `STATUS.md`.
 - It is a generated web page, built with the template's web pack
   (`languages/web/`).
@@ -213,10 +223,11 @@ the factoincognito account is served from one origin,
 `https://factoincognito.github.io`. To the browser they are one site:
 they share that origin's storage (local storage, IndexedDB and the
 like), and a script on any of them can open another one, `/vizi/`
-included, and script into it. Until PBI-1.8 vizi holds nothing secret
-and stores nothing in the browser (`src/` uses no storage API). From
-PBI-1.8 it holds a token, and 3.8, "The shared origin", sets out what
-that exposes.
+included, and script into it. vizi holds GitHub tokens in the page's
+memory and saves those the user asks it to remember in `localStorage`
+(3.8; built in PBI-1.8, one token per owner from PBI-1.11); 3.8, "The
+shared origin", sets out what that exposes. Before PBI-1.8 it held
+nothing secret and stored nothing in the browser.
 
 ### 2.3 The web pack's "no external requests" rule
 
@@ -240,14 +251,14 @@ document.
 
 **Content-Security-Policy.** Clead's design.
 
-- Until PBI-1.8 the page sets none, neither as a header nor as a
-  `<meta>` tag. GitHub Pages cannot send custom response headers, and
-  the single-file build inlines the page's script and style.
-  Untrusted content is handled by the rendering contract (3.7): no
-  source text is inserted as HTML, and content loads nothing.
-- PBI-1.8 adds one, because the page then holds a secret, the token
-  (3.8). It is a `<meta http-equiv="Content-Security-Policy">` tag in
-  `<head>`, after `<meta charset>` and before any script or style:
+- Before PBI-1.8 the page set none: GitHub Pages cannot send custom
+  response headers, the single-file build inlines the page's script and
+  style, and untrusted content is handled by the rendering contract
+  (3.7).
+- Since PBI-1.8 (built in PR #30) it sets one, because the page holds
+  secrets, the tokens (3.8). It is a
+  `<meta http-equiv="Content-Security-Policy">` tag in `<head>`, right
+  after `<meta charset>` and before any script or style:
 
   ```
   default-src 'none'; script-src 'sha256-<script>';
@@ -257,12 +268,18 @@ document.
   ```
 
   `<script>` and `<style>` are the SHA-256 hashes of the page's one
-  inline script and one inline style block, computed by the build after
-  the single-file plugin has inlined them, and written into the tag.
-  `'unsafe-inline'` is not used. The built page has exactly one inline
-  module script, one `<style>` block, no `style=` attribute and no
-  `on…=` attribute (checked 2026-11-04 on a build of `main`), so hashes
-  cover everything it runs. `img-src data:` is for the inline favicon.
+  inline script and one inline style block. `'unsafe-inline'` is not
+  used, and `img-src data:` is for the inline favicon. As built: the
+  build plugin `vizi:content-security-policy` in `vite.config.mts` runs
+  after the single-file plugin (the same `post` stage, later in the
+  list) and calls `addCsp` in `src/csp.ts`. That hashes the inlined
+  script and style, with every line break read as LF, as the browser's
+  parser reads them, and writes the tag. The build fails instead when
+  the page has more or fewer than one inline script or one `<style>`
+  block, a script with a `src`, a linked stylesheet, `modulepreload` or
+  `preload`, a `style=` or `on…=` attribute, a policy already (written
+  plainly), or no `<meta charset>` before the script and style. So the
+  hashes cover everything the page runs, and nothing else.
 - What it adds: no script other than the build's own runs, and a
   script that did run could send data by `fetch` and the like only to
   GitHub's two hosts.
@@ -304,7 +321,7 @@ the points the text above it leaves open.
   followed by `/tree/<branch>`, where the branch is everything after
   `/tree/`, a trailing `/` dropped (branch names can hold `/`). Without
   a token the page makes these anonymous requests, in this order (with
-  a token, 3.8 changes them):
+  a token held for the address's owner, 3.8 changes them):
   1. `GET https://api.github.com/repos/<owner>/<repo>`, for the default
      branch (skipped when the URL names a branch);
   2. `GET https://api.github.com/repos/<owner>/<repo>/git/trees/<branch>?recursive=1`,
@@ -673,7 +690,7 @@ CommonMark. What it reads, beyond items 1 to 5:
   text, not read as Markdown, when its target is allowed under item 4;
   otherwise it is the alt text alone.
 
-### 3.8 Private repos with a saved token (PBI-1.8)
+### 3.8 Private repos with saved tokens (PBI-1.8, PBI-1.11)
 
 **(approved)** The product owner's intent approval of 2026-11-04 (see
 "What is decided", item 4): a fine-grained, read-only GitHub token,
@@ -682,46 +699,94 @@ once per browser, saved in the browser's storage behind a "Remember the
 token" box, removed with a "Forget the token" button, sent only to
 GitHub.
 
-Clead's design, within that intent. This is a spec ahead of its code:
-PBI-1.8 builds it.
+**(approved)** His intent approval of 2026-11-04 (item 7): vizi holds
+one token per owner (for example factoincognito and fomo-t), picked
+automatically by the owner in the address opened, the umbrella view's
+"Open in vizi" included; each token has its own "Remember" box and
+"Forget", plus a "Forget all"; otherwise as PBI-1.8: read-only, sent
+only to GitHub, never shown. The reason: a fine-grained token belongs to
+one owner.
+
+Clead's design, within those two approvals.
+
+**Built and to build.** PBI-1.8 built one token (PR #31; the policy of
+2.3 in PR #30). PBI-1.11 builds one token per owner: the points below
+that hold an owner are a spec ahead of their code. Until PBI-1.11 is
+built, the page holds one token, which every load uses whatever the
+owner; it is saved under the single key `vizi.githubToken`, with one
+"Remember the token" box and one "Forget the token" button; and a 401
+forgets the token held at that moment.
 
 - **What token.** Only a fine-grained personal access token, the kind
-  that GitHub limits to chosen repos and gives an expiry. It is
-  expected to need the repository permission "Contents: read" (and
-  "Metadata: read", which GitHub adds to every such token); PBI-1.8
-  confirms it (section 4, items 10 and 11). The page takes only text
-  that, after trimming, matches `^github_pat_[A-Za-z0-9_]+$`, so the
-  token is always a valid header value. Anything else, a classic
-  `ghp_` token included, is refused with a message saying so, and is
-  not kept.
-- **Where it is entered.** A field "GitHub token (for private repos)"
-  under the address field, of type `password`, with `autocomplete="off"`
-  and spellcheck off, a "Remember the token" box (not ticked unless a
-  token is already saved) and a "Use" button. The field is outside any
-  `<form>`, so a browser has no form to offer to save it from; whether a
-  password manager still offers to save it is section 4, item 15.
-  Folder mode never uses the token.
-- **Never shown back in full.** After "Use" the field is cleared. The
-  page then shows only "Token in use: `github_pat_…` and its last four
-  characters", followed by "saved in this browser" or "for this page
-  only", and the "Forget the token" button.
-- **Where it is kept.**
-  - Always in the page's memory, while the page is open.
-  - With "Remember the token" ticked, also in `localStorage` under the
-    key `vizi.githubToken`, so it survives a reload: entered once per
-    browser. Unticking the box later removes the saved copy and keeps
-    the token for this page only. At startup the page reads the key; a
-    value that does not match the token rule is removed.
-  - "Remember the token" is off until the user ticks it. That keeps a
-    token out of storage, but it does not protect a token from the
-    shared origin; see "The shared origin" below.
+  that GitHub limits to chosen repos of one owner and gives an expiry.
+  It is expected to need the repository permission "Contents: read"
+  (and "Metadata: read", which GitHub adds to every such token)
+  (section 4, items 10 and 11). The page takes only text that, after
+  trimming, matches `^github_pat_[A-Za-z0-9_]+$`, so the token is always
+  a valid header value. Anything else, a classic `ghp_` token included,
+  is refused, and nothing is kept.
+- **Which owner a token is for: the user names it.** Next to the token
+  field there is an "Owner" field. "Use" takes the token only with an
+  owner that, after trimming, matches the owner part of an address
+  (`[A-Za-z0-9._-]+`, not `.` or `..`, as 3.1 reads it); vizi keeps
+  owners in lower case and compares them without regard to case. When
+  the address field holds an address vizi can read, the Owner field is
+  filled with its owner, and the user can change it. Why the user names
+  it, and vizi does not ask GitHub: the page knows of no GitHub request
+  that answers which owner a fine-grained token's repos belong to (not
+  checked, section 4, item 17), asking would send the token before the
+  user has used it for anything, and the owner the user means is the
+  one in the addresses the user opens. A token named for the wrong owner
+  is simply not used for the right one: loads of that owner's repos go
+  without it, and GitHub's 404 says so.
+- **Where it is entered.** Under the address field: an "Owner" field;
+  a "GitHub token (for private repos)" field of type `password`, with
+  `autocomplete="off"` and spellcheck off; a "Remember the token" box;
+  and a "Use" button. The token field is outside any `<form>`, so a
+  browser has no form to offer to save it from; whether a password
+  manager still offers to save it is section 4, item 15. A token "Use"d
+  for an owner that already has one replaces it. Folder mode never uses
+  a token.
+- **Never shown back in full.** After "Use" the token field is cleared.
+  The page then lists "Tokens in use", one line per owner:
+  "`<owner>`: `github_pat_…` and the token's last four characters",
+  followed by "saved in this browser" or "for this page only", with that
+  owner's own "Remember" box and "Forget" button. Under the list, while
+  any token is held, is a "Forget all" button.
+- **Where they are kept.**
+  - Always in the page's memory, while the page is open: one token per
+    owner.
+  - The tokens whose "Remember" box is ticked are also saved in
+    `localStorage`, under the one key `vizi.githubTokens`, as JSON:
+    `{"tokens": {"<owner>": "<token>", …}, "forgot": ["<owner>", …]}`.
+    An owner is a name inside the value; no token is ever part of a key
+    name. `"forgot"` lists the owners the last write forgot (see "Other
+    open vizi tabs"); every write replaces it.
+  - At startup the page reads the key. A value that is not such JSON
+    is removed; an entry whose owner or token does not match the rules
+    above is dropped, and the cleaned value is written back. `"forgot"`
+    is ignored at startup.
+  - Unticking an owner's "Remember" removes that owner's saved copy and
+    keeps its token for this page only. A browser that refuses to save
+    keeps the token for this page only and says so.
+  - "Remember" is off until the user ticks it. That keeps a token out
+    of storage, but it does not protect it from the shared origin.
+  - **Migration from PBI-1.8.** A token saved under the old key
+    `vizi.githubToken` has no owner. At startup, when that key holds a
+    valid token, the page lists it as "A token saved by an earlier vizi:
+    `github_pat_…` and its last four characters", with an "Owner" field
+    and "Keep for this owner", and a "Forget" button; it is not used for
+    any load until it has an owner. "Keep for this owner" moves it into
+    `vizi.githubTokens` for that owner, with "Remember" ticked, since it
+    was saved, and removes the old key; "Forget" removes the old key.
+    An old-key value that is not a valid token is removed.
 - **The shared origin.** The published page runs on the origin of every
-  factoincognito Pages site (2.2), so the token, whether saved or held
+  factoincognito Pages site (2.2), so every token, whether saved or held
   for this page only, is only as safe as every current and future Pages
   site of the account:
-  - a script on any of them can read the saved token from
-    `localStorage`, or write a `github_pat_…` value of its own there,
-    which vizi would then use;
+  - a script on any of them can read the saved tokens from
+    `localStorage`, or write values of its own there, which vizi would
+    then use;
   - a script on any of them can open `/vizi/` in a window or a frame
     and script into it, so it can read a token held only in memory;
   - the account's root site, a repo named `factoincognito.github.io`,
@@ -739,65 +804,103 @@ PBI-1.8 builds it.
   created, so there is no root site and no service worker for the whole
   origin; and GitHub Pages is switched on only for factoincognito repos
   he trusts, so every site on the origin is one he trusts. The risk
-  above stays: the token is only as safe as those sites, and the rule
+  above stays: the tokens are only as safe as those sites, and the rule
   holds only as long as it is kept. A domain of vizi's own, which gives
   vizi an origin of its own, stays the stronger option for later, if
-  more sites go on factoincognito Pages. The
-  read-only, chosen-repos, expiring token limits what a stolen token can
-  do; it does not stop the theft. The page says, next to the token
-  field, that other factoincognito Pages sites can reach the token.
-- **Forget the token.** It removes the token from memory, removes the
-  `localStorage` key, clears the field and the "Token in use" line, and
-  hides any results that were loaded with the token, since they may
-  hold private text. It counts as a newer load (3.1, "Two loads at
-  once"), so the answer of a load still running with the token is
-  dropped and cannot show private text again. A token held for one page
-  only is gone when the page is closed.
-- **Other open vizi tabs** listen for the `storage` event of the key:
-  - when the key is removed, a tab does everything "Forget the token"
-    does, including hiding its token-loaded results and counting as a
-    newer load, whatever token it held;
-  - when another tab saves a new token, a tab adopts it for its next
-    loads if it matches the token rule above, and updates its
-    "Token in use" line; results already shown stay.
-- **Which requests carry it.** Only requests to `https://api.github.com`,
-  in an `Authorization: Bearer <token>` header, with `credentials:
-  "omit"` (no cookies) and `cache: "no-store"` (private answers are not
-  kept in the browser's cache). With a token held, every request of a
-  load goes to `api.github.com`, private and public repos alike, and
-  `raw.githubusercontent.com` is not used. Requests 1 and 2 are as in
-  3.1. Request 3 becomes
+  more sites go on factoincognito Pages. A read-only, chosen-repos,
+  expiring token limits what a stolen token can do; it does not stop
+  the theft. More owners' tokens on the page means more to steal. The
+  page says, next to the token field, that other factoincognito Pages
+  sites can reach the tokens.
+- **Which token a load uses.** At the start of a load by address (3.1),
+  the page takes the owner from the address and uses the token held for
+  that owner, if any; the umbrella view's "Open in vizi" is such a load
+  (3.9). With no token for that owner, the load goes without one, as
+  for a public repo (3.1); when GitHub then answers 404 and tokens are
+  held for other owners, the message adds "No token is held for
+  `<owner>`.". "Show status" in the umbrella view uses the token held,
+  at that moment, for the owner of the project on the page (3.9). A load
+  keeps the token it started with for all its requests; a load that has
+  been replaced by a newer one makes no further request with its token
+  (built: the page's fetch refuses before the request is made).
+- **Forget, per owner.** An owner's "Forget" removes that owner's token
+  from memory and from `localStorage`, and removes its line. Results
+  loaded with that owner's token are hidden, since they may hold private
+  text: the project, when its load used that token, and the "Project
+  status" panel of 3.9, when its status was read with it. Results loaded
+  without it stay. It counts as a newer load (3.1, "Two loads at
+  once"), so the answer of a load still running is dropped and cannot
+  show private text again; the message is "The token for `<owner>` has
+  been forgotten.". A token held for one page only is gone when the page
+  is closed.
+- **Forget all** does what "Forget" does for every owner at once: it
+  removes every token from memory, removes the `vizi.githubTokens` key,
+  hides every result loaded with any token, counts as a newer load, and
+  says "All tokens have been forgotten.".
+- **Other open vizi tabs** listen for the `storage` event of
+  `vizi.githubTokens`:
+  - the key removed (another tab's "Forget all", or storage cleared):
+    this tab does "Forget all", whatever tokens it held, and says
+    "The tokens were removed in another tab, so they have been
+    forgotten.";
+  - an owner in the new value's `"forgot"`: this tab does "Forget" for
+    that owner, whatever token it held for it;
+  - an owner whose saved token is new or changed: this tab adopts it
+    for its next loads, as saved, if owner and token match the rules,
+    and updates its line; results already shown stay;
+  - an owner whose saved copy is gone but who is not in `"forgot"`
+    (another tab unticked "Remember"): this tab keeps the token, now for
+    this page only. This settles PBI-1.10's point that unticking
+    "Remember" in one tab makes every other tab do a full Forget.
+- **Which requests carry a token.** Only requests to
+  `https://api.github.com`, in an `Authorization: Bearer <token>`
+  header, with `credentials: "omit"` (no cookies) and `cache:
+  "no-store"` (private answers are not kept in the browser's cache).
+  With a token, every request of a load goes to `api.github.com`,
+  private and public repos alike, and `raw.githubusercontent.com` is
+  not used. Requests 1 and 2 are as in 3.1. Request 3 becomes
   `GET https://api.github.com/repos/<owner>/<repo>/contents/<path>?ref=<branch>`
   with `Accept: application/vnd.github.raw+json`, which answers the
-  file's text (checked 2026-11-04 without a token, on a public file:
-  the text came back as `application/vnd.github.raw+json` with
-  `Access-Control-Allow-Origin: *`). The branch and each segment of the
-  path are percent-encoded. So a load with a token makes two to five
-  requests (with `PROJECTS.md`, 3.9), all to `api.github.com`.
-- **Never in an address, a log or a message.** The token is never put
-  in a URL, never written to the console, and never part of an error
-  message, the report or the page's text; messages name the host, the
-  URL and the HTTP status only, and no URL holds the token. When a
-  request that carries the token fails before an answer (a network
-  error, or an exception from `fetch`), the message names only the host
-  and that the request failed: the exception's own text is never shown,
-  since a browser may quote a header value in it.
-- **Answers** (with a token; without one, 3.1 is unchanged):
-  - **401:** GitHub did not accept the token: it has expired, has been
-    revoked, or is wrong. The page says so ("GitHub refused the token:
-    it may have expired. It has been forgotten; enter a new one."), and
-    forgets it as "Forget the token" does, so a dead token does not
-    break later loads of public repos.
-  - **403:** when `X-RateLimit-Remaining` is `0`, the page says the
-    rate limit is reached and when it resets (`X-RateLimit-Reset`).
-    Otherwise it says the token may not read this repo (a missing
-    "Contents: read" permission, or an organisation's token policy).
-    The token is kept.
-  - **404 on request 1 or 2:** "Not found, or the token does not give
-    access to this repo", offering the local folder. GitHub is expected
-    to answer 404 for a private repo the token cannot see (section 4,
-    item 11). The token is kept.
+  file's text (checked 2026-11-04 without a token, on a public file).
+  The branch and each segment of the path are percent-encoded. So a
+  load with a token makes two to five requests (with `PROJECTS.md`,
+  3.9), all to `api.github.com`.
+- **Never in an address, a log or a message.** No token is ever put in
+  a URL, written to the console, or part of a message, the report or
+  the page's text; messages name the host, the URL, the HTTP status and
+  the owner only, and no URL holds a token. When a request that carries
+  a token fails before an answer (a network error, or an exception from
+  `fetch`), the message names only the host: "The request to `<host>`
+  failed."; the exception's own text is never shown, since a browser
+  may quote a header value in it.
+- **Answers** (with a token; without one, 3.1 is unchanged). The
+  messages as built, with PBI-1.11's owner where it adds one:
+  - **401:** "GitHub refused the token for `<owner>`: it may have
+    expired. It has been forgotten; enter a new one." The page forgets
+    the token GitHub refused, as that owner's "Forget" does: it is
+    forgotten only if it is still the token held for that owner, so a
+    new token the user entered for that owner while the request ran is
+    kept. A dead token then does not break later loads of public repos.
+    This holds for a load and for "Show status" alike, and settles, for
+    this design, PBI-1.10's point that a 401 forgets the token that is
+    current rather than the one GitHub refused.
+  - **403** with `X-RateLimit-Remaining: 0`: "GitHub's rate limit is
+    reached. It resets at `YYYY-MM-DD HH:MM:SS` UTC." (the time only
+    when `X-RateLimit-Reset` is a whole number of seconds). The token is
+    kept.
+  - **403** otherwise: "GitHub says the token may not read this repo:
+    it may lack the "Contents: read" permission, or an organisation's
+    token policy may stop it." The token is kept.
+  - **404** on request 1 or 2: "Not found, or the token does not give
+    access to this repo. Open the project as a local folder instead."
+    GitHub is expected to answer 404 for a private repo the token cannot
+    see (section 4, item 11). The token is kept.
   - Any other failure is shown as in 3.1.
+  - The other messages as built: a refused text, "That is not a
+    fine-grained GitHub token. It must start with github_pat_ and hold
+    only letters, digits and underscores; classic tokens (ghp_) are not
+    used."; storage refused, "The browser would not save the token; it
+    is kept for this page only.".
 - **Expiry.** The page does not try to know a token's expiry before
   GitHub refuses it. `api.github.com` exposes to a page only the
   headers in its `Access-Control-Expose-Headers` list, and no header
@@ -806,30 +909,37 @@ PBI-1.8 builds it.
 - **Rendering and links** are unchanged (3.7). In URL mode, links still
   go to github.com, where a private file needs the user's own GitHub
   sign-in.
-- **Tests,** all with GitHub stubbed and synthetic tokens:
-  - unit (a pure `src/token.ts`, storage passed in): the rule
-    `^github_pat_[A-Za-z0-9_]+$` after trimming, with a classic token,
-    spaces inside, a line break and other characters refused; the
-    masked form; save, read at startup, forget; the `storage` event,
-    for a removed key and for a new token;
-  - unit (`src/github.ts`): with a token, every request goes to
-    `api.github.com` with the header, request 3 uses the contents API
-    and the raw media type, no URL holds the token; the 401, 403 and
-    404 mapping; a fetcher that throws an error whose message holds the
-    token gives a message without it;
-  - browser: the field is a password field and is cleared; the masked
-    line; "Remember" writes `localStorage` and a reload finds it;
-    "Forget" clears memory, storage, the line and token-loaded results;
-    "Forget" during a load: the load's late answer is dropped and shows
-    nothing; a second tab: removing the key there makes this tab hide its
-    token-loaded results and drop its token, and saving a new token
-    there makes this tab use it;
-    no request to `raw.githubusercontent.com` while a token is held;
-    the token appears in no request URL, console message or page text;
-    a 401 forgets the token;
-  - the CSP of 2.3: the tag is present before any script or style, its
-    hashes match the built page's inline blocks, the page loads with no
-    policy violation, and a request to another host is blocked.
+- **Tests,** all with GitHub stubbed and synthetic tokens of the form
+  `github_pat_TEST…`:
+  - built for PBI-1.8: unit tests of `src/token.ts` (the token rule,
+    the masked form, save, startup, forget, the `storage` event) and of
+    `src/github.ts` (every request with a token goes to `api.github.com`
+    with the header, `credentials: "omit"` and `cache: "no-store"`;
+    request 3 through the contents API; no URL holds the token; the 401,
+    403 and 404 mapping; an exception's text that holds the token is not
+    shown); browser tests in `e2e/token.e2e.ts` (the field, the masked
+    line, Remember and a reload, the rule at startup, the requests,
+    folder mode, the token in no URL, console message or page text,
+    401, 403 and 404, Forget and its effect on results and on a running
+    load, and a second tab);
+  - for PBI-1.11, unit: the owner rule and lower case; the
+    `vizi.githubTokens` value written and read, a broken value removed,
+    a bad entry dropped, no token in any key name; the token picked by
+    the address's owner without regard to case, and none for another
+    owner; "Forget" for one owner and "Forget all"; the `storage` event
+    per owner: the key removed, an owner in `"forgot"`, a new token
+    adopted, a saved copy removed without `"forgot"` kept for the page;
+    the 401 forgetting the refused token only, not a newer one for the
+    same owner; the migration of `vizi.githubToken`;
+  - for PBI-1.11, browser: two owners' tokens, each used only for its
+    own owner's address, the umbrella view's "Open in vizi" and "Show
+    status" included; a load for an owner with no token carries none and
+    its 404 names the owner; each line masked, with its own Remember and
+    Forget; Forget for one owner hides only results loaded with that
+    owner's token, and drops a running load; Forget all; a second tab,
+    for each `storage` case above; the migration line, its "Keep for
+    this owner" and "Forget"; a 401 while a new token for the same owner
+    is entered keeps the new one.
 
 ### 3.9 The umbrella view (PBI-1.9)
 
@@ -838,15 +948,16 @@ PBI-1.8 builds it.
 `PROJECTS.md`, and the links per project, as described there. Each
 project's status in the tree itself is not included.
 
-Clead's design, within that intent. This is a spec ahead of its code:
-PBI-1.9 builds it. The format of `PROJECTS.md`, and what counts as a
-pointer, is `docs/BACKLOG-FORMAT.md`, section 5 (P1 to P7).
+Clead's design, within that intent; built in PBI-1.9 (PR #35). The
+format of `PROJECTS.md`, and what counts as a pointer, is
+`docs/BACKLOG-FORMAT.md`, section 5 (P1 to P7).
 
 - **When.** The page looks for `PROJECTS.md` at the root of the
   project it opens, in both modes. In folder mode it reads the file
   from the folder. In URL mode it reads it with one more request 3
-  (3.1), only if the file list has it, and, with a token held, through
-  the contents API as 3.8 sets out for every request 3. In URL mode
+  (3.1), only if the file list has it, and, with a token for the
+  project's owner, through the contents API as 3.8 sets out for every
+  request 3. In URL mode
   this adds one request to a load (counted in 3.1 and 3.8).
 - **The tab.** When the file exists, an "Umbrella" tab is added after
   "Report". When the project has a `PROJECTS.md` but no backlog file,
@@ -862,29 +973,36 @@ pointer, is `docs/BACKLOG-FORMAT.md`, section 5 (P1 to P7).
     address field and loads it in the same page, as a newer load (3.1,
     "Two loads at once"): an answer still due for the umbrella project,
     or for any older load, is dropped. The new project's results replace
-    the umbrella's. With a token held, the load uses it (3.8); a private
-    repo the token does not cover gets 3.8's 404 message. The page keeps
+    the umbrella's. The load uses the token held for that repo's owner,
+    if any (3.8, "Which token a load uses"); a private repo with no
+    token for its owner, or one the token does not cover, gets 3.8's 404
+    message. The page keeps
     no history: to go back, the umbrella project is opened again, by its
     address or by picking its folder.
   - "On GitHub" links to `https://github.com/<owner>/<repo>` in a new
     tab, with `rel="noopener noreferrer"`.
-- **A folder pointer** (`projects/<name>/`) has one link, "Show
-  status". It reads `projects/<name>/STATUS.md` of the same project:
-  from the folder in folder mode, or in URL mode with one request 3 for
-  that path (the contents API with a token held), only if the file list
-  has it. The status is shown in its own panel, "Project status",
-  below the tree and outside it, headed with the folder pointer it
-  belongs to, read and shown as the project's own status is (3.3;
-  `docs/BACKLOG-FORMAT.md` S1 to S5, blockers that wait on the product
-  owner highlighted); what it could not read is shown with it. There is
+- **A folder pointer** (`projects/<name>/`) has one link, "Show status".
+  It reads `projects/<name>/STATUS.md` of the same project: from the
+  folder in folder mode, or in URL mode with one request 3 for that path
+  (the contents API, with the token held for the project's owner), only
+  if the file list has it. The status is shown in its own panel,
+  "Project status", below the tree and outside it, headed with the
+  folder pointer it belongs to, read and shown as the project's own
+  status is (3.3; `docs/BACKLOG-FORMAT.md` S1 to S5, blockers that wait
+  on the product owner highlighted). What it could not read is listed
+  under it, as built, under the heading "What could not be read", one
+  item per line ("line `<n>`: `<message>`"). A read that fails is shown
+  in the panel with its message (3.1, 3.8). A read GitHub refuses the
+  token for (401) forgets that token as 3.8 sets out and hides the
+  results loaded with it, the panel included; no panel is left. There is
   one panel: the next "Show status", for any pointer, replaces it, and
   the newest "Show status" wins, so when two are used in quick
   succession, on the same pointer or on two, an older answer arriving
   later is dropped. An answer that arrives after a newer load has
   started, or after the page has opened another project, is dropped as
   well. Without the file the panel says "No STATUS.md in
-  projects/<name>/", with no request. "Show status" reads the file
-  again each time.
+  projects/<name>/", with no request. "Show status" reads the file again
+  each time.
 - **Drawn from the file each time.** The tree is built from
   `PROJECTS.md` at every load, and a folder pointer's status at every
   "Show status". Nothing about them is kept after the next load,
@@ -894,7 +1012,14 @@ pointer, is `docs/BACKLOG-FORMAT.md`, section 5 (P1 to P7).
   ever shown in the panel outside it.
 - **Report.** What `src/projects.ts` reports (P4, P5, P7) is listed in
   the Report tab, in its three kinds, as "`PROJECTS.md` line `<n>`:
-  `<message>`" (3.5).
+  `<message>`" (3.5). The messages as built:
+  - P4, a pointer naming `.` or `..`: "Not read: a pointer cannot name .
+    or .." (error);
+  - P5: "Not read: a pointer is `- owner/repo` or `- projects/<name>/`
+    at column 0, with nothing after it." (error);
+  - P7, a repeat: "The same pointer is on line `<n>`; it is shown
+    again." (warning);
+  - P7, no pointer: "The file holds no project pointer." (info).
 - **Tests,** all on synthetic `PROJECTS.md` fixtures written for the
   test; the product office's own file is never copied into this repo:
   - unit (a pure `src/projects.ts`): every rule P1 to P7 and the
@@ -914,8 +1039,9 @@ pointer, is `docs/BACKLOG-FORMAT.md`, section 5 (P1 to P7).
     replaces the panel, and of two in quick succession the newer answer
     wins; a late answer after a newer load is dropped; no status request
     before "Show status" is used; the report items; with a
-    token held (once PBI-1.8 is built), "Open in vizi" and "Show
-    status" use it and no request goes to `raw.githubusercontent.com`.
+    token held, "Open in vizi" and "Show status" use it and no request
+    goes to `raw.githubusercontent.com`. Choosing the token by owner is
+    tested with PBI-1.11 (3.8, "Tests").
 
 ---
 
@@ -1001,10 +1127,15 @@ yet:
 13. **Open; PBI-1.8.** Whether `localStorage` keeps the token on a page
     opened from disk (`file://`); browsers treat that origin
     differently.
-14. **Open; PBI-1.8.** Whether build-time hashes of the inline script
-    and style can be written into the `<meta>` policy with the
-    single-file plugin, and whether every browser the page targets
-    applies the policy with no violation.
+14. **Settled for Chromium (PBI-1.8, PR #30); open for other
+    browsers, PBI-1.4.** The build writes the hashes of the inlined
+    script and style into the `<meta>` policy (2.3, as built), and the
+    browser tests of `e2e/csp.e2e.ts` load the built page in headless
+    Chromium with no violation and no console error, also when opened
+    from disk, and see a script added at run time, a style attribute, a
+    request to another host, an image from another host and a form post
+    all blocked. Whether every other browser the page targets applies
+    the policy the same way was not checked.
 15. **Open; PBI-1.8.** Whether a browser's password manager offers to
     save the token from a password field outside any `<form>`, and so
     may keep it, perhaps synced to an account. Browsers often ignore
@@ -1017,3 +1148,12 @@ Item 16 is PBI-1.9's (3.9):
     holds headings, pointers of both kinds and text, and no line that
     P5 would report. It cannot be a test fixture: that file is private
     and is never copied into this public repo.
+
+Items 17 and 18 are PBI-1.11's (3.8):
+
+17. **Open; PBI-1.11.** Whether GitHub has a request that tells which
+    owner a fine-grained token's repos belong to. 3.8 does not rely on
+    one: the user names the owner. Not checked.
+18. **Open; PBI-1.11.** That GitHub treats owner names without regard
+    to case, so that vizi may compare them in lower case. Not checked
+    here.
