@@ -81,8 +81,12 @@ export function createTokenStore(storage: TokenStorage | null): TokenStore {
 
     start() {
       if (storage === null) return;
-      let value: string | null = null;
-      if (!attempt(() => void (value = storage.getItem(TOKEN_KEY)))) return;
+      let value: string | null;
+      try {
+        value = storage.getItem(TOKEN_KEY);
+      } catch {
+        return;
+      }
       if (value === null) return;
       if (TOKEN_RULE.test(value)) {
         token = value;
