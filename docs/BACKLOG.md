@@ -79,6 +79,13 @@ Build order: Clead's proposal, from the design the spec is taken from.
   repo named `factoincognito.github.io`, and Pages only for factoincognito
   repos he trusts; a domain of vizi's own stays the stronger option for
   later (SPEC 3.8).
+- **[LATER] PBI-1.9** (product owner, 2026-11-04) — The umbrella view:
+  when vizi opens a project whose root has a `PROJECTS.md` in the product
+  office's format (pointers `- owner/repo` or `- projects/<name>/` under
+  headings), it shows the headings as a tree with the projects under
+  them, and each project links on, to that project in vizi or to its
+  repo. The tree is drawn from the file, never kept anywhere else. A spec
+  change first, which needs the product owner's intent approval.
 - **[LATER] PBI-1.6** (Clead, 2026-11-04, from the code reviews of PRs #16 and #17) — Optional points, none a defect: check a link target again for control characters and backslashes after percent-decoding (today `%00`, `%0A` and `%5C` survive; SPEC 3.7 says a target with control characters is text); normalise heading text to NFC before making its slug, so a precomposed `Ö` and `O` plus a combining mark give the same anchor; a ~900k-character line of nested brackets takes about 1.4 s, close to the tests' 1.5 s limit; in `e2e/page.e2e.ts` two "no link" checks (around lines 207 and 370) run before the description renders, so they prove nothing — check after rendering; `showDoc` does not check after its `await` that the project is still the current one; a test for an older slow success arriving after a newer fast error.
 
 ---
