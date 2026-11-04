@@ -803,7 +803,8 @@ forgets the token held at that moment.
     and "Keep for this owner", and a "Forget" button; it is not used for
     any load until it has an owner. "Keep for this owner" moves it into
     `vizi.githubTokens` for that owner, with "Remember" ticked, since it
-    was saved, and removes the old key; "Forget" removes the old key.
+    was saved, and then removes the old key; "Forget" removes the old
+    key.
     An old-key value that is not a valid token is removed.
 - **The shared origin.** The published page runs on the origin of every
   factoincognito Pages site (2.2), so every token, whether saved or held
@@ -863,20 +864,59 @@ forgets the token held at that moment.
   hides every result loaded with any token, counts as a newer load, and
   says "All tokens have been forgotten.".
 - **Other open vizi tabs** listen for the `storage` event of
-  `vizi.githubTokens`:
-  - the key removed (another tab's "Forget all", or storage cleared):
-    this tab does "Forget all", whatever tokens it held, and says
-    "The tokens were removed in another tab, so they have been
-    forgotten.";
+  `vizi.githubTokens` and of the old key `vizi.githubToken`. An event
+  whose `key` is null (all of storage cleared) counts as both keys
+  removed, as PBI-1.8 built it.
+  - **What an event is compared with.** For `vizi.githubTokens`, the tab
+    compares the event's `oldValue` with its `newValue`, each cleaned as
+    at startup; a value that is missing or that the clean-up would
+    remove counts as no entries and no `"forgot"`. It never compares
+    with what this tab holds in memory. An owner whose entry is the same
+    in both, and who is not in the new value's `"forgot"`, is left
+    alone, whatever token this tab holds for it, saved or for this page
+    only. So a write about other owners, or another tab's startup
+    clean-up, changes nothing for that owner here. An owner in the new
+    value's `"forgot"` is forgotten even if the new value also holds an
+    entry for it.
+  - **Following an event never writes.** It changes only this tab's
+    memory and page: "Forget" and "Forget all" below forget in memory
+    and hide results, and do not touch storage, which the other tab has
+    already written. So events do not echo between tabs, and a value
+    another tab wrote after the event's write is never undone.
+  - **An event still queued when this tab writes.** This tab's write
+    reads what is stored, so it is right whatever this tab has not yet
+    handled. Handling the queued event afterwards can only make this
+    tab forget: a tab that saves a token for an owner just after
+    another tab forgot that owner (or did "Forget all"), but before it
+    has handled that event, then forgets its own new token in memory,
+    while the stored token stays and the other tabs adopt it. Saving it
+    again in that tab restores it. The failure is towards forgetting,
+    never towards a forgotten token coming back.
+  - the key removed (`newValue` null: another tab's "Forget all", or
+    storage cleared): this tab does "Forget all", whatever tokens it
+    held, and says "The tokens were removed in another tab, so they have
+    been forgotten.";
   - an owner in the new value's `"forgot"`: this tab does "Forget" for
     that owner, whatever token it held for it;
-  - an owner whose saved token is new or changed: this tab adopts it
-    for its next loads, as saved, if owner and token match the rules,
-    and updates its line; results already shown stay;
-  - an owner whose saved copy is gone but who is not in `"forgot"`
-    (another tab unticked "Remember"): this tab keeps the token, now for
-    this page only. This settles PBI-1.10's point that unticking
-    "Remember" in one tab makes every other tab do a full Forget.
+  - an owner with an entry in the new value that the old value lacks or
+    holds with another token (another tab saved it): this tab adopts it
+    for its next loads, as saved, and updates its line; results already
+    shown stay;
+  - an owner with an entry in the old value that the new value lacks,
+    and who is not in `"forgot"` (another tab unticked "Remember"): if
+    this tab holds a token for that owner, it keeps it, now for this
+    page only. This settles PBI-1.10's point that unticking "Remember"
+    in one tab makes every other tab do a full Forget.
+  - the old key `vizi.githubToken`: when its new value is a valid token
+    (a tab still running PBI-1.8's page saved one), this tab shows the
+    migration line for it, or updates it; when it is removed (another
+    tab's "Keep for this owner" or "Forget", or storage cleared) or not
+    a valid token, this tab hides the line and writes nothing. A token
+    moved by "Keep for this owner" reaches this tab through the
+    `vizi.githubTokens` event, which comes first, since the move writes
+    the new key before it removes the old one. A tab still running
+    PBI-1.8's page does what PBI-1.8 built when the old key is removed:
+    it forgets its token.
 - **Which requests carry a token.** Only requests to
   `https://api.github.com`, in an `Authorization: Bearer <token>`
   header, with `credentials: "omit"` (no cookies) and `cache:
@@ -965,10 +1005,23 @@ forgets the token held at that moment.
     store that follows both events forgets X; the token picked by
     the address's owner without regard to case, and none for another
     owner; "Forget" for one owner and "Forget all"; the `storage` event
-    per owner: the key removed, an owner in `"forgot"`, a new token
+    per owner, compared between `oldValue` and `newValue`: the key
+    removed, a `key` of null, an owner in `"forgot"`, a new token
     adopted, a saved copy removed without `"forgot"` kept for the page;
-    the 401 forgetting the refused token only, not a newer one for the
-    same owner; the migration of `vizi.githubToken`;
+    an unrelated write leaves a page-only token alone: a store holds a
+    token for owner X for this page only, different from the X token
+    saved, and another store's save of owner Y, whose write carries the
+    stored X entry unchanged, leaves this store's X token and its "for
+    this page only" as they were; another store's startup clean-up
+    changes nothing for an owner whose entry it kept; following any
+    event writes nothing to storage; a store that saves owner X while
+    another store's forget of X is still unhandled leaves the new X
+    token stored and, on handling that event, forgets it in memory
+    only; the 401
+    forgetting the refused token only, not a newer one for the same
+    owner; the migration of `vizi.githubToken`, and the old key's
+    `storage` event: removed, or holding an invalid value, hides the
+    migration line; a valid new value shows it;
   - for PBI-1.11, browser: the Owner field filled from the address until
     the user types in it, and left alone after; two owners' tokens, each
     used only for its own owner's address, the umbrella view's "Open in
@@ -977,7 +1030,8 @@ forgets the token held at that moment.
     own Remember and Forget; Forget for one owner hides only results
     loaded with that owner's token, and drops a running load; Forget
     all; a second tab, for each `storage` case above; the migration
-    line, its "Keep for this owner" and "Forget"; a 401 while a new
+    line, its "Keep for this owner" and "Forget", and a second tab's
+    migration line hidden by either; a 401 while a new
     token for the same owner is entered keeps the new one.
 
 ### 3.9 The umbrella view (PBI-1.9)
