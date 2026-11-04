@@ -12,13 +12,13 @@ all projects reads them.
 Last update: 2026-11-04
 
 ## Phase
-Build: the first version is built and published at https://factoincognito.github.io/vizi/ (PBI-1.1 to PBI-1.3, PBI-1.5 and PBI-1.7 merged 2026-11-04).
+Build: the first version is built and published at https://factoincognito.github.io/vizi/ (PBI-1.1 to PBI-1.3, PBI-1.5, PBI-1.7 to PBI-1.9 and PBI-1.11 merged 2026-11-04).
 
 ## Current focus
-Tokens per owner (PBI-1.11): built to the merged spec and in review in #42.
+The help view, "How to make your project vizi compatible" (PBI-1.13): its spec comes first.
 
 ## Next step
-PBI-1.11 waits for review and merge (#42); then PBI-1.13 (the help view) and PBI-1.12 (saved repos list); the product owner's first try of tokens against real GitHub (`docs/SPEC.md` section 4, items 9 to 15) whenever he has time; PBI-1.10, PBI-1.4 and PBI-1.6 after.
+The PBI-1.13 spec and build, then PBI-1.12 (saved repos list); the product owner's first try of tokens against real GitHub (`docs/SPEC.md` section 4, items 9 to 15) whenever he has time; PBI-1.10, PBI-1.4 and PBI-1.6 after.
 
 ## Blockers
 - Product Owner: the definition of done for this phase (`docs/NEXT_SESSION.md`, entry 1).
