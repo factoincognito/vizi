@@ -15,11 +15,10 @@ Last update: 2026-11-04
 Build: the first version is built and published at https://factoincognito.github.io/vizi/ (PBI-1.1 to PBI-1.3, PBI-1.5 and PBI-1.7 merged 2026-11-04).
 
 ## Current focus
-The first version in the product owner's hands, on the published page; private repos by address with a saved token (PBI-1.8) next.
+The first version in the product owner's hands, on the published page; private repos by address with a saved token (PBI-1.8) being built.
 
 ## Next step
-PBI-1.8's spec is merged; a Crog agent builds it once the product owner has chosen the defence; PBI-1.4 (known unknowns, checked in a real browser) and PBI-1.6 (review follow-ups) after it.
+A Crog agent builds PBI-1.8 (the saved token) to the merged spec; PBI-1.4 (known unknowns, checked in a real browser) and PBI-1.6 (review follow-ups) after it.
 
 ## Blockers
 - Product Owner: the definition of done for this phase (`docs/NEXT_SESSION.md`, entry 1).
-- Product Owner: the defence for the shared factoincognito.github.io origin before PBI-1.8 is built (`docs/SPEC.md` 3.8): a rule about Pages sites, or a domain of vizi's own.
