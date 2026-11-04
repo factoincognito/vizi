@@ -204,8 +204,8 @@ function makeRequests(
         "not-found",
         404,
         token === null
-          ? "Not found or not public. Open the project as a local folder instead."
-          : "Not found, or the token does not give access to this repo. Open the project as a local folder instead.",
+          ? "Not found or not public. If the repo is private, add a token for its owner."
+          : "Not found, or the token does not give access to this repo.",
       );
     }
     if (answer.status < 200 || answer.status > 299) {

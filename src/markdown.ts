@@ -14,7 +14,6 @@ import { heading as atxHeading, scan } from "./scan";
 
 export type LinkTarget =
   | { kind: "external"; href: string; newTab: boolean }
-  | { kind: "file"; path: string }
   | { kind: "anchor"; id: string };
 
 export type Inline =
