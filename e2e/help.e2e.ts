@@ -213,6 +213,21 @@ test.describe("the view's structure and text (3.10)", () => {
       return [h1, ...inView].map((el) => el?.tagName ?? "none");
     });
     expect(tags).toEqual(["H1", "H2", "H3", "H3", "H3", "H3", "H3"]);
+    // The start page's other headings are all in the hidden wrapper, so none is read while the view
+    // is open: the h2 "Open a project from GitHub", the panel's h2 and its h3 "Add a token" (3.10,
+    // "Accessibility", as 3.12 changes it; its list leaves out the new h2, which is there too).
+    const hidden = await page.evaluate(() => {
+      const start = document.getElementById("start");
+      return [...document.querySelectorAll("h2, h3")]
+        .filter((el) => !document.getElementById("help")?.contains(el))
+        .map((el) => [el.id, el.tagName, start?.contains(el) ?? false, start?.hidden ?? false]);
+    });
+    expect(hidden).toEqual([
+      ["open-project-title", "H2", true, true],
+      ["private-repos-title", "H2", true, true],
+      ["token-add-title", "H3", true, true],
+      ["project-name", "H2", true, true],
+    ]);
     // Each h3 is a step of the ordered list.
     expect(await page.locator("#help ol > li > h3").count()).toBe(5);
     expect(await page.locator("#help ol > li").count()).toBe(5);

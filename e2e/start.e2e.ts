@@ -358,7 +358,8 @@ test.describe("the tab order (3.12, Accessibility)", () => {
     await withOldKey(page);
     await addToken(page, "acme", TOKEN);
     await addToken(page, "fomo-t", TOKEN2);
-    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    // Start the sequential focus navigation at the top: a blur alone keeps the starting point at "Add".
+    await page.locator("header h1").click();
     const seen: string[] = [];
     for (let i = 0; i < 18; i++) {
       await page.keyboard.press("Tab");
