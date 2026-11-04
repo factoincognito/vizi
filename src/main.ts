@@ -12,7 +12,7 @@ import {
 } from "./backlog";
 import { boardColumns, descriptionForDisplay, listSections } from "./board";
 import { documentationList, projectFilePath } from "./docs";
-import { blobUrl, type Fetcher, loadRepo, parseGithubUrl, readRepoFile } from "./github";
+import { blobUrl, type Fetcher, loadRepo, readRepoFile, readRepository } from "./github";
 import {
   CLOSING_LINK,
   HELP_STEPS,
@@ -439,11 +439,11 @@ function renderReport(p: Project): number {
 
 // ----------------------------------------------------------------- umbrella
 
-/** Loads a repo by its address in the same page, as a newer load (3.9, "Open in vizi"). */
-function openInVizi(address: string): void {
-  must<HTMLInputElement>("url-input").value = address;
+/** Puts `owner/repo`, the Repository field's own form, into the field and loads it in the same page, as a newer load (3.1, 3.9, "Open in vizi"). */
+function openInVizi(repository: string): void {
+  must<HTMLInputElement>("url-input").value = repository;
   fillOwnerFromAddress();
-  void openUrl(address);
+  void openUrl(repository);
 }
 
 function link(text: string, onClick: () => void): HTMLElement {
@@ -470,7 +470,7 @@ function pointerElement(pointer: Pointer): HTMLElement {
     );
     li.append(
       " ",
-      link("Open in vizi", () => openInVizi(address)),
+      link("Open in vizi", () => openInVizi(`${pointer.owner}/${pointer.repo}`)),
       " ",
       onGithub,
     );
@@ -691,14 +691,14 @@ function guardedFetch(token: string | null, replaced: () => boolean): Fetcher {
 
 async function openUrl(address: string): Promise<void> {
   const load = ++latestLoad;
-  const ref = parseGithubUrl(address);
-  if (!ref) {
-    say(
-      "Enter a public repo address like https://github.com/<owner>/<repo>, optionally followed by /tree/<branch>.",
-    );
+  // A text the Repository field refuses makes no request, and counts as a load (3.1).
+  const read = readRepository(address);
+  if (!read.ok) {
+    say(read.message);
     hideResults();
     return;
   }
+  const ref = read.ref;
   say("Loading…");
   const owner = ref.owner.toLowerCase();
   const token = tokens.tokenFor(owner);
@@ -763,11 +763,11 @@ async function openUrl(address: string): Promise<void> {
 /** Whether the user has typed in the Owner field: the page then leaves it alone (3.8). */
 let ownerTyped = false;
 
-/** While the user has not typed in the Owner field, it holds the owner of the address in the address field. */
+/** While the user has not typed in the Owner field, it holds the owner of the Repository field's text, in either form, whenever the field accepts it (3.8). */
 function fillOwnerFromAddress(): void {
   if (ownerTyped) return;
-  const ref = parseGithubUrl(must<HTMLInputElement>("url-input").value);
-  if (ref) must<HTMLInputElement>("owner-input").value = ref.owner;
+  const read = readRepository(must<HTMLInputElement>("url-input").value);
+  if (read.ok) must<HTMLInputElement>("owner-input").value = read.ref.owner;
 }
 
 /** One owner's line: the masked token, where it is kept, its own Remember box and Forget button. */
@@ -1033,13 +1033,16 @@ function mount(): void {
   const urlInput = h("input", {
     id: "url-input",
     type: "text",
-    placeholder: "https://github.com/owner/repo",
+    placeholder: "owner/repo",
     autocomplete: "off",
+    spellcheck: "false",
+    // A phone would capitalise the owner.
+    autocapitalize: "none",
   });
   const form = h(
     "form",
     { id: "url-form" },
-    h("label", { for: "url-input" }, "Public GitHub repo"),
+    h("label", { for: "url-input" }, "Repository"),
     urlInput,
     h("button", { id: "open-url", type: "submit" }, "Open"),
   );
