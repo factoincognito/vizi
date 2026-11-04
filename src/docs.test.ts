@@ -2,7 +2,7 @@
  * Tests for src/docs.ts: the documentation links of docs/SPEC.md 3.4 and
  * the folder input's file list of 3.1.
  */
-import { documentationList, folderFiles, projectFilePath } from "./docs";
+import { documentationList, folderFiles, isMarkdownPath, projectFilePath } from "./docs";
 
 describe("documentationList", () => {
   it("lists README.md and every .md file under docs/, subfolders included, sorted by path", () => {
@@ -69,5 +69,21 @@ describe("folderFiles", () => {
 
   it("keeps a path with no folder part as it is", () => {
     expect(folderFiles(["BACKLOG.md"])).toEqual(["BACKLOG.md"]);
+  });
+});
+
+describe("isMarkdownPath", () => {
+  it("is true for a name ending in .md, in the root or a subfolder", () => {
+    expect(isMarkdownPath("README.md")).toBe(true);
+    expect(isMarkdownPath("docs/sub/guide.md")).toBe(true);
+  });
+
+  it("is false for every other file, so it is shown as code", () => {
+    expect(isMarkdownPath("src/index.ts")).toBe(false);
+    expect(isMarkdownPath("docs/notes.txt")).toBe(false);
+    expect(isMarkdownPath("Makefile")).toBe(false);
+    expect(isMarkdownPath("docs/guide.md.bak")).toBe(false);
+    expect(isMarkdownPath("md")).toBe(false);
+    expect(isMarkdownPath("docs/c.MD")).toBe(false);
   });
 });
