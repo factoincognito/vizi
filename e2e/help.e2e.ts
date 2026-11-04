@@ -527,7 +527,8 @@ test.describe("the help view and the page's rules (2.3, 3.10)", () => {
       document.body.append(s);
     });
     expect(await page.evaluate(() => "__injected" in window)).toBe(false);
-    expect(await violations()).toContain("script-src-elem");
+    // The browser fires securitypolicyviolation from a queued task, so it may come after evaluate returns.
+    await expect.poll(violations).toContain("script-src-elem");
   });
 
   test("the view works on the built page opened from disk (file://)", async ({ page }) => {
