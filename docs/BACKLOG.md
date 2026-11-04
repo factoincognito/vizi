@@ -96,7 +96,8 @@ Build order: Clead's proposal, from the design the spec is taken from.
   PBI-1.9.
 - **[NOW] PBI-1.13** (product owner, 2026-11-04; intent approved 12:43) — A help view, "How
   to make your project vizi compatible": a link on the start page opens
-  it inside the page. Short steps with one example each: where the
+  it inside the page. Early in the text it says vizi is a read-only tool
+  (product owner, 2026-11-04 16:13). Short steps with one example each: where the
   backlog file goes (`BACKLOG.md`, `docs/BACKLOG.md`,
   `docs/PRODUCT_BACKLOG.md`); how an entry is written and which markers
   are shown; the `STATUS.md` headings; `PROJECTS.md` for an umbrella;
@@ -122,8 +123,13 @@ Build order: Clead's proposal, from the design the spec is taken from.
   (Remember and Forget each), a token saved by an earlier vizi as one
   row asking for its owner, "Add a token" and "Forget all tokens"; one
   font, Inter, built into the page (the spec checks its licence against
-  the product office's third-party policy); light, dark and phone. A
-  spec change first, then the code. After PBI-1.14.
+  the product office's third-party policy); light, dark and phone. Next
+  to the token fields, a step-by-step guide on how to make the read-only
+  token (product owner, 2026-11-04 16:11), and a line that a saved
+  token can be used by anyone with access to this browser (16:18); the
+  steps checked against
+  GitHub's own documentation (with SPEC section 4, item 19). A spec
+  change first, then the code. After PBI-1.14.
 - **[NEXT] PBI-1.15** (product owner, 2026-11-04; intent approved 15:15) — A branch
   picker: after a repo loads, a list of its branches, and picking one
   opens that branch. The `/tree/<branch>` address keeps working. A spec
