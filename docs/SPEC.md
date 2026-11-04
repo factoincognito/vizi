@@ -120,7 +120,7 @@ wording of the external-requests rule (section 4, item 8).
 status, its work items, their state and description, with links to the
 project's documentation.
 
-**Decided by the product owner (2026-11-03; two points replaced on
+**Decided by the product owner (2026-11-03; three points replaced on
 2026-11-04):**
 
 - vizi shows a project's backlog file as a backlog list and as a kanban
@@ -132,14 +132,15 @@ project's documentation.
 - It reads a GitHub repo by its URL, and local files. Local mode opens
   a project folder, not a single file, so documentation links work for
   private projects.
-  - Replaced on 2026-11-04 (15:15; item 9): no local files and no
-    folder. vizi opens projects from GitHub only, by address.
   - 2026-11-03: public repos only, with no token; private repos are not
     read by URL.
   - Replaced on 2026-11-04: private repos too, with a fine-grained,
     read-only token the product owner saves in the browser (3.8;
     PBI-1.8); from PBI-1.11, one such token per owner, picked by the
     owner in the address (3.8).
+  - Replaced on 2026-11-04 (15:15; item 9), the sentence above on
+    local files and the folder: no local files and no folder. vizi
+    opens projects from GitHub only, by address.
 - A project's status is read from its `STATUS.md`.
 - It is a generated web page, built with the template's web pack
   (`languages/web/`).
@@ -364,9 +365,11 @@ the points the text above it leaves open.
   So one load makes one or two requests to `api.github.com` (requests 1
   and 2) and up to three to `raw.githubusercontent.com` (request 3): two
   to five in all when the backlog file is found. If request 1 or 2 answers
-  404, the page says "not found or not public" (with a token held for
-  the owner, 3.8 sets out its message). Any other failed request is shown with its HTTP status
-  and is not retried.
+  404 and no token is held for the owner, the page says: "Not found or
+  not public. If the repo is private, add a token for its owner (3.8)."
+  (Clead's design; with a token held for the owner, 3.8 sets out the
+  message.) Any other failed request is shown with its HTTP status and
+  is not retried.
 - `api.github.com` and `raw.githubusercontent.com` both answer with
   `Access-Control-Allow-Origin: *`, so a browser page can read them
   (checked with `curl` on 2026-11-03, and again on 2026-11-04 against
@@ -387,7 +390,7 @@ the points the text above it leaves open.
   of the file's path is percent-encoded.
 - **Failures.** A failed request 3 (the backlog file or `STATUS.md`)
   fails the whole load and is shown with its HTTP status; a 404 there is
-  shown as a status, not as "not found or not public". A request that
+  shown as a status, not as the 404 message of request 1 or 2. A request that
   cannot be made says so with the host and the reason. An answer to
   request 1 without a default branch is shown as "GitHub's answer for
   the repo had no default branch", and an answer to request 2 without a
@@ -970,7 +973,8 @@ forgets the token held at that moment.
     it may lack the "Contents: read" permission, or an organisation's
     token policy may stop it." The token is kept.
   - **404** on request 1 or 2: "Not found, or the token does not give
-    access to this repo."
+    access to this repo." (Without a token held for the owner the
+    message is 3.1's, which points to adding one.)
     GitHub is expected to answer 404 for a private repo the token cannot
     see (section 4, item 11). The token is kept.
   - Any other failure is shown as in 3.1.
@@ -1083,7 +1087,8 @@ format of `PROJECTS.md`, and what counts as a pointer, is
 - **A folder pointer** (`projects/<name>/`) has one link, "Show status".
   It reads `projects/<name>/STATUS.md` of the same project, with one
   request 3 for that path (the contents API, with the token held for the
-  project's owner), only if the file list has it. The status is shown in its own panel,
+  project's owner), only if the file list has it. The status is shown in
+  its own panel,
   "Project status", below the tree and outside it, headed with the
   folder pointer it belongs to, read and shown as the project's own
   status is (3.3; `docs/BACKLOG-FORMAT.md` S1 to S5, blockers that wait
@@ -1294,8 +1299,8 @@ the five steps and the closing link. The link is not a sixth step.
      with the angle-bracket placeholder, which the token rule of 3.8
      refuses, so it cannot be mistaken for one, and no text in the view
      holds `github_pat_` followed by ten or more letters, digits or
-     underscores. A project is opened from GitHub only; there is no
-     folder way (item 9 of "What is decided").
+     underscores. The help text for the step ends: "vizi opens
+     projects from GitHub, and a private one needs this token."
      The permission name the step uses is the one 3.8 expects; it is not
      yet checked against GitHub (section 4, items 10, 11 and 19).
 - **The closing link.** After the ordered list of steps, outside it, with
@@ -1416,10 +1421,23 @@ rendered texts), 3.8, 3.9, 3.10 and section 4. What the code change
   documentation view of a folder file, the `href="#"` links to folder
   files, and the cases of the other code that serve only a folder (for
   example the folder branch of `PROJECTS.md` and of "Show status");
+- `folderFiles` of `src/docs.ts`, with its module comment about the
+  folder input's file list, and its unit tests in `src/docs.test.ts`
+  (the `describe("folderFiles")` block);
+- the sentence "Open the project as a local folder instead." at the end
+  of both 404 messages in `src/github.ts`, and every assertion of it
+  (`src/github.test.ts`, `e2e/token.e2e.ts`); the messages are those of
+  3.1 and 3.8;
+- the `"file"` kind of `LinkTarget` in `src/markdown.ts`, if no page
+  code uses it once the folder's resolver in `src/main.ts` is gone; the
+  tests of `src/markdown.test.ts` that use it as a neutral resolver
+  switch to the kinds that remain;
 - the tests and fixtures of folder mode: the browser tests that pick a
-  folder (including the test on a page opened from disk that does so)
-  and the fixture folders only they use; the tests of the folder cases
-  in 3.7 and 3.9; and the "folder mode" check in `e2e/token.e2e.ts`.
+  folder (including the test on a page opened from disk that does so),
+  the fixture folders only they use, and single fixture files only they
+  use (such as a file shown as code in the Documentation tab); the tests
+  of the folder cases in 3.7 and 3.9; and the "folder mode" check in
+  `e2e/token.e2e.ts`. A fixture that address tests also read stays.
 
 What stays: the address field, the newest-load-wins rule for addresses
 (3.1, "Two loads at once"), every request of 3.1, the saved tokens (3.8),
@@ -1431,8 +1449,11 @@ beyond this list is not decided here.
 
 Tests: the browser tests that remain still pass with the folder removed
 and with GitHub stubbed, and a new one checks that the start page has no
-`input[type=file]` and no text naming a local folder, and that the help
-view's step 5 has only the token way. `e2e/token.e2e.ts` is as before
+`input[type=file]`, and that the text of the start page, of the help view
+and of the 404 messages, with a token and without, holds none of
+"local folder", "Pick a folder", "Open the project as a local folder"
+(the help view's "folder pointer" is allowed); and that the help view's
+step 5 has only the token way. `e2e/token.e2e.ts` is as before
 without its folder check.
 
 ---
@@ -1458,7 +1479,7 @@ PBI-1.2's; their outcome after it (PR #9):
    checks in 3.1 ran through a proxy that appears to add credentials, so
    they do not show the anonymous limit.
 4. **Open; PBI-1.4.** What an anonymous request for a private repo gets
-   back. The page shows "not found or not public" for a 404 on request 1
+   back. The page shows its 404 message (3.1) for a 404 on request 1
    or 2, and any other status as that status (3.1).
 5. **Settled (PBI-1.2, tests added in PBI-1.5).** What the page does
    with a truncated file list is in 3.1, "As built". Tested:
