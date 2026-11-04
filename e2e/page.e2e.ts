@@ -164,7 +164,7 @@ test.describe("GitHub URL input (3.1)", () => {
     await page.goto("/");
     await openUrl(page, "https://example.com/acme/widgets");
     await expect(page.locator("#message")).toContainText(
-      "Type the repository as owner/repo, for example fomo-t/fomo-f",
+      "Type the repository as <owner>/<repo>, for example fomo-t/fomo-f",
     );
     expect(requested).toEqual([]);
   });
@@ -603,13 +603,13 @@ test.describe("a late answer from an older load (3.1)", () => {
     await openUrl(page, SLOW);
     await openUrl(page, "not an address");
     await expect(page.locator("#message")).toContainText(
-      "Type the repository as owner/repo, for example fomo-t/fomo-f",
+      "Type the repository as <owner>/<repo>, for example fomo-t/fomo-f",
     );
     slow.release();
     await slow.finished;
     await settle(page);
     await expect(page.locator("#message")).toContainText(
-      "Type the repository as owner/repo, for example fomo-t/fomo-f",
+      "Type the repository as <owner>/<repo>, for example fomo-t/fomo-f",
     );
     await expect(page.locator("#results")).toBeHidden();
   });

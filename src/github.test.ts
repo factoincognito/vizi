@@ -117,12 +117,12 @@ describe("readRepository: the Repository field's reader (3.1)", () => {
 
   it("has the messages of 3.1, word for word", () => {
     expect(REPOSITORY_MESSAGE).toBe(
-      "Type the repository as owner/repo, for example fomo-t/fomo-f, or paste its GitHub address (github.com/owner/repo, optionally with /tree/<branch>).",
+      "Type the repository as <owner>/<repo>, for example fomo-t/fomo-f, or paste its GitHub address (github.com/<owner>/<repo>, optionally with /tree/<branch>).",
     );
     // Spec wording point (#65, round 3): the message names ? as well, so it is true for a decoded ?.
     expect(BRANCH_MESSAGE).toBe("vizi cannot open this branch: its name holds #, % or ?.");
     expect(CLONE_MESSAGE).toBe(
-      "That is a clone address. Type the repository as owner/repo, without .git.",
+      "That is a clone address. Type the repository as <owner>/<repo>, without .git.",
     );
   });
 

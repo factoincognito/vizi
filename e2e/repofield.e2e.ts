@@ -1,6 +1,6 @@
 /**
  * Browser tests for the Repository field (docs/SPEC.md 3.1, "The
- * Repository field"; PBI-1.17): `owner/repo`, or a pasted GitHub address,
+ * Repository field"; PBI-1.17): `<owner>/<repo>`, or a pasted GitHub address,
  * read by one reader. GitHub's answers are stubbed with routes: no test
  * reaches the network. All fixtures are synthetic, and every token is an
  * obviously fake value.
@@ -32,9 +32,9 @@ const read = (p: string) => readFileSync(join(project, p), "utf8");
 const TOKEN = "github_pat_TEST_repofield_abcd1234";
 
 const FIELD_MESSAGE =
-  "Type the repository as owner/repo, for example fomo-t/fomo-f, or paste its GitHub address (github.com/owner/repo, optionally with /tree/<branch>).";
+  "Type the repository as <owner>/<repo>, for example fomo-t/fomo-f, or paste its GitHub address (github.com/<owner>/<repo>, optionally with /tree/<branch>).";
 const BRANCH_MESSAGE = "vizi cannot open this branch: its name holds #, % or ?.";
-const CLONE_MESSAGE = "That is a clone address. Type the repository as owner/repo, without .git.";
+const CLONE_MESSAGE = "That is a clone address. Type the repository as <owner>/<repo>, without .git.";
 
 type Seen = { url: string; authorization: string | undefined };
 
@@ -87,14 +87,14 @@ async function open(page: Page, text: string) {
 const settle = (page: Page) => page.evaluate(() => new Promise<void>((r) => setTimeout(r, 200)));
 
 test.describe("the Repository field (3.1)", () => {
-  test("is labelled Repository, with the placeholder owner/repo, starts empty, and is not spell-checked or capitalised", async ({
+  test("is labelled Repository, with the placeholder <owner>/<repo>, starts empty, and is not spell-checked or capitalised", async ({
     page,
   }) => {
     await page.goto("/");
     const field = page.getByLabel("Repository", { exact: true });
     await expect(field).toHaveAttribute("id", "url-input");
     await expect(page.locator("label[for=url-input]")).toHaveText("Repository");
-    await expect(field).toHaveAttribute("placeholder", "owner/repo");
+    await expect(field).toHaveAttribute("placeholder", "<owner>/<repo>");
     await expect(field).toHaveAttribute("type", "text");
     await expect(field).toHaveAttribute("autocomplete", "off");
     await expect(field).toHaveAttribute("spellcheck", "false");
