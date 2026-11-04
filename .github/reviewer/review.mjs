@@ -250,6 +250,7 @@ export async function run(deps) {
         tools: [],
         settingSources: [],
         persistSession: false,
+        strictMcpConfig: true,
         maxTurns: cfg.maxTurns,
         maxBudgetUsd: cfg.maxBudgetUsd,
         env,
@@ -293,13 +294,14 @@ export function readDocFromGit(path, ref, cwd = process.cwd()) {
   });
 }
 
-async function main() {
-  const summaryFile = process.env.GITHUB_STEP_SUMMARY;
-  await run({
-    env: process.env,
+/** The real dependencies `main()` hands to `run()`; a test uses it with fakes for the network. */
+export function realDeps(env, { cwd = process.cwd() } = {}) {
+  const summaryFile = env.GITHUB_STEP_SUMMARY;
+  return {
+    env,
     fetch: globalThis.fetch,
     query,
-    readDoc: readDocFromGit,
+    readDoc: (path, ref) => readDocFromGit(path, ref, cwd),
     readInstructions: () =>
       readFileSync(fileURLToPath(new URL("./instructions.md", import.meta.url)), "utf8"),
     appendSummary: (text) => {
@@ -307,7 +309,11 @@ async function main() {
       else process.stdout.write(text);
     },
     log: (line) => console.log(line),
-  });
+  };
+}
+
+async function main() {
+  await run(realDeps(process.env));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -2,12 +2,12 @@
 // GitHub API are faked: no network, no key, no cost.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { BOUNDARY_MARKER, readDocFromGit, run } from "../review.mjs";
+import { BOUNDARY_MARKER, readDocFromGit, realDeps, run } from "../review.mjs";
 
 const SHA = "a".repeat(40);
 const BASE = "b".repeat(40);
@@ -160,6 +160,7 @@ test("the model gets Opus 5.5, a turn cap, no tools, no settings, no saved sessi
   assert.deepEqual(options.tools, []);
   assert.deepEqual(options.settingSources, []);
   assert.equal(options.persistSession, false);
+  assert.equal(options.strictMcpConfig, true);
   assert.ok(options.maxBudgetUsd > 0);
 });
 
@@ -506,4 +507,42 @@ test("a diff that contains a closing tag cannot end the diff block early", async
   assert.ok(!hostile.includes(tag), "the tag does not occur in the diff");
   assert.equal(prompt.split(`</${tag}>`).length, 2, "the tag is closed once, at the end");
   assert.ok(prompt.trimEnd().endsWith(`</${tag}>`));
+});
+
+test("the real dependencies main() uses: base-commit documents and the real instructions reach the model", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "crog-wiring-"));
+  const git = (...args) =>
+    execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], {
+      cwd: dir,
+      encoding: "utf8",
+    }).trim();
+  git("init", "-q");
+  mkdirSync(join(dir, "memory"));
+  mkdirSync(join(dir, "docs"));
+  const write = (suffix) => {
+    writeFileSync(join(dir, "CLAUDE.md"), `claude ${suffix}`);
+    writeFileSync(join(dir, "memory/standards.md"), `standards ${suffix}`);
+    writeFileSync(join(dir, "docs/SPEC.md"), `spec ${suffix}`);
+  };
+  write("BASE-VERSION");
+  git("add", ".");
+  git("commit", "-q", "-m", "base");
+  const base = git("rev-parse", "HEAD");
+  write("HEAD-VERSION");
+  git("commit", "-q", "-am", "head");
+
+  const real = realDeps(baseEnv({ BASE_SHA: base }), { cwd: dir });
+  const fetchImpl = fakeFetch();
+  const query = fakeQuery("Crog review: APPROVE\nok");
+  await run({ ...real, fetch: fetchImpl, query, appendSummary: () => {}, log: () => {} });
+
+  const fixed = query.seen.params[0].options.systemPrompt[0];
+  for (const name of ["claude", "standards", "spec"]) {
+    assert.ok(fixed.includes(`${name} BASE-VERSION`), `${name} comes from the base commit`);
+    assert.ok(!fixed.includes(`${name} HEAD-VERSION`), `${name} is not the head's copy`);
+  }
+  const instructions = readFileSync(new URL("../instructions.md", import.meta.url), "utf8");
+  assert.ok(fixed.includes(instructions.trim()), "the real instructions.md is in the prompt");
+  assert.equal(typeof real.fetch, "function");
+  assert.equal(typeof real.query, "function");
 });

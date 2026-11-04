@@ -17,7 +17,7 @@ tooling.
 | Component | Version | Licence | Source | Mode |
 |---|---|---|---|---|
 | `@anthropic-ai/claude-agent-sdk` | 0.3.318 | Vendor SDK: "© Anthropic PBC. All rights reserved. Use is subject to the Legal Agreements outlined here: https://code.claude.com/docs/en/legal-and-compliance" (`LICENSE.md` in the package), which points to Anthropic's [Commercial Terms of Service](https://www.anthropic.com/legal/commercial-terms) for API users | https://github.com/anthropics/claude-agent-sdk-typescript, npm | depend |
-| `@anthropic-ai/claude-agent-sdk-<platform>` (the SDK's bundled Claude Code binary; CI installs `linux-x64`) | 0.3.318 | Same as the SDK (`LICENSE.md`) | npm | depend, unmodified |
+| `@anthropic-ai/claude-agent-sdk-<platform>` (the SDK's bundled Claude Code binary; CI installs the `linux-x64` and `linux-x64-musl` ones) | 0.3.318 | Same as the SDK (`LICENSE.md`) | npm | depend, unmodified |
 | `@anthropic-ai/sdk` (the SDK's peer dependency) | 1.4.0 | Apache-2.0 | npm | depend |
 | `@modelcontextprotocol/sdk` (peer) | 1.32.2 | MIT | npm | depend |
 | `zod` (peer) | 4.6.7 | MIT | npm | depend |
