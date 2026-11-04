@@ -357,6 +357,12 @@ label.check {
   padding: 0 16px;
 }
 
+/* The panel's buttons and fields are 14 px, as the approved boards have them (3.12). */
+#private-repos-body button:not(#token-guide-toggle),
+#private-repos-body input:not([type="checkbox"]) {
+  font-size: 14px;
+}
+
 #token-migrate {
   margin-top: 4px;
   padding: 14px;
@@ -837,8 +843,9 @@ footer {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  #owner-input,
-  #token-input {
+  /* The Add-a-token fields stay at 15 px on a phone (3.12). */
+  #private-repos-body #owner-input,
+  #private-repos-body #token-input {
     font-size: 15px;
   }
 
