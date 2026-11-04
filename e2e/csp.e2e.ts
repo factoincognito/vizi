@@ -119,7 +119,8 @@ test.describe("the browser enforces it", () => {
       document.body.append(s);
     });
     expect(await page.evaluate(() => "__injected" in window)).toBe(false);
-    expect(await violations()).toContain("script-src-elem");
+    // The browser fires securitypolicyviolation from a queued task, so it may come after evaluate returns.
+    await expect.poll(violations).toContain("script-src-elem");
   });
 
   test("a style attribute set at run time has no effect", async ({ page }) => {
@@ -132,7 +133,7 @@ test.describe("the browser enforces it", () => {
       return getComputedStyle(el).display;
     });
     expect(display).toBe("block");
-    expect(await violations()).toContain("style-src-attr");
+    await expect.poll(violations).toContain("style-src-attr");
   });
 
   test("a request to another host is blocked before it is made", async ({ page }) => {
@@ -148,7 +149,7 @@ test.describe("the browser enforces it", () => {
       }
     });
     expect(outcome).toBe("blocked");
-    expect(await violations()).toContain("connect-src");
+    await expect.poll(violations).toContain("connect-src");
     expect(evil.finished).toEqual([]);
     expect(evil.failures.every((t) => t === "csp")).toBe(true);
     expect(evil.failures).toHaveLength(evil.seen.length);
