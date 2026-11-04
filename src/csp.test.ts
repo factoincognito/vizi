@@ -27,6 +27,16 @@ const page = (extra = "", script = SCRIPT, style = STYLE) =>
 </html>
 `;
 
+/** A page whose one script is the given tag. */
+const onlyScript = (tag: string) => page().replace(/<script[\s\S]*?<\/script>/, tag);
+
+/** The page with its one script (or style) moved in front of <meta charset>. */
+function movedBeforeCharset(block: RegExp): string {
+  const html = page();
+  const moved = block.exec(html)?.[0] ?? "";
+  return html.replace(moved, "").replace('<meta charset="utf-8" />', `${moved}$&`);
+}
+
 /** The policy text of the one CSP meta tag of a page. */
 function policyOf(html: string): string {
   const tags = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"\s*\/?>/g);
@@ -117,12 +127,30 @@ describe("addCsp", () => {
   it.each([
     ["no inline script", page().replace(/<script[\s\S]*?<\/script>/, "")],
     ["two inline scripts", page("<script>1</script>")],
-    ["an external script", page('<script src="https://evil.example/x.js"></script>')],
-    ["a script with a src and a body", page('<script src="/x.js">1</script>')],
+    [
+      "an external script as the only script",
+      onlyScript('<script src="https://evil.example/x.js"></script>'),
+    ],
+    ["an only script with a src and a body", onlyScript('<script src="/x.js">1</script>')],
+    ["an only module script with a src", onlyScript('<script type="module" src="/x.js"></script>')],
     ["no inline style", page().replace(/<style[\s\S]*?<\/style>/, "")],
     ["two style blocks", page("<style>a{}</style>")],
     ["a stylesheet link", page('<link rel="stylesheet" href="/x.css">')],
     ["a modulepreload link", page('<link rel="modulepreload" href="/x.js">')],
+    [
+      "a stylesheet link with rel=alternate stylesheet",
+      page('<link rel="alternate stylesheet" href="/x.css">'),
+    ],
+    ["a style attribute after a slash", page('<p/style="color:red">x</p>')],
+    ["an event handler attribute after a slash", page('<p/onclick="go()">x</p>')],
+    ["the script before <meta charset>", movedBeforeCharset(/<script[\s\S]*?<\/script>/)],
+    ["the style before <meta charset>", movedBeforeCharset(/<style[\s\S]*?<\/style>/)],
+    [
+      "<meta charset> only as text inside the script",
+      page()
+        .replace('<meta charset="utf-8" />', "")
+        .replace(SCRIPT, "x = '<meta charset=\"utf-8\">';\n"),
+    ],
     ["a style attribute", page('<p style="color:red">x</p>')],
     ["an event handler attribute", page('<button onclick="go()">x</button>')],
     ["an uppercase event handler attribute", page('<button ONCLICK="go()">x</button>')],
