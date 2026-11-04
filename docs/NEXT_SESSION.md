@@ -102,6 +102,11 @@ runs (non-blocking points, all Clead's call):
 - The SDK makes an extra small call on Haiku with the whole prompt as input
   (about 57,000 uncached input tokens, about $0.006 per review), which the
   script does not use; look for an option that turns it off.
+- `ci.yml` has no `permissions` block, so its jobs, which run PR code, may
+  hold a write token (the repository default was not readable from the
+  session); give it `permissions: contents: read` in a PR of its own, and
+  let the script log the URL of the comment it posted, so the merger can
+  tie a comment to its run.
 - `hasVerdictFor` trusts any comment by the Actions bot that starts
   `Crog review:` (rule 7 of `CLAUDE.md` says which comment counts, but the
   script's skip check is looser); the script could record the base SHA

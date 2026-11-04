@@ -146,40 +146,46 @@ Adam's change-control model (stated 2026-07-23, updated 2026-09-30):
 6. **When unsure** whether something needs a review, or whether to act
    alone, ask Adam.
 7. **The CI reviewer is Crog for this repo's PRs during the pilot**
-   (Adam, 2026-11-04, the PO-68 pilot). Crog's reviews run in GitHub
-   Actions: `.github/workflows/crog-review.yml` runs a script on the
-   Claude Agent SDK (`.github/reviewer/`, on Opus, paid by the
+   (the pilot is Adam's decision of 2026-11-04, PO-68; the wording of
+   this rule is Clead's and he has not read it yet). Crog's reviews run
+   in GitHub Actions: `.github/workflows/crog-review.yml` runs a script
+   on the Claude Agent SDK (`.github/reviewer/`, on Opus, paid by the
    organization's API credits), not `anthropics/claude-code-action`.
-   While the pilot lasts:
+   While the pilot lasts, except as the bullets below say:
    - **What counts.** Wherever this file says Crog reviews, the review
      is the comment `Crog review: APPROVE` or `Crog review: CHANGES
-     NEEDED`, ending `Head reviewed: <SHA>`, posted by
-     `github-actions[bot]` while the `review` job of the `Crog review`
-     workflow ran on that head. It counts only while the PR's head is
-     that SHA and the PR's base branch is still the one it was reviewed
-     against; after a push or a change of base, the next run (or a
-     manual Crog review) gives the next verdict. The same text typed by
-     a session, or posted by another workflow, is not the CI review.
+     NEEDED`, ending `Head reviewed: <SHA>`, that `github-actions[bot]`
+     posted. The merger accepts it only if its SHA is the PR's current
+     head, the comment was never edited (`updated_at` equals
+     `created_at`), and the `review` job of a `Crog review` run on that
+     SHA succeeded. The same text typed by a session does not count. This
+     guards against honest mistakes, not against someone with write
+     access: branch protection requires only a PR and a green `build`,
+     so the verdict is a convention, as every review here is.
    - **Merge gate.** The CI check that gates a merge is `build`, as in
      rule 1. A failed `Crog review` job (a key or credits that ran out,
-     an outage) is not a CI failure for rule 4; it is handled by the
-     "not reviewed" bullet below.
-   - **Not reviewed.** Where the workflow did not review a head (a
-     `[claim]` PR, a draft, a fork, a failed run), or its comment says
-     "Not reviewed" (a diff over its cap; that comment is not a
-     verdict), Clead starts Crog as a separate agent on Opus, as in
-     rule 5, and that agent's verdict counts.
-   - **Contesting.** The workflow reads only the diff and the review
-     documents, so it cannot read an author's reply. An author who
-     disagrees with a CI `CHANGES NEEDED` says why on the PR and Clead
-     starts a separate Crog agent on Opus with that reply; that agent's
-     verdict on the head replaces the CI one. Pushing an empty commit or
-     re-running the job to get a different verdict is not allowed. The
-     three-round limit of `memory/standards.md` section 6 counts all
-     verdicts on a PR.
-   - **Whose code.** Clead's review of Crog's code stays required: on a
-     PR written by Crog, the CI verdict is extra. Who wrote the PR is
-     read from its description; if it does not say, ask Adam (rule 6).
+     an outage) is not a CI failure for rule 4; it is a head the
+     workflow did not review.
+   - **Not reviewed.** A head the workflow did not review (a fork, a
+     failed run), a comment saying "Not reviewed" (a diff over its cap;
+     that comment is not a verdict), and a PR whose base branch was
+     changed after its review (the run finds the old verdict and posts
+     nothing): Clead starts Crog as a separate agent on Opus, as in
+     rule 5. A manual Crog verdict on a head prevails over any CI
+     verdict on it. A verdict is not redone when the base branch only
+     moves on.
+   - **Disagreement.** The workflow reads only the diff and the review
+     documents, so it cannot read an author's reply, and the inputs of
+     `memory/standards.md` section 7 stay as they are. An author who
+     thinks a CI `CHANGES NEEDED` is wrong does not re-run the job or
+     push an empty commit; the question goes to Adam as in section 6 of
+     the standard, with both sides stated. The three-round limit counts
+     the verdicts that can satisfy the gate.
+   - **Whose code.** Code and config written by Crog are reviewed by
+     Clead (rule 3); on such a PR the CI verdict is extra. The PR
+     description names who wrote it; if it does not, treat the PR as
+     written by Crog. A process change written by Crog is reviewed by
+     Crog, so the CI verdict counts.
    - **What it reads.** The diff, and `CLAUDE.md`, `memory/standards.md`
      and `docs/SPEC.md` as they are on the base commit, plus its own
      fixed instructions (`.github/reviewer/instructions.md`); never the
