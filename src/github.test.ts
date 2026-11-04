@@ -63,6 +63,8 @@ describe("readRepository: the Repository field's reader (3.1)", () => {
     "acme/",
     "/acme/widgets",
     "acme/widgets/tree/",
+    "acme/widgets/tree//",
+    "github.com/acme/widgets/tree//",
     "acme/widgets/issues",
     "acme/widgets/blob/main/x",
     "acme/widgets?x=1",
@@ -119,8 +121,8 @@ describe("readRepository: the Repository field's reader (3.1)", () => {
     expect(REPOSITORY_MESSAGE).toBe(
       "Type the repository as <owner>/<repo>, for example fomo-t/fomo-f, or paste its GitHub address (github.com/<owner>/<repo>, optionally with /tree/<branch>).",
     );
-    // Spec wording point (#65, round 3): the message names ? as well, so it is true for a decoded ?.
-    expect(BRANCH_MESSAGE).toBe("vizi cannot open this branch: its name holds #, % or ?.");
+    // 3.1's text, word for word; a decoded ? gets the same message (3.1).
+    expect(BRANCH_MESSAGE).toBe("vizi cannot open this branch: its name holds # or %.");
     expect(CLONE_MESSAGE).toBe(
       "That is a clone address. Type the repository as <owner>/<repo>, without .git.",
     );

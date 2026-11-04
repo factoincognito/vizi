@@ -33,7 +33,7 @@ const TOKEN = "github_pat_TEST_repofield_abcd1234";
 
 const FIELD_MESSAGE =
   "Type the repository as <owner>/<repo>, for example fomo-t/fomo-f, or paste its GitHub address (github.com/<owner>/<repo>, optionally with /tree/<branch>).";
-const BRANCH_MESSAGE = "vizi cannot open this branch: its name holds #, % or ?.";
+const BRANCH_MESSAGE = "vizi cannot open this branch: its name holds # or %.";
 const CLONE_MESSAGE =
   "That is a clone address. Type the repository as <owner>/<repo>, without .git.";
 
