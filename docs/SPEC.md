@@ -81,6 +81,16 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
    token to one per owner. The approval is
    recorded as a comment on PR #40. How vizi does it is 3.8.
 
+8. His intent approval of 2026-11-04 (12:43) of PBI-1.13, the help view
+   (recorded in the PBI-1.13 entry of `docs/BACKLOG.md`): a help view,
+   "How to make your project vizi compatible", opened by a link on the
+   start page inside the page; short steps with one example each for the
+   backlog file's place, how an entry is written and which markers are
+   shown, the `STATUS.md` headings, `PROJECTS.md` for an umbrella, and
+   opening a private repo with a token or as a folder; a link at the end
+   to `docs/BACKLOG-FORMAT.md` on GitHub; the text shipped in the page;
+   a test that its examples read as stated. How vizi does it is 3.10.
+
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
 Clead's call, not a question for the product owner, and it does not
@@ -130,6 +140,8 @@ project's documentation.
 - A backlog format spec ships with it: `docs/BACKLOG-FORMAT.md`.
 - Added on 2026-11-04: the umbrella view of a project with a
   `PROJECTS.md` (3.9; PBI-1.9).
+- Added on 2026-11-04: a help view on how to make a project vizi
+  compatible (3.10; PBI-1.13).
 
 Not decided: a lint mode beyond the page's report (Clead's suggestion,
 which the product owner found worth considering). The parser is
@@ -1138,6 +1150,228 @@ format of `PROJECTS.md`, and what counts as a pointer, is
     goes to `raw.githubusercontent.com`. Choosing the token by owner is
     tested with PBI-1.11 (3.8, "Tests").
 
+### 3.10 The help view (PBI-1.13)
+
+**(approved)** The product owner's intent approval of 2026-11-04 (12:43,
+recorded in the PBI-1.13 entry of `docs/BACKLOG.md`; see "What is
+decided", item 8): a help view, "How to make your project vizi
+compatible", opened by a link on the start page, inside the page. It has
+short steps with one example each: where the backlog file goes
+(`BACKLOG.md`, `docs/BACKLOG.md`, `docs/PRODUCT_BACKLOG.md`); how an
+entry is written and which markers are shown; the `STATUS.md` headings;
+`PROJECTS.md` for an umbrella; opening a private repo with a token, or as
+a folder. A link at the end to `docs/BACKLOG-FORMAT.md` on GitHub. The
+text ships in the page. A test checks that its examples read as stated.
+
+Clead's design, within that intent. Nothing is added to or removed from
+the five steps and the closing link.
+
+- **Opening and closing.**
+  - On the start page, under the "Vizi - backlog visualizer" heading,
+    there is a control with the text "How to make your project vizi
+    compatible". It is a `<button type="button">` styled as a link: it
+    acts inside the page and goes nowhere, and a `#` link would clash
+    with the page's own `href="#"` file links (3.4) and its heading
+    anchors (3.7).
+  - Using it hides the inputs, the message line and the results (the
+    `hidden` attribute; nothing is removed or cleared) and shows the help
+    view. A load that is under way carries on and fills the hidden
+    results; they show again when the view closes. Opening the view starts
+    no load and cancels none, and a load never moves the focus.
+  - The view closes with a "Back to vizi" button at its top and again at
+    its end, or with the Escape key. Closing shows what was there before
+    and moves the focus to the control that opened it.
+  - **No address.** The view has no hash and no history entry, as the
+    page keeps no history (3.9). A reload, or opening the page again,
+    shows the start page. The view cannot be linked to; the link at its
+    end is to the format spec on GitHub.
+  - The view is not a tab: the tabs belong to a loaded project.
+- **Static text in the built page.** The text is in a module,
+  `src/help.ts`, as data: for each step a title, a few short paragraphs,
+  and one example. A paragraph is a list of parts, each plain text or
+  code. The module is built into the one inline script, so the text ships
+  in `dist/index.html`. Nothing is loaded for it: no `fetch`, no file, no
+  image. The page's requests stay as in 2.3, and the policy in 2.3 stays
+  as it is; only the hash of the inline script changes with the build, as
+  with any change to the script.
+- **The steps,** in this order, each with its title as a heading, a few
+  sentences, and one example in a code block. What each says, and what
+  its example reads as, are given below; the examples are what the code
+  accepts today (checked against `docs/BACKLOG-FORMAT.md` R0 to R9, S1 to
+  S5 and P1 to P7 with the page's own readers, 2026-11-04).
+  1. **Where the backlog file goes.** The three paths, tried in this
+     order, the first found being read; when more than one exists the
+     Report tab says which was read (3.1). The example is the three
+     paths, as a list. Nothing is parsed; the test compares it with
+     `BACKLOG_PATHS` (see Tests).
+  2. **How an entry is written.** One list item at column 0, a bold
+     marker, an ID (optionally), notes in parentheses, an em dash with a
+     space on each side, the title as the first sentence, the description
+     after it (R1 to R4). Which markers are shown: every marker is shown;
+     `NOW`, `NEXT`, `BLOCKED`, `LATER`, `IDEA` get a column each, `DONE`,
+     `SUPERSEDED` and `MOVED` get folded columns, any other marker gets
+     a column of its own and a warning in the Report tab (3.2, 3.5).
+     Headings group the entries in the list. A list item without a marker
+     is not an entry (R1; Info in the report). The example:
+
+     ```markdown
+     ## Settings
+
+     - **[NOW] ABC-12** (since 2026-11-01) — Read the settings file. Missing keys
+       get defaults.
+
+       Unknown keys are kept and reported.
+     - **[NEXT] ABC-13** — Pick the colours.
+     - **[DONE] ABC-11** — Add the settings page.
+     ```
+
+     Stated reading: three entries, all in the group "Settings", with the
+     markers `NOW`, `NEXT`, `DONE`, the IDs `ABC-12`, `ABC-13`, `ABC-11`,
+     the note "since 2026-11-01" on the first, the titles "Read the
+     settings file.", "Pick the colours." and "Add the settings page.",
+     the first one's description "Missing keys get defaults." followed by
+     "Unknown keys are kept and reported.", and nothing in the report
+     (checked 2026-11-04).
+  3. **The `STATUS.md` headings.** `# Status`, a `Last update:
+     YYYY-MM-DD` line, then `## Phase`, `## Current focus`, `## Next step`
+     and `## Blockers`; a blocker is a list item; one that starts with
+     `Product Owner:` is highlighted (S1 to S5). The example:
+
+     ```markdown
+     # Status
+
+     Last update: 2026-11-04
+
+     ## Phase
+     Build.
+
+     ## Current focus
+     The settings page.
+
+     ## Next step
+     Read the settings file (ABC-12).
+
+     ## Blockers
+     - Product Owner: choose the default port.
+     - The build server is down.
+     ```
+
+     Stated reading: Phase "Build.", Current focus "The settings page.",
+     Next step "Read the settings file (ABC-12).", Last update
+     2026-11-04, two blockers, the first highlighted and the second not,
+     and nothing in the report (checked 2026-11-04).
+  4. **`PROJECTS.md` for an umbrella.** At the project's root; headings
+     become the tree; a line `- owner/repo` is a repo pointer and
+     `- projects/<name>/` a folder pointer; the pointer is alone on its
+     line at column 0 (P1 to P5). The example:
+
+     ```markdown
+     # Projects
+
+     ## Tools
+
+     - acme/widgets
+     - projects/notes/
+     ```
+
+     Stated reading: the heading "Projects" with the child "Tools", which
+     holds the repo pointer `acme/widgets` and the folder pointer
+     `projects/notes/`, and nothing in the report (checked 2026-11-04).
+  5. **A private repo: with a token, or as a folder.**
+     - With a token: make a fine-grained, read-only token for the
+       owner, limited to the chosen repos, with an expiry; type the owner
+       and paste the token into the fields under the address, then
+       "Use"; tick "Remember the token" to keep it in this browser (3.8).
+       It is sent only to GitHub. The example shows the token's format
+       and no token: `github_pat_<letters, digits and underscores>`. It
+       is written with the angle-bracket placeholder, which the token rule
+       of 3.8 refuses, so it cannot be mistaken for one, and no text in
+       the view holds `github_pat_` followed by ten or more letters,
+       digits or underscores.
+     - As a folder: pick the project's folder with "Or a local project
+       folder"; nothing is sent anywhere (3.1).
+     The permission names the step uses ("Contents", read-only) are
+     those 3.8 expects; they are not yet checked against GitHub (section
+     4, items 10 and 11, 19).
+  6. **The end.** A link "The full format, `docs/BACKLOG-FORMAT.md`, on
+     GitHub" to
+     `https://github.com/factoincognito/vizi/blob/main/docs/BACKLOG-FORMAT.md`,
+     opened in a new tab with `rel="noopener noreferrer"`. It follows
+     3.7 item 4; the page makes no request for it.
+- **Accessibility.**
+  - Headings: the page's `h1` stays. The view's title is an `h2`, each
+    step's title an `h3`, and no level is skipped. The view is a
+    `<section>` labelled by its `h2`. The steps are an ordered list.
+    (3.7 keeps `h1` and `h2` for the page; the hidden results hold the
+    project's headings from `h3`, and are not read while hidden.)
+  - Keyboard: the control, the Back buttons and the final link are native
+    elements in the page's tab order, and work with Enter and Space. On
+    opening, the focus moves to the view's `h2` (`tabindex="-1"`). Escape
+    closes. While the view is open nothing else on the page can be
+    focused, as the rest is hidden. An example block wider than the page
+    scrolls, so it has `tabindex="0"` and an `aria-label` naming its step,
+    and a keyboard user can scroll it.
+  - Themes: the view uses the page's existing classes and colours, so
+    light and dark follow `prefers-color-scheme` as today (`src/style.css`).
+    It adds no colour of its own. An example block uses the code-block
+    style the rendered Markdown already has.
+  - Text is real text, not images; meaning is not carried by colour.
+- **Rendering path.** The view is built with the page's `h()` helper and
+  DOM calls that set text (`textContent`), as the rest of the page is
+  (3.7 item 3). No `innerHTML`, `insertAdjacentHTML` or `outerHTML`, for
+  this text or any other. The text is the project's own, not untrusted,
+  and it still takes the same path, so the rule has no exception. The
+  view does not pass its text through `src/markdown.ts`: examples are
+  shown as written, and the paragraphs' code parts are explicit. Nothing
+  in the view reads from a project, a file or the address.
+- **Tests,** test first, on the examples as data, with no network:
+  - unit (`src/help.test.ts`, Jest), on the same exported constants the
+    page renders, through the page's own readers (`src/backlog.ts`,
+    `src/status.ts`, `src/projects.ts`, `src/token.ts`, `src/github.ts`):
+    - step 1's paths equal `BACKLOG_PATHS`, in order;
+    - step 2's example read by `parse` of `src/backlog.ts` gives exactly
+      the stated reading above, with an empty report; each marker of the
+      step's text on the board is one the page folds or shows as stated
+      (the folded set and the recommended set are compared with the
+      page's constants);
+    - step 3's example read by `src/status.ts` gives the stated fields,
+      date and two blockers, the first with `waitingOnProductOwner`, and
+      an empty report;
+    - step 4's example read by `src/projects.ts` gives the stated tree,
+      a repo pointer and a folder pointer, and an empty report;
+    - step 5's token example is refused by `parseToken`, and no part of
+      the help text matches `github_pat_[A-Za-z0-9_]{10,}`;
+    - the closing link is an `https://github.com/factoincognito/vizi/`
+      URL ending in `docs/BACKLOG-FORMAT.md`;
+    - every code example is also scanned for the report's three kinds,
+      so an example that gains a warning fails the test.
+  - source check (Jest, reading the source file): `src/help.ts` and the
+    view's code in `src/main.ts` hold no `innerHTML`, `outerHTML` or
+    `insertAdjacentHTML`.
+  - browser (Playwright, GitHub stubbed, in light and dark, at phone and
+    desktop width as the other page tests are):
+    - the control is on the start page and reachable with Tab; Enter
+      opens the view; the inputs and results are hidden and the focus is
+      on the `h2`;
+    - the heading structure: one `h1`, one `h2`, an `h3` per step, none
+      deeper;
+    - each code block's text equals the constant in `src/help.ts`; the
+      step titles are in order; every control label the text names
+      ("Owner", "Use", "Remember the token", "Or a local project folder")
+      exists on the start page;
+    - Escape and both Back buttons close it, the focus returns to the
+      control, and a project loaded before is still there; a load
+      started before opening finishes and shows after closing;
+    - no request is made by opening the view, and the page's requests
+      stay as in 2.3; the built `dist/index.html` holds the view's title
+      and the example text; the CSP test of `e2e/csp.e2e.ts` is repeated
+      with the view open, with no violation and no console error, and a
+      script added at run time is still blocked;
+    - the final link has the right `href`, `target` and `rel`; it is not
+      clicked;
+    - in dark mode the view's text and background differ as on the start
+      page (the check of `e2e/smoke.e2e.ts`).
+
 ---
 
 ## 4. Known unknowns
@@ -1252,3 +1486,11 @@ Items 17 and 18 are PBI-1.11's (3.8):
 18. **Open; PBI-1.11.** That GitHub treats owner names without regard
     to case, so that vizi may compare them in lower case. Not checked
     here.
+
+Item 19 is PBI-1.13's (3.10):
+
+19. **Open; PBI-1.13.** The help view's token step names the permission
+    "Contents" as read-only, as 3.8 expects it; GitHub's own wording on
+    the token page was not checked. It is settled with items 10 and 11,
+    when the product owner first tries a token against real GitHub, and
+    the help text is corrected if GitHub says otherwise.
