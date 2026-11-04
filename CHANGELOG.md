@@ -36,6 +36,11 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - PBI-1.8 part 2: private repos by address with a saved, read-only GitHub token (#31).
 - Backlog: PBI-1.9 the umbrella view (#32).
 - Spec: the umbrella view (PBI-1.9) (#33).
+- PBI-1.8 done; PBI-1.9 now; PBI-1.10 from the reviews; changelog (#34).
+- PBI-1.9: the umbrella view — the Umbrella tab with the tree from PROJECTS.md, Open in vizi, On GitHub and Show status (#35).
+- Backlog: PBI-1.10 gains #35's follow-ups (#36).
+- Backlog: PBI-1.11 tokens per owner, PBI-1.12 saved repos (#37).
+- A flaky token browser test now waits for the new load's requests (#38).
 
 ## Project created
 
