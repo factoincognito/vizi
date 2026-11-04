@@ -265,13 +265,16 @@ the tests check:
    into elements: it is shown as text, escaped. HTML comments
    (`<!-- … -->`) are dropped. No script, style, event handler or
    element from the source ever reaches the page.
-2. **What Markdown becomes.** Headings, paragraphs, lists, emphasis and
+2. **Indent.** A description's common leading indent is removed before
+   it is rendered, so an entry's indented description lines are not
+   turned into indented code (`docs/BACKLOG-FORMAT.md`, edge case 6).
+3. **What Markdown becomes.** Headings, paragraphs, lists, emphasis and
    strong emphasis, code spans, fenced code, block quotes and links.
    Anything else (tables, footnotes, and so on) is shown as its plain
    text. The page builds elements from `src/markdown.ts`'s tree with DOM
    calls that set text (`textContent`), never by inserting source text
    as HTML.
-3. **Links.** A link becomes a clickable link only when its target,
+4. **Links.** A link becomes a clickable link only when its target,
    after trimming spaces and ignoring case, is:
    - an absolute `https:` or `http:` URL;
    - a relative path, resolved against the file it appears in: in URL
@@ -283,7 +286,7 @@ the tests check:
    other scheme, or a target with control characters) is shown as the
    link's text with no link. Links to other sites open in a new tab with
    `rel="noopener noreferrer"`; opening one is the user's own action.
-4. **No loads from content.** Images are never loaded: `![alt](url)` is
+5. **No loads from content.** Images are never loaded: `![alt](url)` is
    shown as a link with the alt text, under rule 3, or as the alt text.
    Nothing in the content makes the page request anything: no images,
    frames, styles, fonts or scripts. The page's only requests are those
