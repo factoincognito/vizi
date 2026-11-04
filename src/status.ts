@@ -22,7 +22,8 @@ export interface StatusResult {
   nextStep: string | null;
   /** The date of "Last update", YYYY-MM-DD, or null. */
   lastUpdate: string | null;
-  blockers: Blocker[];
+  /** null when the Blockers heading is missing (not given); [] when the section holds none. */
+  blockers: Blocker[] | null;
   /** S4: the Blockers section holds a "None" item. */
   none: boolean;
   /** S4: the text after "None.", if any. */
@@ -139,7 +140,7 @@ export function parse(source: string): StatusResult {
     }
   }
 
-  const blockers: Blocker[] = [];
+  const blockers: Blocker[] | null = blockerBlock ? [] : null;
   let none = false;
   const remarks: string[] = [];
   for (const b of readBlockers(trimBlank(blockerBlock ?? []))) {
@@ -148,7 +149,7 @@ export function parse(source: string): StatusResult {
       const remark = b.text.slice(5).trim();
       if (remark !== "") remarks.push(remark);
     } else {
-      blockers.push({
+      blockers?.push({
         ...b,
         waitingOnProductOwner: PRODUCT_OWNER_PREFIXES.some((p) => b.text.startsWith(p)),
       });

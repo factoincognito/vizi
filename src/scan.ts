@@ -125,11 +125,13 @@ export function listItem(text: string): { indent: number; body: string } | null 
 export function heading(text: string): { level: number; text: string } | null {
   const m = /^(#{1,6}) (.*)$/.exec(text);
   if (!m?.[1]) return null;
-  return {
-    level: m[1].length,
-    text: (m[2] ?? "")
-      .trim()
-      .replace(/(?:^|\s+)#+$/, "")
-      .trim(),
-  };
+  return { level: m[1].length, text: stripClosingHashes((m[2] ?? "").trim()) };
+}
+
+/** Drops a closing run of # when it is the whole text or follows whitespace. Linear: no backtracking regex. */
+function stripClosingHashes(text: string): string {
+  let k = text.length;
+  while (k > 0 && text[k - 1] === "#") k--;
+  if (k === text.length || (k > 0 && !/\s/.test(text[k - 1] ?? ""))) return text;
+  return text.slice(0, k).trim();
 }

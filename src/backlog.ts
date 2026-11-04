@@ -115,18 +115,12 @@ function splitTitle(text: string): { title: string; rest: string } {
 /** R4: the lines after the head, up to the next non-blank column-0 line that is not inside a fence opened in the description. */
 function readDescription(lines: Line[], from: number, headRest: string): string {
   const out: string[] = headRest === "" ? [] : [headRest];
-  let inFence = false;
   for (let j = from; j < lines.length; j++) {
     const l = lines[j];
     if (!l) break;
     if (l.fence) {
-      if (l.fence === "open") {
-        if (indentOf(l.text) === 0) break;
-        inFence = true;
-      } else if (!inFence) {
-        break;
-      }
-      if (l.fence === "close") inFence = false;
+      // The head always stops at a fence line, so the first one met here is an opener.
+      if (l.fence === "open" && indentOf(l.text) === 0) break;
     } else if (indentOf(l.text) === 0 && !isBlank(l.text)) {
       break;
     }

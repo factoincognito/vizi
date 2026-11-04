@@ -119,7 +119,7 @@ describe("S1 and S2: layout and fields", () => {
   it("reads an empty file as all fields not given", () => {
     const r = parse("");
     expect([r.phase, r.currentFocus, r.nextStep, r.lastUpdate]).toEqual([null, null, null, null]);
-    expect(r.blockers).toEqual([]);
+    expect(r.blockers).toBeNull();
     expect(r.report).toHaveLength(5);
   });
 
