@@ -79,14 +79,14 @@ Build order: Clead's proposal, from the design the spec is taken from.
   repo named `factoincognito.github.io`, and Pages only for factoincognito
   repos he trusts; a domain of vizi's own stays the stronger option for
   later (SPEC 3.8).
-- **[NOW] PBI-1.9** (product owner, 2026-11-04; intent approved 11:06; spec PR #33, merge `3c61bd4`) — The umbrella view:
+- **[DONE] PBI-1.9** (2026-11-04: PR #35, merge `6ce4963`, Clead-role review approved in round 2; live on Pages) (product owner, 2026-11-04; intent approved 11:06; spec PR #33, merge `3c61bd4`) — The umbrella view:
   when vizi opens a project whose root has a `PROJECTS.md` in the product
   office's format (pointers `- owner/repo` or `- projects/<name>/` under
   headings), it shows the headings as a tree with the projects under
   them, and each project links on, to that project in vizi or to its
   repo. The tree is drawn from the file, never kept anywhere else. A spec
   change first, which needs the product owner's intent approval.
-- **[NEXT] PBI-1.11** (product owner, 2026-11-04; intent approved 11:57) — One saved GitHub
+- **[NOW] PBI-1.11** (product owner, 2026-11-04; intent approved 11:57) — One saved GitHub
   token per owner (for example factoincognito and fomo-t), picked
   automatically by the owner in the address opened, the umbrella view's
   "Open in vizi" included. Each token has its own "Remember" box and
