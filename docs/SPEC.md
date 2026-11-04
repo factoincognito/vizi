@@ -48,6 +48,13 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
    replaces "no token; private repos are not read by address" of
    2026-11-03 (section 1). It is recorded as a comment on PR #26. How
    vizi does it is 3.8.
+5. His decision of 2026-11-04 (10:22, in chat, "apyr", on Clead's
+   recommendation; recorded in the product office's decision record,
+   merge `b43c811`) on the defence for the shared origin (3.8, "The
+   shared origin"): no repo named `factoincognito.github.io` is
+   created, and GitHub Pages is switched on only for factoincognito
+   repos he trusts. A domain of vizi's own stays the stronger option for
+   later, if more sites go on factoincognito Pages.
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -57,10 +64,7 @@ Points that come from the approved summary are marked **(approved)**.
 
 **Not decided.** Marked "not decided" where they appear: a lint mode
 beyond the page's report (section 1), and a change to the template's own
-wording of the external-requests rule (section 4, item 8). Also open:
-which defence against the shared origin applies, a custom domain or
-control over the account's Pages sites (3.8, "The shared origin"); that
-is the product owner's choice, asked 2026-11-04.
+wording of the external-requests rule (section 4, item 8).
 
 ---
 
@@ -713,14 +717,18 @@ PBI-1.8 builds it.
   root site (checked 2026-11-04). Which other repos of the account have
   a Pages site was not checked: this session cannot list them.
 
-  The defences are a custom domain for vizi, which gives it an origin of
-  its own, or the product owner's control over who may create Pages
-  sites in the account, above all never a root site
-  `factoincognito.github.io`. Which applies is the product owner's
-  choice, asked 2026-11-04. The read-only, chosen-repos, expiring token
-  limits what a stolen token can do; it does not stop the theft. The
-  page says, next to the token field, that other factoincognito Pages
-  sites can reach the token.
+  The defence, decided by the product owner on 2026-11-04 ("What is
+  decided", item 5): no repo named `factoincognito.github.io` is
+  created, so there is no root site and no service worker for the whole
+  origin; and GitHub Pages is switched on only for factoincognito repos
+  he trusts, so every site on the origin is one he trusts. The risk
+  above stays: the token is only as safe as those sites, and the rule
+  holds only as long as it is kept. A domain of vizi's own, which gives
+  vizi an origin of its own, stays the stronger option for later, if
+  more sites go on factoincognito Pages. The
+  read-only, chosen-repos, expiring token limits what a stolen token can
+  do; it does not stop the theft. The page says, next to the token
+  field, that other factoincognito Pages sites can reach the token.
 - **Forget the token.** It removes the token from memory, removes the
   `localStorage` key, clears the field and the "Token in use" line, and
   hides any results that were loaded with the token, since they may
