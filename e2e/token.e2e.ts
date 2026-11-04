@@ -609,9 +609,12 @@ test.describe("a second tab (3.8)", () => {
     await expect(page.getByTestId("column").first()).toBeVisible();
     const before = gets(stub).length;
     await openUrl(page);
+    // The old results stay on screen, so a visible column proves nothing about the new
+    // load: wait for its first request, then for the load to end.
+    await expect.poll(() => gets(stub).length - before).toBeGreaterThan(0);
+    await expect(page.locator("#message")).not.toHaveText("Loading…");
     await expect(page.getByTestId("column").first()).toBeVisible();
     const sent = gets(stub).slice(before);
-    expect(sent.length).toBeGreaterThan(0);
     for (const s of sent) expect(s.headers.authorization).toBe(`Bearer ${TOKEN2}`);
   });
 
