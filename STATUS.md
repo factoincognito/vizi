@@ -15,10 +15,10 @@ Last update: 2026-11-04
 Build.
 
 ## Current focus
-The parser and report module (PBI-1.1, PR #6): `src/backlog.ts` and `src/status.ts`.
+The page (PBI-1.2, PR #9): folder and GitHub URL input, board, list, status, documentation links, report tab, `src/markdown.ts`.
 
 ## Next step
-Clead reviews PR #6; once it merges, the page (PBI-1.2).
+Clead reviews PR #9; once it merges, the link from the template (PBI-1.3).
 
 ## Blockers
 None.

@@ -218,7 +218,7 @@ test.describe("board and list (3.2)", () => {
     await expect(page.locator('[data-testid="column"][data-marker="NOW"] h3')).toContainText("1");
     const done = page.locator('[data-testid="column"][data-marker="DONE"]');
     await expect(done.getByTestId("card")).toBeHidden();
-    await done.locator("summary").click();
+    await done.locator(":scope > summary").click();
     await expect(done.getByTestId("card")).toBeVisible();
   });
 
@@ -376,14 +376,20 @@ test.describe("local folder input (3.1, 3.4)", () => {
     ]);
     await page.getByTestId("doc-link").filter({ hasText: "docs/guide.md" }).click();
     const view = page.locator("#doc-view");
-    await expect(view.locator("h1")).toHaveText("Widget guide");
+    await expect(view.locator(".md h3")).toHaveText("Widget guide");
     await expect(view).toContainText("<script>window.__pwned = 4</script>");
     await expect(view.locator("script")).toHaveCount(0);
     await expect(view.getByRole("link", { name: "readme" })).toBeVisible();
     await expect(view.getByRole("link", { name: "missing file" })).toHaveCount(0);
     await view.getByRole("link", { name: "readme" }).click();
-    await expect(view.locator("h1")).toHaveText("Widget");
+    await expect(view.locator(".md h3")).toHaveText("Widget");
     expect(stray).toEqual([]);
+  });
+
+  test("picks a folder on a page opened from disk (file://)", async ({ page }) => {
+    await page.goto(pathToFileURL(join(here, "..", "dist", "index.html")).href);
+    await page.locator("#folder-input").setInputFiles(project);
+    await expect(page.getByTestId("column").first()).toBeVisible();
   });
 
   test("a code span naming a project file is a link in folder mode, too", async ({ page }) => {
@@ -392,7 +398,7 @@ test.describe("local folder input (3.1, 3.4)", () => {
     const card = page.locator('[data-testid="card"][data-id="WG-1"]');
     await card.locator("summary").click();
     await card.locator('a:has(code:text("docs/guide.md"))').first().click();
-    await expect(page.locator("#doc-view h1")).toHaveText("Widget guide");
+    await expect(page.locator("#doc-view .md h3")).toHaveText("Widget guide");
   });
 });
 

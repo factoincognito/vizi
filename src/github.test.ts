@@ -103,7 +103,7 @@ describe("loadRepo: the requests of 3.1, in order", () => {
   it("skips request 1 when the URL names a branch, and encodes the branch in the tree request", async () => {
     const { fetcher, calls } = fake({
       [`${API}/git/trees/feat%2Fx?recursive=1`]: { status: 200, body: tree(["BACKLOG.md"]) },
-      ["https://raw.githubusercontent.com/acme/widgets/feat/x/BACKLOG.md"]: {
+      "https://raw.githubusercontent.com/acme/widgets/feat/x/BACKLOG.md": {
         status: 200,
         body: "b",
       },
