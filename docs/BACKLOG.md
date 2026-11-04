@@ -51,6 +51,22 @@ Build order: Clead's proposal, from the design the spec is taken from.
   `factoincognito/ai-project-template-v2`, through that repo's own flow.
 - **[LATER] PBI-1.4** (Clead, 2026-11-04, from the code review of PR #9) — Settle the known unknowns of `docs/SPEC.md` section 4 that PBI-1.2 left open, each checked in a real browser on the product owner's computer, not through this session's proxy: folder picking with the browser's own folder picker (the tests set the files directly), in Chromium and in other browsers; GitHub requests from a page opened from disk; GitHub's anonymous rate limit; what GitHub answers for a private repo. Record each result in the spec.
 - **[DONE] PBI-1.5** (2026-11-04: PR #16, merge `d5bb2c3`, and PR #17, merge `c94918b`, each approved by a Clead-role review in round 1) (Clead, 2026-11-04, from the code review of PR #9, round 2) — The review's optional points, none a defect: heading slugs keep Unicode letters and digits (today `Översikt` becomes `versikt`); the same 4096-character limit for both link destination forms (one is 4095); the cost of a 1 MB hostile line (about 4 s); the stray-request test guard allows only the page's own file; separate test ids for "No blockers listed" and "None"; duplicate heading ids when one description shows in a board card and a list row; non-`.md` files shown as code in folder mode; a late answer from an older load ignored when a newer address was submitted. Added from the review of PR #11: the doc comment on `folderFiles` in `src/docs.ts` still says dot-folders are skipped, while the code skips only `.git` and `node_modules`; relative link targets fully percent-decoded (today `decodeURI` leaves `%2F` and `%23` as written); tests for the report's Info item and the documentation list when GitHub's file list is truncated (today only the message under the address is tested).
+- **[NEXT] PBI-1.7** (product owner, 2026-11-04) — Publish vizi on
+  GitHub Pages (`https://factoincognito.github.io/vizi/`): a workflow
+  builds the page and deploys it on every merge to `main`. The product
+  owner sets the repo's Pages source to "GitHub Actions" (a setting a
+  session cannot change). Needs a spec update (SPEC 2 and 3.6: the page is
+  published, not only opened locally) with the product owner's intent
+  approval of 2026-11-04 recorded on it. Every Pages site of the
+  factoincognito account shares the `factoincognito.github.io` browser
+  storage; a custom domain can isolate vizi later if needed.
+- **[LATER] PBI-1.8** (product owner, 2026-11-04, after PBI-1.7) — Private
+  repos by address: a fine-grained, read-only GitHub token, limited to
+  chosen repos and with an expiry, pasted into vizi and, behind a
+  "Remember the token" box, saved in the browser's storage, with a
+  "Forget the token" button. A spec change: needs the product owner's
+  intent approval before it is built. Check first that GitHub accepts
+  such a token from the published page.
 - **[LATER] PBI-1.6** (Clead, 2026-11-04, from the code reviews of PRs #16 and #17) — Optional points, none a defect: check a link target again for control characters and backslashes after percent-decoding (today `%00`, `%0A` and `%5C` survive; SPEC 3.7 says a target with control characters is text); normalise heading text to NFC before making its slug, so a precomposed `Ö` and `O` plus a combining mark give the same anchor; a ~900k-character line of nested brackets takes about 1.4 s, close to the tests' 1.5 s limit; in `e2e/page.e2e.ts` two "no link" checks (around lines 207 and 370) run before the description renders, so they prove nothing — check after rendering; `showDoc` does not check after its `await` that the project is still the current one; a test for an older slow success arriving after a newer fast error.
 
 ---
@@ -60,6 +76,8 @@ Build order: Clead's proposal, from the design the spec is taken from.
 - Editing a backlog: vizi only reads; the backlog file is the only
   source of truth (product owner, 2026-11-03).
 - Reading private repos by URL, or any GitHub token (product owner,
-  2026-11-03). Private projects are opened as a local folder.
-- In the first version: deployment, and a command-line lint for CI
-  (product owner, 2026-11-03).
+  2026-11-03). Private projects are opened as a local folder. Planned
+  next as PBI-1.8 (product owner, 2026-11-04).
+- In the first version: a command-line lint for CI (product owner,
+  2026-11-03). Deployment was out of scope in the first version too;
+  publishing on GitHub Pages is PBI-1.7 (product owner, 2026-11-04).
