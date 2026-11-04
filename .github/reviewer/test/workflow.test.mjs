@@ -28,6 +28,14 @@ test("runs on pull_request with the four types asked for, and never pull_request
   assert.ok(!/pull_request_target/.test(code));
 });
 
+test("no paths filter: which files a PR changes is checked by the script from the compare", () => {
+  // A paths or paths-ignore filter would leave a later push that adds a code
+  // file to a review-free PR without a run; the script decides the skip instead.
+  for (const key of ["paths", "paths-ignore"]) {
+    assert.equal(wf.on.pull_request[key], undefined, key);
+  }
+});
+
 test("skips [claim] PRs, drafts and fork PRs", () => {
   const cond = String(job.if);
   assert.match(cond, /startsWith\(github\.event\.pull_request\.title, '\[claim\]'\)/);
