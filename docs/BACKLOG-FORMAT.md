@@ -407,9 +407,20 @@ More Blockers sections, and how they are read:
 root, its headings are shown as a tree with the projects under them
 (`docs/SPEC.md` 3.9).
 
-Clead's design, for `src/projects.ts`. The pointer rule is the same as
-the product office's own reader of the file, so both read the same
-pointers and report the same lines.
+Clead's design, for `src/projects.ts`. It shares two tests with the
+product office's own reader of the file (`read_status.py`): the pointer
+pattern of P4 and the bullet test of P5. The two still differ, because
+that reader tests every line of the file as it stands and reads no
+headings:
+- it does not drop comments or skip fences (P2), so a pointer inside a
+  comment or a fence is a pointer there and not here;
+- it does not refuse `.` and `..` (P4), so `- ../x` is a pointer there
+  and an error here;
+- it does not see text left after a `-->` (R9), so
+  `<!-- x -->- acme/a` is ignored there and is a pointer here.
+
+Changing the product office's reader is a separate decision, outside
+vizi.
 
 **P1. Where.** Only `PROJECTS.md` at the project's root.
 
@@ -440,8 +451,9 @@ product office's reader. A pointer whose owner, repo or folder name is
 `.` or `..` is not read (error, section 3).
 
 **P5. Other bullet lines are reported.** Any other line whose text,
-after any indent, starts with `-`, `*` or `+` and a space or tab is not
-a pointer and is not read (error): an indented pointer, a `*` or `+`
+after any indent, starts with `-`, `*` or `+` and a whitespace
+character (`\s`, as in the product office's reader) is not a pointer
+and is not read (error): an indented pointer, a `*` or `+`
 bullet, or a pointer with text after it, such as
 `- acme/widgets — the main one`.
 

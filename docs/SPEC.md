@@ -772,8 +772,8 @@ PBI-1.8 builds it.
   file's text (checked 2026-11-04 without a token, on a public file:
   the text came back as `application/vnd.github.raw+json` with
   `Access-Control-Allow-Origin: *`). The branch and each segment of the
-  path are percent-encoded. So a load with a token makes two to four
-  requests, all to `api.github.com`.
+  path are percent-encoded. So a load with a token makes two to five
+  requests (with `PROJECTS.md`, 3.9), all to `api.github.com`.
 - **Never in an address, a log or a message.** The token is never put
   in a URL, never written to the console, and never part of an error
   message, the report or the page's text; messages name the host, the
@@ -847,8 +847,7 @@ pointer, is `docs/BACKLOG-FORMAT.md`, section 5 (P1 to P7).
   from the folder. In URL mode it reads it with one more request 3
   (3.1), only if the file list has it, and, with a token held, through
   the contents API as 3.8 sets out for every request 3. In URL mode
-  this adds one request to a load; 3.8's count is updated by the next
-  spec change to 3.8.
+  this adds one request to a load (counted in 3.1 and 3.8).
 - **The tab.** When the file exists, an "Umbrella" tab is added after
   "Report". When the project has a `PROJECTS.md` but no backlog file,
   the page opens on the Umbrella tab; otherwise it opens on the Board,
@@ -873,20 +872,26 @@ pointer, is `docs/BACKLOG-FORMAT.md`, section 5 (P1 to P7).
   status". It reads `projects/<name>/STATUS.md` of the same project:
   from the folder in folder mode, or in URL mode with one request 3 for
   that path (the contents API with a token held), only if the file list
-  has it. The status is shown under the pointer, read and shown as the
-  project's own status is (3.3; `docs/BACKLOG-FORMAT.md` S1 to S5,
-  blockers that wait on the product owner highlighted); what it could
-  not read is shown with it. Without the file the page says "No
-  STATUS.md in projects/<name>/", with no request. An answer that
-  arrives after a newer load has started, or after the page has opened
-  another project, is dropped. "Show status" reads the file again each
-  time.
+  has it. The status is shown in its own panel, "Project status",
+  below the tree and outside it, headed with the folder pointer it
+  belongs to, read and shown as the project's own status is (3.3;
+  `docs/BACKLOG-FORMAT.md` S1 to S5, blockers that wait on the product
+  owner highlighted); what it could not read is shown with it. There is
+  one panel: the next "Show status", for any pointer, replaces it, and
+  the newest "Show status" wins, so when two are used in quick
+  succession, on the same pointer or on two, an older answer arriving
+  later is dropped. An answer that arrives after a newer load has
+  started, or after the page has opened another project, is dropped as
+  well. Without the file the panel says "No STATUS.md in
+  projects/<name>/", with no request. "Show status" reads the file
+  again each time.
 - **Drawn from the file each time.** The tree is built from
   `PROJECTS.md` at every load, and a folder pointer's status at every
   "Show status". Nothing about them is kept after the next load,
   nothing is written to the browser's storage, and nothing is copied
   anywhere. The page reads no project's status until "Show status" is
-  used, so the tree itself shows no status, as approved.
+  used, and the tree itself never carries a status: a status is only
+  ever shown in the panel outside it.
 - **Report.** What `src/projects.ts` reports (P4, P5, P7) is listed in
   the Report tab, in its three kinds, as "`PROJECTS.md` line `<n>`:
   `<message>`" (3.5).
@@ -903,9 +908,12 @@ pointer, is `docs/BACKLOG-FORMAT.md`, section 5 (P1 to P7).
     tab when there is no backlog; "Open in vizi" sets the address and
     makes the requests of 3.1 for the new repo, and an older answer
     arriving after it is dropped; "On GitHub" has the right URL,
-    target and `rel`; "Show status" in both modes, the missing-file
-    message with no request, and a late answer dropped; no status
-    request before "Show status" is used; the report items; with a
+    target and `rel`; "Show status" in both modes shows the status in
+    the panel outside the tree, and the tree holds no status; the
+    missing-file message with no request; a second "Show status"
+    replaces the panel, and of two in quick succession the newer answer
+    wins; a late answer after a newer load is dropped; no status request
+    before "Show status" is used; the report items; with a
     token held (once PBI-1.8 is built), "Open in vizi" and "Show
     status" use it and no request goes to `raw.githubusercontent.com`.
 
