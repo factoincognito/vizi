@@ -54,7 +54,11 @@ export function scan(source: string): Scanned {
       if (end < 0) {
         lines.push({ number, text: "", fence: null });
       } else {
-        lines.push({ number, text: original.slice(end + 3), fence: null });
+        lines.push({
+          number,
+          text: original.slice(0, indentOf(original)) + original.slice(end + 3),
+          fence: null,
+        });
         commentLine = null;
       }
       continue;
