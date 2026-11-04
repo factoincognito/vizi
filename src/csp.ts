@@ -58,21 +58,30 @@ export function addCsp(html: string): string {
   }
 
   // What is left outside the two blocks is the page's markup: text inside a
-  // block may look like markup and is not looked at here.
-  const markup = html
-    .replace(SCRIPT_BLOCK, "<script></script>")
-    .replace(STYLE_BLOCK, "<style></style>");
-  if (/<link\b[^>]*\brel\s*=\s*["']?(?:stylesheet|modulepreload|preload)/i.test(markup)) {
+  // block may look like markup and is not looked at here. A block is blanked
+  // out with spaces of the same length, so an offset in the markup is the same
+  // offset in the page.
+  const blank = (block: string) => " ".repeat(block.length);
+  const markup = html.replace(SCRIPT_BLOCK, blank).replace(STYLE_BLOCK, blank);
+  if (
+    /<link\b[^>]*\brel\s*=\s*["']?[^"'>]*\b(?:stylesheet|modulepreload|preload)\b/i.test(markup)
+  ) {
     throw new Error("The page must not link a stylesheet or a script.");
   }
-  if (/<[a-z][^>]*\s(?:style|on[a-z]+)\s*=/i.test(markup)) {
+  if (/<[a-z][^>]*[\s/](?:style|on[a-z]+)\s*=/i.test(markup)) {
     throw new Error("The page must have no style attribute and no event handler attribute.");
   }
+  // Catches the plain spelling only; a second policy can only narrow what is allowed, so a missed one is harmless.
   if (/http-equiv\s*=\s*["']?content-security-policy/i.test(markup)) {
     throw new Error("The page already has a Content-Security-Policy.");
   }
-  const charset = CHARSET_META.exec(html);
+  // Looked for in the markup, so text inside a script is not taken for the tag. The
+  // markup keeps the blocks' places, so an offset in it is the same offset in the page.
+  const charset = CHARSET_META.exec(markup);
   if (!charset) throw new Error("The page needs a <meta charset> for the policy to follow.");
+  if (charset.index > Math.min(script.index, style.index)) {
+    throw new Error("The <meta charset> must come before the page's script and style.");
+  }
 
   const policy = buildPolicy(sha256Source(script[2] ?? ""), sha256Source(style[2] ?? ""));
   const tag = `<meta http-equiv="Content-Security-Policy" content="${policy}" />`;
