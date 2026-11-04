@@ -61,11 +61,11 @@ describe("sha256Source", () => {
 });
 
 describe("buildPolicy", () => {
-  it("is the policy of SPEC 2.3, hashes in place, nothing else allowed", () => {
+  it("is the policy of SPEC 2.3, hashes in place, fonts from data: only (3.12), nothing else allowed", () => {
     expect(buildPolicy("'sha256-AAA='", "'sha256-BBB='")).toBe(
       "default-src 'none'; script-src 'sha256-AAA='; style-src 'sha256-BBB='; " +
         "connect-src https://api.github.com https://raw.githubusercontent.com; " +
-        "img-src data:; base-uri 'none'; form-action 'none'",
+        "img-src data:; font-src data:; base-uri 'none'; form-action 'none'",
     );
   });
 });
