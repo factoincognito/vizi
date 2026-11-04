@@ -414,6 +414,72 @@ test.describe("rendering contract (3.7)", () => {
   });
 });
 
+test.describe("heading ids and anchors (3.7 item 4)", () => {
+  const backlog = [
+    "# Backlog",
+    "",
+    "- **[NOW] UC-1** — Headings in a description.",
+    "  Intro.",
+    "",
+    "  ## Översikt",
+    "",
+    "  Go to [the overview](#Översikt) or [the second one](#översikt-1).",
+    "",
+    "  ## Översikt",
+    "",
+    "  Done.",
+  ].join("\n");
+
+  test("every id on the page is unique when one description is open in a board card and a list row", async ({
+    page,
+  }) => {
+    await stubGithub(page, { tree: ["docs/BACKLOG.md"], backlog });
+    await page.goto("/");
+    await openUrl(page);
+    await page.locator('[data-testid="card"][data-id="UC-1"] summary').click();
+    await expect(page.locator('[data-testid="card"] [data-testid="description"] h4')).toHaveCount(
+      2,
+    );
+    await page.getByRole("tab", { name: "List" }).click();
+    await page.locator('[data-testid="list-row"][data-id="UC-1"] summary').click();
+    await expect(
+      page.locator('[data-testid="list-row"] [data-testid="description"] h4'),
+    ).toHaveCount(2);
+    const ids = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("[id]"), (e) => e.id),
+    );
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+    const headings = await page
+      .locator('[data-testid="description"] h4')
+      .evaluateAll((els) => els.map((e) => e.id));
+    expect(headings).toHaveLength(4);
+    expect(headings.every((id) => id.startsWith("md-") && id.includes("översikt"))).toBe(true);
+  });
+
+  test("an anchor in a description points at the heading of the same description, Unicode slug included", async ({
+    page,
+  }) => {
+    await stubGithub(page, { tree: ["docs/BACKLOG.md"], backlog });
+    await page.goto("/");
+    await openUrl(page);
+    await page.locator('[data-testid="card"][data-id="UC-1"] summary').click();
+    await page.getByRole("tab", { name: "List" }).click();
+    const row = page.locator('[data-testid="list-row"][data-id="UC-1"]');
+    await row.locator("summary").click();
+    const first = row.getByRole("link", { name: "the overview" });
+    const second = row.getByRole("link", { name: "the second one" });
+    for (const [link, index] of [
+      [first, 0],
+      [second, 1],
+    ] as const) {
+      const id = decodeURIComponent(((await link.getAttribute("href")) ?? "").slice(1));
+      const inRow = await row.locator("h4").nth(index).getAttribute("id");
+      expect(id).toBe(inRow);
+      await expect(page.locator(`[id="${id}"]`)).toHaveCount(1);
+    }
+  });
+});
+
 test.describe("local folder input (3.1, 3.4)", () => {
   test("reads a project folder: board, status, docs; opens a doc in the page; resolves relative links", async ({
     page,
