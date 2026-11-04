@@ -17,8 +17,11 @@ approved on 2026-11-04.
 - Works for any project whose backlog is close enough to the template's
   format. Finds the backlog at `BACKLOG.md` (repo root),
   `docs/BACKLOG.md` and `docs/PRODUCT_BACKLOG.md`.
-- Local mode opens a project folder, not a single file, so documentation
-  links work for private projects.
+- Local mode opened a project folder, not a single file, so documentation
+  links worked for private projects (2026-11-03). Replaced on 2026-11-04
+  (15:15, "apyr"; `docs/SPEC.md` "What is decided", item 9; PBI-1.14):
+  vizi opens projects from GitHub only, public by address, private with
+  the saved token. It no longer opens a local folder.
 - URL mode reads public GitHub repos only, with no token. Private repos
   are not read by URL (2026-11-03). Replaced on 2026-11-04: private repos
   by address with a saved, read-only GitHub token (PBI-1.8).
