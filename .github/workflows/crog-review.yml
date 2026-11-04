@@ -1,0 +1,62 @@
+name: Crog review
+
+# PO-68 pilot: Crog's pull request review runs here, as a script on the Claude
+# Agent SDK (.github/reviewer/), paid by the Console organization's monthly API
+# credits. It is NOT anthropics/claude-code-action, which the credits do not
+# cover. The job only reads code and posts one comment; it never merges,
+# approves through GitHub's review API, or pushes. Merging stays with the
+# sessions (CLAUDE.md, Change execution model).
+#
+# pull_request, never pull_request_target: a pull request from a fork gets no
+# secrets, and the job is skipped for it.
+
+on:
+  pull_request:
+    types: [opened, synchronize, edited, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# One review per pull request at a time. A newer push cancels the older run; an
+# edit of the title or description does not, because the older run's model call
+# may already be paid for (the edit's run waits, and finds the verdict posted).
+concurrency:
+  group: crog-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: ${{ github.event.action == 'synchronize' }}
+
+jobs:
+  review:
+    # Not a [claim] PR, not a draft, not a fork.
+    if: >-
+      !startsWith(github.event.pull_request.title, '[claim]') &&
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history: the review documents are read from the base commit.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: .github/reviewer/package-lock.json
+
+      - name: Install the reviewer's dependencies
+        run: npm ci --ignore-scripts --prefix .github/reviewer
+
+      - name: Review
+        run: node .github/reviewer/review.mjs
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
