@@ -46,6 +46,8 @@ interface StubOptions {
   answer?: (url: string) => Answer | undefined;
   /** Keeps the answer to this URL waiting until `release()`. */
   hold?: string;
+  /** Milliseconds every request waits before the stub sees and answers it, as on a slow network. */
+  lag?: number;
 }
 
 /** Answers the GitHub endpoints for acme/widgets on a whole context, recording every GET. */
@@ -66,6 +68,7 @@ async function stubGithub(context: BrowserContext, options: StubOptions = {}): P
       const request = route.request();
       const url = request.url();
       if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+      if (options.lag) await new Promise((resolve) => setTimeout(resolve, options.lag));
       seen.push({ method: request.method(), url, headers: await request.allHeaders() });
       if (options.hold === url) await gate;
       const custom = options.answer?.(url);
@@ -590,7 +593,7 @@ test.describe("a second tab (3.8)", () => {
     page,
     context,
   }) => {
-    const stub = await stubGithub(context);
+    const stub = await stubGithub(context, { lag: 400 });
     await page.goto("/");
     await useToken(page, TOKEN, true);
     await openUrl(page);
@@ -606,9 +609,12 @@ test.describe("a second tab (3.8)", () => {
     await expect(page.getByTestId("column").first()).toBeVisible();
     const before = gets(stub).length;
     await openUrl(page);
+    // The old results stay on screen, so a visible column proves nothing about the new
+    // load: wait for its first request, then for the load to end.
+    await expect.poll(() => gets(stub).length - before).toBeGreaterThan(0);
+    await expect(page.locator("#message")).not.toHaveText("Loading…");
     await expect(page.getByTestId("column").first()).toBeVisible();
     const sent = gets(stub).slice(before);
-    expect(sent.length).toBeGreaterThan(0);
     for (const s of sent) expect(s.headers.authorization).toBe(`Bearer ${TOKEN2}`);
   });
 
