@@ -201,6 +201,13 @@ describe("R3: head, notes and the dash", () => {
     expect(parse(lines("- **[NOW] AB-1** — A", "B.")).entries[0]?.text).toBe("A");
   });
 
+  it("ends the head at an indented fence line right under the entry line, and the fence belongs to the description", () => {
+    const e = parse(lines("- **[NOW] AB-1** — Title. Rest", "  ```", "  x. y", "  ```")).entries[0];
+    expect(e?.text).toBe("Title. Rest");
+    expect(e?.title).toBe("Title.");
+    expect(e?.description).toBe(lines("Rest", "  ```", "  x. y", "  ```"));
+  });
+
   it("reads several notes and nested parentheses", () => {
     const e = parse("- **[NOW] AB-1** (a (b) c)   (d) — Text.").entries[0];
     expect(e?.notes).toEqual(["a (b) c", "d"]);
@@ -231,6 +238,12 @@ describe("R3: head, notes and the dash", () => {
   it("needs a space on each side of the dash", () => {
     const r = parse("- **[NOW] AB-1** —Text.");
     expect(r.entries[0]?.text).toBe("—Text.");
+    expect(r.report.map((x) => x.code)).toEqual(["no-dash"]);
+  });
+
+  it("does not take a dash at the very end of the head as the separator", () => {
+    const r = parse("- **[NOW] AB-1** —");
+    expect(r.entries[0]?.text).toBe("—");
     expect(r.report.map((x) => x.code)).toEqual(["no-dash"]);
   });
 
@@ -312,6 +325,18 @@ describe("R5 and R6: headings and groups", () => {
       ),
     );
     expect(r.entries.map((e) => e.group)).toEqual([null, "H2", "H4", "H1"]);
+  });
+
+  it("parses a heading line of 50,000 spaces quickly and keeps the results", () => {
+    const long = `# a${" ".repeat(50000)}b`;
+    const start = Date.now();
+    const r = parse(long);
+    expect(Date.now() - start).toBeLessThan(500);
+    expect(r.groups).toEqual([{ level: 1, text: `a${" ".repeat(50000)}b`, line: 1 }]);
+    expect(parse(`# a${" ".repeat(50000)}#`).groups[0]?.text).toBe("a");
+    expect(
+      parse(lines("## C#", "## Two ##  ", "# One #", "## ##", "# #x")).groups.map((g) => g.text),
+    ).toEqual(["C#", "Two", "One", "", "#x"]);
   });
 
   it("does not read an indented line starting with # as a heading", () => {
@@ -437,6 +462,16 @@ describe("R9: HTML comments", () => {
     );
     expect(r.entries.map((e) => e.id)).toEqual(["AB-3"]);
     expect(parse("<!-- x --> # Text").groups).toEqual([]);
+  });
+
+  it("keeps the indent of the line: text after --> that starts with a space is an indented marked item (error)", () => {
+    const r = parse("<!-- x --> - **[NOW] AB-1** — a.");
+    expect(r.entries).toEqual([]);
+    expect(r.report.map((x) => `${x.kind}:${x.code}@${x.line}`)).toEqual(["error:not-read@1"]);
+  });
+
+  it("reads an entry whose list marker follows --> directly, at column 0", () => {
+    expect(parse("<!-- x -->- **[NOW] AB-1** — a.").entries.map((e) => e.id)).toEqual(["AB-1"]);
   });
 
   it("does not open a fence inside a comment, and does not open a comment inside a fence", () => {

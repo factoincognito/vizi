@@ -59,7 +59,7 @@ describe("S1 and S2: layout and fields", () => {
 
   it("reads the three blockers of the example, the first highlighted", () => {
     const r = parse(example);
-    expect(r.blockers.map((b) => [b.text, b.waitingOnProductOwner, b.line])).toEqual([
+    expect(r.blockers?.map((b) => [b.text, b.waitingOnProductOwner, b.line])).toEqual([
       ["Product Owner: choose the default port.", true, 17],
       ["Crog: waits for CI on #12.", false, 18],
       ["The build server is down.", false, 19],
@@ -78,7 +78,7 @@ describe("S1 and S2: layout and fields", () => {
     const r2 = parse(
       status("- Product Owner: pick.").replace("# Status", "<!--\nx\n-->\n# Status"),
     );
-    expect(r2.blockers[0]?.line).toBe(18);
+    expect(r2.blockers?.[0]?.line).toBe(18);
   });
 
   it("does not drop a <!-- after other text, and does not read a heading inside a fence", () => {
@@ -138,12 +138,12 @@ describe("S3: one blocker", () => {
     const r = parse(
       status(lines("Intro text.", "- First", "  continues.", "1. Second", "", "Stray.")),
     );
-    expect(r.blockers.map((b) => b.text)).toEqual(["First continues.", "Second"]);
+    expect(r.blockers?.map((b) => b.text)).toEqual(["First continues.", "Second"]);
   });
 
   it("reads each paragraph as one blocker when there are no column-0 list items", () => {
     const r = parse(status(lines("Product Owner: approve", "the spec.", "", "CI is red on main.")));
-    expect(r.blockers.map((b) => [b.text, b.waitingOnProductOwner])).toEqual([
+    expect(r.blockers?.map((b) => [b.text, b.waitingOnProductOwner])).toEqual([
       ["Product Owner: approve the spec.", true],
       ["CI is red on main.", false],
     ]);
@@ -151,7 +151,7 @@ describe("S3: one blocker", () => {
 
   it("does not count an indented list item as a column-0 item", () => {
     const r = parse(status("  - indented only"));
-    expect(r.blockers.map((b) => b.text)).toEqual(["- indented only"]);
+    expect(r.blockers?.map((b) => b.text)).toEqual(["- indented only"]);
   });
 });
 
@@ -178,7 +178,7 @@ describe("S4: None", () => {
   it("reads None followed by other words as a blocker", () => {
     const r = parse(status("None of the CI runners start."));
     expect(r.none).toBe(false);
-    expect(r.blockers.map((b) => [b.text, b.waitingOnProductOwner])).toEqual([
+    expect(r.blockers?.map((b) => [b.text, b.waitingOnProductOwner])).toEqual([
       ["None of the CI runners start.", false],
     ]);
   });
@@ -186,13 +186,22 @@ describe("S4: None", () => {
   it("still reads the other blockers next to a None item", () => {
     const r = parse(status(lines("- None.", "- Product Owner: decide.")));
     expect(r.none).toBe(true);
-    expect(r.blockers.map((b) => b.text)).toEqual(["Product Owner: decide."]);
+    expect(r.blockers?.map((b) => b.text)).toEqual(["Product Owner: decide."]);
   });
 
-  it("has no blockers when the Blockers heading is missing", () => {
-    const r = parse(lines("## Phase", "x"));
-    expect(r.blockers).toEqual([]);
-    expect(r.none).toBe(false);
+  it("tells a missing Blockers heading (null, not given) from an empty Blockers section ([])", () => {
+    const missing = parse(lines("## Phase", "x"));
+    expect(missing.blockers).toBeNull();
+    expect(missing.none).toBe(false);
+    expect(missing.report.map((x) => x.code)).toContain("missing-field");
+    const empty = parse(lines("## Phase", "x", "## Blockers", ""));
+    expect(empty.blockers).toEqual([]);
+    expect(empty.none).toBe(false);
+  });
+
+  it("reads the first of two sections with the same heading and ignores the second", () => {
+    const r = parse(lines("## Phase", "First", "## Phase", "Second"));
+    expect(r.phase).toBe("First");
   });
 });
 
@@ -214,7 +223,7 @@ describe("S5: waiting on the product owner", () => {
         ),
       ),
     );
-    expect(r.blockers.map((b) => b.waitingOnProductOwner)).toEqual([
+    expect(r.blockers?.map((b) => b.waitingOnProductOwner)).toEqual([
       true,
       false,
       false,
