@@ -38,10 +38,24 @@ organization's monthly API credits (product-office PO-68).
 - Output: one comment that starts `Crog review: APPROVE` or
   `Crog review: CHANGES NEEDED` and ends `Head reviewed: <SHA>`. A head that
   already has such a comment from the Actions bot is not reviewed again.
+- Skip (product owner, 2026-11-04 23:02, product-office `DECISIONS.md`): a PR
+  whose changed files are all ones the change model gives no review gate
+  (`docs/BACKLOG.md`, `CHANGELOG.md`, `STATUS.md`, `docs/NEXT_SESSION.md`,
+  exact paths) is not reviewed: no model call, no comment, the job succeeds and
+  its summary says "skipped". The script decides from the compare's file list
+  of base...head on every event (old and new path of a rename both count), not
+  from a workflow paths filter, so a later push that adds any other file is
+  reviewed on that push. An empty compare, or one of 300 files or more, is not
+  skipped.
 - Guards: at most 3 turns and a budget cap per run, a diff cap (over it the
   comment says "Not reviewed" and the model is not called), prompt caching
   (fixed instructions and documents first, the diff last), and the token use,
   cache fields included, in the job summary.
+- Cache lifetime (same decision): 1 hour, not the 5 minutes an API key gets by
+  default, so reviews 10 to 15 minutes apart read the cache. Set with the SDK
+  option `settings: { promptCacheTtl: "1h" }`. The 1-hour writes show as
+  `cacheCreationEphemeral1hInputTokens` in the log's `usage:` line and as their
+  own column in the job summary.
 - Permissions: `contents: read` and `pull-requests: write`. The job never
   merges, approves through GitHub's review API or pushes; merging stays with
   the sessions.
