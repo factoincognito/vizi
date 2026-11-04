@@ -60,7 +60,7 @@ Build order: Clead's proposal, from the design the spec is taken from.
   approval of 2026-11-04 recorded on it. Every Pages site of the
   factoincognito account shares the `factoincognito.github.io` browser
   storage; a custom domain can isolate vizi later if needed.
-- **[BLOCKED] PBI-1.8** (product owner, 2026-11-04, after PBI-1.7) — Private
+- **[NOW] PBI-1.8** (product owner, 2026-11-04, after PBI-1.7) — Private
   repos by address: a fine-grained, read-only GitHub token, limited to
   chosen repos and with an expiry, pasted into vizi and, behind a
   "Remember the token" box, saved in the browser's storage, with a
@@ -74,10 +74,11 @@ Build order: Clead's proposal, from the design the spec is taken from.
   Content-Security-Policy that limits where the page may send data, since
   the token sits in storage shared by all factoincognito Pages sites
   (Clead-role review of PR #22). Spec: PR #26, merge `d4c2d26` (Crog
-  approved in round 2). Waits on the product owner's choice of defence
-  for the shared `factoincognito.github.io` origin (a rule about Pages
-  sites, or a domain of vizi's own; asked 2026-11-04 10:05, SPEC 3.8)
-  before the code is built.
+  approved in round 2). Defence for the shared `factoincognito.github.io`
+  origin chosen by the product owner on 2026-11-04 (10:22): a rule — no
+  repo named `factoincognito.github.io`, and Pages only for factoincognito
+  repos he trusts; a domain of vizi's own stays the stronger option for
+  later (SPEC 3.8).
 - **[LATER] PBI-1.6** (Clead, 2026-11-04, from the code reviews of PRs #16 and #17) — Optional points, none a defect: check a link target again for control characters and backslashes after percent-decoding (today `%00`, `%0A` and `%5C` survive; SPEC 3.7 says a target with control characters is text); normalise heading text to NFC before making its slug, so a precomposed `Ö` and `O` plus a combining mark give the same anchor; a ~900k-character line of nested brackets takes about 1.4 s, close to the tests' 1.5 s limit; in `e2e/page.e2e.ts` two "no link" checks (around lines 207 and 370) run before the description renders, so they prove nothing — check after rendering; `showDoc` does not check after its `await` that the project is still the current one; a test for an older slow success arriving after a newer fast error.
 
 ---
