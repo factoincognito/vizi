@@ -52,7 +52,7 @@ says.
 (a) `memory/standards.md` section 7 listed three inputs, without
 `CLAUDE.md`, and the contract in `docs/ROUTINES.md` said the same; the
 brief of 2026-11-04 adds `CLAUDE.md`. Resolved: `memory/standards.md`
-section 7 and `RULES.md` L § 3 (1) list the four inputs now (the
+section 7 and `RULES.md` L § 3 (1) list the diff and the four documents now (the
 `docs/ROUTINES.md` contract was removed at the PO-72 cutover), and the
 CI reviewer is Crog in `RULES.md` L § 4 (until the PO-72 cutover,
 `CLAUDE.md` rule 7).
@@ -114,6 +114,11 @@ runs (non-blocking points, all Clead's call):
   script's skip check is looser); the script could record the base SHA
   next to the head; actions are pinned by major tag, as in `ci.yml`.
 **Impact on plan:** none now.
+- After #89 the CI review job reads the documents at the PR's recorded base
+  commit. Open PR #85's recorded base, `11ec525`, predates #88 and has no
+  `RULES.md`; if a new push to #85 keeps that base, the job fails with
+  nothing posted, and `RULES.md` L § 4 (3) and (4) then call for a manual
+  Crog review. Whether GitHub refreshes the base on a push was not checked.
 **Action:** Clead does them in one small PR when the pilot is judged, or
 drops them if the pilot ends.
 
