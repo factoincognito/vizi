@@ -825,6 +825,8 @@ test.describe("a second tab (3.8)", () => {
     await useToken(page, TOKEN, true);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
+    // The first load's branch list is read before the mark below (3.13).
+    await branchListRead(page);
     const other = await context.newPage();
     await other.goto("/");
     await openPanel(other);

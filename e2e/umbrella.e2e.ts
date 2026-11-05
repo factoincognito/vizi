@@ -491,6 +491,8 @@ test.describe("Show status of a folder pointer (3.9)", () => {
     await openPanel(page);
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toBeVisible();
+    // The hub's branch list is read before the mark (3.13).
+    await branchListRead(page);
     const before = stub.seen.length;
     await showStatus(page, "projects/bare/").click();
     await expect(panel(page)).toContainText("No STATUS.md in projects/bare/");
@@ -860,6 +862,8 @@ test.describe("two owners' tokens (3.8, 3.9)", () => {
     const mark = gets(stub).length;
     await pointer(page, "other/gadgets").getByRole("link", { name: "Open in vizi" }).click();
     await expect(page.locator("#project-name")).toHaveText("other/gadgets (main)");
+    // other/gadgets's branch list, with other's token, is read before the next mark (3.13).
+    await branchListRead(page);
     const sent = gets(stub).slice(mark);
     expect(sent.length).toBeGreaterThan(0);
     for (const s of sent) expect(s.headers.authorization, s.url).toBe(`Bearer ${TOKEN2}`);
