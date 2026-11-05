@@ -658,8 +658,11 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
     read nor write the field, so they are not affected.
 - **One reader.** `src/github.ts` exports one function that reads the
   field's text into a reference, used for submitting the form, for the
-  Owner prefill and nowhere else; the old `parseGithubUrl` is replaced
-  by it.
+  Owner prefill, and, from PBI-1.19, by the guide for its owner-and-repo
+  case ("Guided opening" below), and nowhere else; the old
+  `parseGithubUrl` is replaced by it. It does not change for PBI-1.19:
+  it still refuses an owner alone (`acme`, `acme/`), and its unit tests
+  stay. The owner-alone case is the guide's own, in `src/guide.ts`.
 - **Tests** (test first):
   - unit (`src/github.test.ts`), the reader: `acme/widgets`;
     `acme/widgets/`; `  acme/widgets  `; `acme/widgets/tree/main`;
@@ -725,7 +728,10 @@ and changes none of its reading rules, with one exception, an owner
 alone (below).
 
 - **What the guide reads from the field** (a pure function of the
-  field's text, `src/guide.ts`, Clead's design). After trimming:
+  field's text, `src/guide.ts`, Clead's design). It calls the one
+  reader of "The Repository field" for the owner-and-repo case and adds
+  only the owner-alone case of its own, so the two cannot drift. After
+  trimming:
   - **an owner alone:** text that matches 3.1's name rule, with no `/`,
     or with one `/` at its end (`acme`, `acme/`), and that is not a
     host: text that, in lower case, is `github.com` or
@@ -733,10 +739,15 @@ alone (below).
     owner for the guide, since 3.1 reads text starting with
     `github.com/` or `www.github.com/` only as form 2. Someone typing
     `github.com/acme/widgets` by hand therefore makes no guide request
-    at `github.com/`, nor at `github.com` on leaving the field;
+    at `github.com/`, nor at `github.com` on leaving the field. Other
+    text that only looks like a host, such as `gist.github.com/`, or a
+    typo, is read as an owner: it costs one request (`/users/<owner>`,
+    answered 404, "GitHub has no account named …") each time the field
+    loses focus with it, since a failed read is not kept (Clead's call:
+    accepted, as no rule can tell a typo from an owner);
   - **an owner and a repo:** text that the Repository field reads as
     form 1, `<owner>/<repo>`, with no `/tree/` (`acme/widgets`,
-    `acme/widgets/`);
+    `acme/widgets/`), as the one reader reads it (form 1);
   - **anything else** (a host form, with or without a scheme, and any
     text that starts, in any case, with `github.com/`,
     `www.github.com/`, `https://` or `http://`, complete or not; any
@@ -750,7 +761,10 @@ alone (below).
   repos").
   - **Which requests** (checked against `github/docs` at
     `58b7b56aa507ad1269b9f8e9e89a172f0976c7ce`, its `main` on
-    2026-11-04, read through git as for 3.12 and 3.13; files
+    2026-11-04 when this was written (3.12 and 3.13 read `e44c283`,
+    `main` earlier that day; the docs moved on between them, and
+    `branches.json`, which 3.13 cites, is the same blob, `f998136…`, at
+    both), read through git as for 3.12 and 3.13; files
     `src/rest/data/fpt-2022-11-28/repos.json`, blob
     `b5be6a41fa48073e04f94cf8ac912a8063ef6181`,
     `src/rest/data/fpt-2022-11-28/users.json`, blob
@@ -780,7 +794,10 @@ alone (below).
          `owner,collaborator,organization_member` by default. Only the
          items whose `owner.login` equals the owner (without regard to
          case) are kept, since a token named for an owner may belong to
-         another account (3.8);
+         another account (3.8). When no item is kept (the token belongs
+         to another account), the guide reads
+         `/users/<owner>/repos?type=owner&sort=full_name` with the same
+         token instead, so the owner's public repos are still listed;
        - a **user, without a token for that owner:**
          `GET /users/<owner>/repos?type=owner&sort=full_name`, "List
          repositories for a user": "Lists public repositories for the
@@ -818,6 +835,12 @@ alone (below).
     not whether it is private. An answer that is not an array: "GitHub's
     answer for the repo list was not understood."
 - **When a list is read: one request set per owner per page visit.**
+  - **A running read is shared.** The cache holds a read from the
+    moment it starts, not only once it has answered: anything that needs
+    an owner's list, or a repo's default branch and branches, while that
+    read is running (a second `/`, a blur, Open, a load) waits for the
+    same read and makes no request of its own. So there is one request
+    set per owner, and one per repo, whatever starts them.
   - The guide reads an owner's list the first time the field's text
     becomes that owner alone with its `/` typed (`acme/`), or when the
     field loses focus, or Open is used, with that owner alone in it
@@ -903,10 +926,19 @@ alone (below).
     the default. The load reuses what the guide read, when it was read
     with the token the load uses: the default branch, so the load makes
     no request 1; and the branch list, so the picker of 3.13 makes no
-    branch request ("When", "reused" in the decision's words). Without a
-    shown branch select (the reads still due, or failed), Open loads as
-    "The Repository field" sets out, and the picker reads its list as
-    3.13 does.
+    branch request ("When", "reused" in the decision's words).
+  - **Open straight from the field.** Clicking Open with an owner and a
+    repo in the field blurs the field first, and the blur starts the
+    guide's reads for that repo. Open does not start a load of its own
+    beside them: it starts the load at once, as a newer load (3.1), and
+    that load waits for the guide's running reads (shared, above)
+    instead of making request 1, then takes the default branch from
+    them, and the picker takes their branch list. A load with the
+    default branch is a load with `branch` `null` (so 3.14 saves it as
+    following the default). If the guide's reads fail, the load makes
+    its own requests as "The Repository field" sets out, and the picker
+    reads its list as 3.13 does. The same holds for Enter in the field.
+    So Open straight from the field costs no request twice.
 - **Typing on, and newest wins.** Every guide answer is for the owner,
   or the owner and repo, it was asked for. It is kept in the memory
   cache whenever it arrives, but it changes the datalist, the select or
@@ -1006,7 +1038,16 @@ alone (below).
       "Branch of acme/widgets" with `master` selected and marked
       " (default)" when the stubbed repo's default is `master`;
     - Open then loads `acme/widgets` with no request 1 and the picker
-      of 3.13 makes no branch request; choosing another branch and Open
+      of 3.13 makes no branch request;
+    - clicking Open straight from the field with `acme/widgets` in it
+      (the blur and Open in one step): the repo's request 1 and branch
+      list are made once each, the load waits for them, and the picker
+      makes no branch request; the same with Enter;
+    - `acme/`, then leaving the field and Open while the owner's read
+      is still running: the owner's requests are made once;
+    - a token for `acme` that belongs to another account: `/user/repos`
+      keeps nothing, and the guide lists `acme`'s public repos from
+      `/users/acme/repos`; choosing another branch and Open
       loads it by name; 3.14's "Save" then stores `null` for the default
       and the name for the other;
     - Open with `acme` alone loads nothing, shows the select and the
