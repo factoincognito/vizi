@@ -1576,6 +1576,56 @@ test.describe("accessibility and layout (3.1)", () => {
     expect(problems).toEqual([]);
   });
 
+  test("the select hidden while it has the focus, by a branch read answered 404: the focus moves to the field", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context, {
+      hold: (u) => u === repoUrl("acme", "widgets"),
+      status: (u) => (u === repoUrl("acme", "widgets") ? { status: 404 } : undefined),
+    });
+    await page.goto("/");
+    await typeIn(page, "acme");
+    await clickAway(page);
+    await expect(label(page)).toHaveText("Repo of acme");
+    await select(page).focus();
+    await select(page).selectOption("widgets");
+    // Shift+Tab: the select's blur starts a read (held); Tab back: the field's blur replaces it, the focus on the select.
+    await page.keyboard.press("Shift+Tab");
+    await expect(field(page)).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(select(page)).toBeFocused();
+    await expect.poll(() => times(stub, repoUrl("acme", "widgets"))).toBe(2);
+    stub.release();
+    await expect(guideMessage(page)).toHaveText(
+      "Not found or not public. If the repo is private, add a token for its owner.",
+    );
+    await expect(select(page)).toBeHidden();
+    await expect(field(page)).toBeFocused();
+  });
+
+  test("branch names with markup, and with #, in the guide's select: shown as text, the # one disabled, nothing runs", async ({
+    page,
+    context,
+  }) => {
+    const markup = '<img src=x onerror="window.__pwned=1">';
+    await stubGithub(context, { branches: { "acme/widgets": ["main", markup, "a#b"] } });
+    await page.goto("/");
+    await field(page).fill("acme/widgets");
+    await clickAway(page);
+    await expect(label(page)).toHaveText("Branch of acme/widgets");
+    expect(await selectTexts(page)).toEqual([
+      "main (default)",
+      markup,
+      "a#b (cannot be opened in vizi)",
+    ]);
+    await expect(select(page).locator("img")).toHaveCount(0);
+    await expect(select(page).locator('option[value="a#b"]')).toBeDisabled();
+    expect(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned)).toBe(
+      undefined,
+    );
+  });
+
   test("on a phone: no sideways scroll with a 100-character repo name; the select and Open full width, at least 44 px high", async ({
     page,
     context,

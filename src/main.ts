@@ -1430,14 +1430,19 @@ function setGuideMessage(text: string, owner: string | null): void {
   guideMessageOwner = text === "" || owner === null ? null : owner.toLowerCase();
 }
 
-/** Hides the select; returns whether it had the focus. */
-function hideGuideSelect(): boolean {
+/**
+ * Hides the select. Whenever it had the focus, for any reason (a token
+ * change, a read with no select to show, a load), the focus moves to the
+ * Repository field, so it never falls to the page (3.1, "Accessibility";
+ * Clead, 2026-11-05, #85).
+ */
+function hideGuideSelect(): void {
   const select = must<HTMLSelectElement>("guide-select");
   const focused = document.activeElement === select;
   guideShown = null;
   must("guide").hidden = true;
   select.replaceChildren();
-  return focused;
+  if (focused) urlField().focus();
 }
 
 /** Every load (Open, Enter, an address, "Open in vizi", a pick of 3.13) hides the select and the message, and stops a branch read. */
@@ -1684,7 +1689,7 @@ function guideTokenChanged(owner: string | null): void {
     o !== null && o !== undefined && (owner === null || o.toLowerCase() === owner.toLowerCase());
   if (hit(datalistOwner)) fillDatalist(null, []);
   if (guideShown && hit(guideShown.owner)) {
-    if (hideGuideSelect()) urlField().focus();
+    hideGuideSelect();
   }
   if (hit(guideMessageOwner)) setGuideMessage("", null);
   if (hit(ownerSelectWanted)) ownerSelectWanted = null;
