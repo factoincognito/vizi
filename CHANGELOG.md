@@ -57,14 +57,36 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Backlog: token guide in PBI-1.16; read-only line in PBI-1.13 (#52).
 - Backlog: PBI-1.16 says who can use a saved token (#53).
 - Backlog: PBI-1.16 advises not saving tokens on a shared computer (#54).
+- The flaky second-tab and CSP browser tests made reliable (#55).
 - Backlog: PBI-1.17 prefilled GitHub address (#56).
 - Spec: the start page redesign (PBI-1.16), with Inter 4.1 under the OFL and the token guide from GitHub's docs (#57).
 - Backlog: PBI-1.17 becomes the Repository field (#58).
 - Spec: the branch picker (PBI-1.15) (#59).
 - Backlog: PBI-1.10 gains the markdown timing test (#60).
 - Spec: the saved repos list (PBI-1.12) (#61).
+- PBI-1.13 done; PBI-1.14 now; changelog for #43 to #61 (#62).
+- PBI-1.14: vizi opens projects from GitHub only; the local folder input, its code and tests, and the help view's folder step removed (#63).
+- Backlog: PBI-1.17, PBI-1.10 and PBI-1.6 join the unattended run (#64).
+- Spec: the Repository field (PBI-1.17) (#65).
+- Backlog: PBI-1.10 drops what #55 fixed (#66).
+- PBI-1.17: the Repository field, which takes `owner/repo` or a full GitHub address (#67).
 - PO-68 pilot, part A: Crog's pull request review runs in CI as a script on the Claude Agent SDK (`.github/workflows/crog-review.yml`, `.github/reviewer/`), with `THIRD-PARTY-NOTICES.md` (#68).
+- Spec: the Repository hint reads `<owner>/<repo>` (PBI-1.17) (#69).
 - PO-68 pilot, part B: the CI reviewer is Crog for this repo's PRs during the pilot (`CLAUDE.md` rule 7, `memory/standards.md` section 7) (#70).
+- Changelog: the PO-68 pilot (#68, #70) (#71).
+- Backlog: PBI-1.10 gains spec points from #63 and #67 (#72).
+- PBI-1.16: the start page redesign, with "Open a project from GitHub", the help link in the header, the folded "Private repos" panel with one row per owner and the token guide, and Inter built into the page (#73).
+- Backlog: PBI-1.18 umbrella help text (#74).
+- Backlog: PBI-1.18 also explains pre-projects (#75).
+- Backlog: PBI-1.19 idea, guided opening (#76).
+- Backlog: PBI-1.19 decided; PBI-1.14 and PBI-1.17 done; PBI-1.16 now (#77).
+- CI review: review-free PRs are skipped, and the prompt cache lasts 1 hour (`.github/reviewer/review.mjs`) (#78).
+- `CLAUDE.md`: review-free files and skipped heads (PO-68) (#79).
+- Spec: the umbrella help text (PBI-1.18) (#80).
+- PBI-1.15: the branch picker, a list of the loaded repo's branches under the project's heading, and "Open branch" to load the one picked (#81).
+- Spec: guided opening from the Repository field (PBI-1.19) (#82).
+- NEXT_SESSION: the PBI-1.19 spec parked for the product owner (#83).
+- PBI-1.18: the umbrella help text, which explains umbrellas and pre-projects in the umbrella view (#84).
 
 ## Project created
 
