@@ -9,9 +9,12 @@ import {
   blobUrl,
   CLONE_MESSAGE,
   type Fetcher,
+  getOwnerKind,
   listBranches,
+  listRepos,
   loadRepo,
   REPOSITORY_MESSAGE,
+  readDefaultBranch,
   readRepoFile,
   readRepository,
 } from "./github";
@@ -884,6 +887,186 @@ describe("listBranches (3.13, the branch list)", () => {
         status: 500,
         message: `GitHub answered HTTP 500 for ${pageUrl(2)}.`,
       },
+    });
+  });
+});
+
+describe("getOwnerKind and listRepos: the opening guide's requests (3.1, Guided opening)", () => {
+  const USER = "https://api.github.com/users/acme";
+  const listUrls = {
+    org: (n: number) =>
+      `https://api.github.com/orgs/acme/repos?type=all&sort=full_name&per_page=100&page=${n}`,
+    "user-token": (n: number) =>
+      `https://api.github.com/user/repos?affiliation=owner&sort=full_name&per_page=100&page=${n}`,
+    user: (n: number) =>
+      `https://api.github.com/users/acme/repos?type=owner&sort=full_name&per_page=100&page=${n}`,
+  } as const;
+
+  it("asks /users/<owner> and reads its type, without a token with no options", async () => {
+    const { fetcher, sent } = fakeWithInit({
+      [USER]: { status: 200, body: JSON.stringify({ login: "acme", type: "Organization" }) },
+    });
+    expect(await getOwnerKind("acme", fetcher)).toEqual({ ok: true, type: "Organization" });
+    expect(sent).toEqual([{ url: USER, init: undefined }]);
+  });
+
+  it("reads a User", async () => {
+    const { fetcher } = fakeWithInit({
+      [USER]: { status: 200, body: JSON.stringify({ type: "User" }) },
+    });
+    expect(await getOwnerKind("acme", fetcher)).toEqual({ ok: true, type: "User" });
+  });
+
+  it.each([
+    ["an array", "[]"],
+    ["no type", "{}"],
+    ['"type": "Bot"', JSON.stringify({ type: "Bot" })],
+    ["not JSON", "<html>"],
+  ])("an answer with %s is not understood", async (_n, body) => {
+    const { fetcher } = fakeWithInit({ [USER]: { status: 200, body } });
+    expect(await getOwnerKind("acme", fetcher)).toMatchObject({
+      ok: false,
+      kind: "bad-response",
+      message: "GitHub's answer for acme was not understood.",
+    });
+  });
+
+  it.each(["org", "user-token", "user"] as const)("the URL of %s's page n", async (kind) => {
+    const { fetcher, sent } = fakeWithInit({
+      [listUrls[kind](1)]: { status: 200, body: "[]" },
+      [listUrls[kind](3)]: { status: 200, body: "[]" },
+    });
+    expect(await listRepos("acme", kind, 1, fetcher)).toEqual({ ok: true, text: "[]" });
+    await listRepos("acme", kind, 3, fetcher);
+    expect(sent.map((x) => x.url)).toEqual([listUrls[kind](1), listUrls[kind](3)]);
+  });
+
+  it("with a token: the header, credentials omitted, not cached, and no token in a URL", async () => {
+    const { fetcher, sent } = fakeWithInit({
+      [USER]: { status: 200, body: JSON.stringify({ type: "User" }) },
+      [listUrls["user-token"](1)]: { status: 200, body: "[]" },
+    });
+    await getOwnerKind("acme", fetcher, TOKEN);
+    await listRepos("acme", "user-token", 1, fetcher, TOKEN);
+    expect(sent).toHaveLength(2);
+    for (const x of sent) {
+      expect(x.url).not.toContain(TOKEN);
+      expect(x.init).toEqual({
+        headers: { Authorization: `Bearer ${TOKEN}` },
+        credentials: "omit",
+        cache: "no-store",
+      });
+    }
+  });
+
+  it("404 on /users/<owner>: GitHub has no account named it, with a token or without", async () => {
+    const { fetcher } = fakeWithInit({ [USER]: { status: 404 } });
+    for (const token of [null, TOKEN])
+      expect(await getOwnerKind("acme", fetcher, token)).toMatchObject({
+        ok: false,
+        kind: "not-found",
+        status: 404,
+        message: "GitHub has no account named acme.",
+      });
+  });
+
+  it("404 on a repo page: read as a request that is not request 1 or 2", async () => {
+    const { fetcher } = fakeWithInit({ [listUrls.org(1)]: { status: 404 } });
+    expect(await listRepos("acme", "org", 1, fetcher)).toMatchObject({
+      ok: false,
+      kind: "http",
+      message: `GitHub answered HTTP 404 for ${listUrls.org(1)}.`,
+    });
+  });
+
+  it.each([
+    [
+      "401 with a token",
+      { status: 401 },
+      "token-refused",
+      "GitHub refused the token for acme: it may have expired. It has been forgotten; enter a new one.",
+    ],
+    [
+      "403 at the rate limit",
+      { status: 403, headers: { "X-RateLimit-Remaining": "0" } },
+      "rate-limit",
+      "GitHub's rate limit is reached.",
+    ],
+    [
+      "another 403",
+      { status: 403 },
+      "forbidden",
+      'GitHub says the token may not read this repo: it may lack the "Contents: read" permission, or an organisation\'s token policy may stop it.',
+    ],
+  ] as const)("%s: 3.8's failure, for both requests", async (_n, answer, kind, message) => {
+    const { fetcher } = fakeWithInit({ [USER]: answer, [listUrls.org(1)]: answer });
+    expect(await getOwnerKind("acme", fetcher, TOKEN)).toMatchObject({ ok: false, kind, message });
+    expect(await listRepos("acme", "org", 1, fetcher, TOKEN)).toMatchObject({
+      ok: false,
+      kind,
+      message,
+    });
+  });
+
+  it("a 403 at the rate limit without a token: 3.1's status message", async () => {
+    const { fetcher } = fakeWithInit({
+      [USER]: { status: 403, headers: { "X-RateLimit-Remaining": "0" } },
+    });
+    expect(await getOwnerKind("acme", fetcher)).toMatchObject({
+      ok: false,
+      kind: "http",
+      message: `GitHub answered HTTP 403 for ${USER}.`,
+    });
+  });
+
+  it("a network failure: the host and the reason without a token, the host only with one", async () => {
+    const throwing: Fetcher = async () => {
+      throw new Error("offline");
+    };
+    expect(await getOwnerKind("acme", throwing)).toMatchObject({
+      message: "The request to api.github.com failed: offline.",
+    });
+    expect(await listRepos("acme", "org", 1, throwing, TOKEN)).toMatchObject({
+      message: "The request to api.github.com failed.",
+    });
+  });
+});
+
+describe("readDefaultBranch: request 1 of 3.1 on its own (3.1, Guided opening)", () => {
+  it("reads default_branch", async () => {
+    const { fetcher, sent } = fakeWithInit({
+      [API]: { status: 200, body: JSON.stringify({ default_branch: "master" }) },
+    });
+    expect(await readDefaultBranch({ owner: "acme", repo: "widgets" }, fetcher)).toEqual({
+      ok: true,
+      branch: "master",
+    });
+    expect(sent.map((x) => x.url)).toEqual([API]);
+  });
+
+  it.each(["{}", JSON.stringify({ default_branch: "" }), JSON.stringify({ default_branch: 1 })])(
+    "an answer %j has no default branch",
+    async (body) => {
+      const { fetcher } = fakeWithInit({ [API]: { status: 200, body } });
+      expect(await readDefaultBranch({ owner: "acme", repo: "widgets" }, fetcher)).toMatchObject({
+        ok: false,
+        kind: "bad-response",
+        message: "GitHub's answer for the repo had no default branch.",
+      });
+    },
+  );
+
+  it("404: 3.1's message without a token, 3.8's with one", async () => {
+    const { fetcher } = fakeWithInit({ [API]: { status: 404 } });
+    expect(await readDefaultBranch({ owner: "acme", repo: "widgets" }, fetcher)).toMatchObject({
+      kind: "not-found",
+      message: "Not found or not public. If the repo is private, add a token for its owner.",
+    });
+    expect(
+      await readDefaultBranch({ owner: "acme", repo: "widgets" }, fetcher, TOKEN),
+    ).toMatchObject({
+      kind: "not-found",
+      message: "Not found, or the token does not give access to this repo.",
     });
   });
 });
