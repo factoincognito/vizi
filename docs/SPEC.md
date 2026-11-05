@@ -540,8 +540,7 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
 
 - **The field.** The address field keeps its id `#url-input`, its form
   `#url-form`, its "Open" button `#open-url`, `type="text"` and
-  `autocomplete="off"` (until PBI-1.19, which drops it: "Guided
-  opening" below), and gains `spellcheck="false"` and
+  `autocomplete="off"`, and gains `spellcheck="false"` and
   `autocapitalize="none"` (a phone would capitalise the owner).
   - Its label, a `<label for="url-input">`, reads "Repository".
   - Its placeholder reads "<owner>/<repo>" (the product owner's
@@ -743,8 +742,7 @@ PBI-1.15 (`docs/BACKLOG.md`); its order against PBI-1.12, also after
 PBI-1.15, is not fixed, so the one test that needs both (3.14's "Save"
 after a guided open) is written in whichever is built second. It adds
 to "The Repository field" above and changes none of its reading rules,
-with one exception, an owner alone (below), and one attribute, the
-field's `autocomplete` (below).
+with one exception, an owner alone (below).
 
 - **What the opening guide reads from the field** (a pure function of
   the field's text, `src/guide.ts`, Clead's design). It calls the one
@@ -872,8 +870,8 @@ field's `autocomplete` (below).
     `acme/wi`, …) makes no request: the datalist is filtered by the
     browser. No request is made on any other keystroke (Clead's design).
   - **Held in memory only:** a `Map` from the lower-cased owner to its
-    list (the names, whether the cap was reached, and the token it was
-    read with). Nothing is written to the browser's storage; a reload
+    list (the names and the token it was read with; a partly read or
+    capped list is not kept, see "Edge cases"). Nothing is written to the browser's storage; a reload
     reads again. The entry for an owner is dropped when the token held
     for that owner changes in any way: "Add", "Forget", "Forget all
     tokens", a 401, or another tab's `storage` event (3.8). A failed
@@ -903,14 +901,12 @@ field's `autocomplete` (below).
     branches, below, two to four more. A load then costs what 3.1 says,
     less what the opening guide already read.
 - **The list while typing: a native `<datalist>`** (Clead's call, native
-  first, as 3.13's select). The field gets `list="repo-list"`, and loses
-  `autocomplete="off"` (Clead's call, the safe setting: whether a
-  browser hides a datalist's suggestions on a field with
-  `autocomplete="off"` was not checked, section 4, item 30, and the
-  field holds no secret. The trade-off: without `autocomplete="off"`,
-  the browser may keep the repo names typed there in its form history,
-  possibly synced to the user's account; repo names are not secret, as
-  3.14 already accepts for the saved list); `<datalist id="repo-list">`
+  first, as 3.13's select). The field gets `list="repo-list"` and keeps
+  `autocomplete="off"`, the privacy-safe choice: the browser is asked
+  not to keep the repo names typed there in its form history, which may
+  be synced to the user's account. Whether a browser shows a datalist's
+  suggestions differently on a field with `autocomplete="off"` was not
+  checked (section 4, item 30); `<datalist id="repo-list">`
   holds one `<option>` per repo, its value `<owner>/<repo>`, the owner
   as the user typed it and the repo as GitHub gives it, set with `value`
   and `textContent` (3.7). The browser shows it, filters it and lets the
@@ -1014,8 +1010,9 @@ field's `autocomplete` (below).
       opening-guide read still running takes its outcome: when that
       request 1 fails, the load fails with its message and makes no
       request 1 of its own (a 401 is handled once, by the opening guide,
-      as 3.8 sets out); when only the branch list fails, the load goes
-      on and the picker reads its list as 3.13 does.
+      as 3.8 sets out); when only the branch list fails, or is only
+      partly read (below), the load goes on and the picker reads its
+      list as 3.13 does.
 - **Typing on, and newest wins.** Every opening-guide answer is for the
   owner, or the owner and repo, it was asked for. A successful answer is
   kept in the memory cache whenever it arrives (unless its read was
@@ -1057,7 +1054,15 @@ field's `autocomplete` (below).
     `<message>`" (or "The branch list could not be read: `<message>`"),
     with 3.1's or 3.8's message (3.8's 403 text speaks of "this repo";
     for a list it is shown as GitHub's refusal, as written, on purpose,
-    so one message names one cause wherever it appears); when a page
+    so one message names one cause wherever it appears).
+  - **A partly read list counts as a failure** for the opening guide
+    (Clead's call): an owner list or a branch list whose later page
+    failed, or that reached the 300 cap, is not kept in the cache, so no
+    load and no picker reuses it, and the next blur or Open reads it
+    again. The names read are still shown for that moment, with the
+    "… is incomplete: …" or past-cap message. A load waiting on such a
+    branch list goes on, and the picker on the loaded project makes its
+    own read with 3.13's messages, unchanged. When a page
     after the first fails,
     the names read are shown and the line says "… is incomplete: …", as
     3.13. The field still opens any text as "The Repository field" sets
@@ -1162,6 +1167,15 @@ field's `autocomplete` (below).
     - the opening guide's request 1 succeeds and its branch list fails,
       then Open: the load makes no request 1, goes on, and the picker
       reads its own list (one branch request set);
+    - the opening guide's branch list fails on page 2, then Open: the
+      picker makes its own read and shows 3.13's messages; a blur of the
+      same text later reads the branch list again (it was not kept);
+    - the opening guide's branch list reaches the cap (three pages of
+      100), then Open: the picker makes its own read and shows 3.13's
+      past-cap message;
+    - an owner list that fails on page 2, or reaches the cap: its names
+      are shown with the "incomplete" or past-cap message, and the next
+      blur reads it again;
     - a repo whose branch list is empty: no select; Open loads the
       default branch as 3.1 does;
     - Open with `acme` alone loads nothing, shows the select and the
@@ -1210,7 +1224,8 @@ field's `autocomplete` (below).
       request 1, then a token added for `acme`: the opening guide read
       is abandoned, and the load makes its own request 1 without a token
       (the token it started with);
-    - the field has no `autocomplete="off"` attribute;
+    - the field keeps `autocomplete="off"`, and in Chromium the
+      datalist's suggestions are still shown;
     - choosing a repo in the opening guide's select, with nothing typed
       in the Owner field: `#owner-input` then holds that owner;
     - a pasted `https://github.com/acme/widgets` after the opening guide
@@ -4197,12 +4212,11 @@ Items 29 to 31 are PBI-1.19's (3.1, "Guided opening"):
 30. **Open; PBI-1.19.** How each target browser shows a `<datalist>`
     on a text field, with which keys, iOS Safari included, and what
     Enter does while its suggestions are shown; and whether a browser
-    shows no suggestions on a field with `autocomplete="off"`. Not
-    checked; no browser behaviour is claimed here. 3.1, "Guided
-    opening", chooses the safe setting: the field drops
-    `autocomplete="off"` from PBI-1.19. The build's browser tests check
-    in Chromium that the suggestions are shown; other browsers are
-    PBI-1.4's.
+    shows a datalist's suggestions differently on a field with
+    `autocomplete="off"`, which the field keeps (3.1, "Guided opening").
+    Not checked; no browser behaviour is claimed here. The build's
+    browser tests check in Chromium that the suggestions are shown;
+    other browsers are PBI-1.4's.
 31. **Open; PBI-1.19.** Whether `api.github.com` answers
     `/users/<owner>` for an organisation with `"type": "Organization"`
     as the documentation's schema suggests; the documentation's example
