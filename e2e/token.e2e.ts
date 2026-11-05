@@ -9,6 +9,7 @@ import { pathToFileURL } from "node:url";
 import { type BrowserContext, test as base, expect, type Page, type Route } from "@playwright/test";
 import { isAllowedRequest } from "./guard";
 import { openPanel } from "./panel";
+import { branchesUrl, branchListRead } from "./picker";
 
 /** Every test: a request other than the page's own document and GitHub's two hosts fails it. */
 const test = base.extend<{ guard: undefined }>({
@@ -83,6 +84,9 @@ async function stubGithub(context: BrowserContext, options: StubOptions = {}): P
           body: custom.body ?? "",
         });
       }
+      // The branch list the picker reads after a load (3.13): one branch.
+      if (url.includes("/branches?per_page=100&page="))
+        return route.fulfill({ status: 200, headers: cors, body: '[{"name":"main"}]' });
       const repoPart = /^https:\/\/api\.github\.com\/repos\/[^/]+\/[^/?]+(?:\/(.*))?$/.exec(
         url,
       )?.[1];
@@ -340,16 +344,19 @@ test.describe("what a load with a token sends (3.8)", () => {
     await useToken(page, TOKEN);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
+    await branchListRead(page);
+    // The load's requests, then its branch list (3.13), with the same token.
     expect(gets(stub).map((s) => s.url)).toEqual([
       API,
       `${API}/git/trees/main?recursive=1`,
       `${API}/contents/docs/BACKLOG.md?ref=main`,
       `${API}/contents/STATUS.md?ref=main`,
+      branchesUrl("acme", "widgets"),
     ]);
     for (const s of gets(stub)) expect(s.headers.authorization).toBe(`Bearer ${TOKEN}`);
     expect(
       gets(stub)
-        .slice(2)
+        .slice(2, 4)
         .map((s) => s.headers.accept),
     ).toEqual(["application/vnd.github.raw+json", "application/vnd.github.raw+json"]);
     await expect(page.getByTestId("status-phase")).toBeVisible();
@@ -397,11 +404,13 @@ test.describe("what a load with a token sends (3.8)", () => {
     await openPanel(page);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
+    await branchListRead(page);
     expect(gets(stub).map((s) => s.url)).toEqual([
       API,
       `${API}/git/trees/main?recursive=1`,
       "https://raw.githubusercontent.com/acme/widgets/main/docs/BACKLOG.md",
       "https://raw.githubusercontent.com/acme/widgets/main/STATUS.md",
+      branchesUrl("acme", "widgets"),
     ]);
     expect(gets(stub).every((s) => !("authorization" in s.headers))).toBe(true);
   });
@@ -565,6 +574,8 @@ test.describe("Forget, per owner (3.8)", () => {
     await useToken(page, TOKEN, true);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
+    // The load's branch list, with the token, is read before the token goes (3.13).
+    await branchListRead(page);
     const before = gets(stub).length;
 
     await forgetButton(page).click();
@@ -632,6 +643,8 @@ test.describe("a second tab (3.8)", () => {
     await useToken(page, TOKEN, true);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
+    // The load's branch list, with the token, is read before the token goes (3.13).
+    await branchListRead(page);
 
     const other = await context.newPage();
     await other.goto("/");
@@ -768,6 +781,9 @@ test.describe("a second tab (3.8)", () => {
 
     await expectLine(page, "acme", "github_pat_…9876", true);
     await expect(page.getByTestId("column").first()).toBeVisible();
+    // The first load's branch list (with the first token) is read before counting.
+    await branchListRead(page);
+    await expect.poll(() => gets(stub).filter((s) => s.url.includes("/branches?")).length).toBe(1);
     const before = gets(stub).length;
     await openUrl(page);
     // The old results stay on screen, so a visible column proves nothing about the new
@@ -775,6 +791,7 @@ test.describe("a second tab (3.8)", () => {
     await expect.poll(() => gets(stub).length - before).toBeGreaterThan(0);
     await expect(page.locator("#message")).not.toHaveText("Loading…");
     await expect(page.getByTestId("column").first()).toBeVisible();
+    await branchListRead(page);
     const sent = gets(stub).slice(before);
     for (const s of sent) expect(s.headers.authorization).toBe(`Bearer ${TOKEN2}`);
   });
@@ -794,6 +811,7 @@ test.describe("a second tab (3.8)", () => {
     await expectLine(page, "fomo-t", "github_pat_…9876", true);
     await openUrl(page, "https://github.com/fomo-t/app");
     await expect(page.getByTestId("column").first()).toBeVisible();
+    await branchListRead(page);
     for (const s of gets(stub)) expect(s.headers.authorization).toBe(`Bearer ${TOKEN2}`);
   });
 
@@ -807,6 +825,8 @@ test.describe("a second tab (3.8)", () => {
     await useToken(page, TOKEN, true);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
+    // The first load's branch list is read before the mark below (3.13).
+    await branchListRead(page);
     const other = await context.newPage();
     await other.goto("/");
     await openPanel(other);
@@ -995,12 +1015,14 @@ test.describe("one token per owner (3.8)", () => {
 
     await openUrl(page, "https://github.com/ACME/widgets");
     await expect(page.getByTestId("column").first()).toBeVisible();
+    await branchListRead(page);
     expect(gets(stub).length).toBeGreaterThan(0);
     for (const s of gets(stub)) expect(s.headers.authorization).toBe(`Bearer ${TOKEN}`);
 
     let mark = gets(stub).length;
     await openUrl(page, "https://github.com/fomo-t/app");
     await expect(page.locator("#project-name")).toHaveText("fomo-t/app (main)");
+    await branchListRead(page);
     expect(gets(stub).length).toBeGreaterThan(mark);
     for (const s of gets(stub).slice(mark))
       expect(s.headers.authorization).toBe(`Bearer ${TOKEN2}`);

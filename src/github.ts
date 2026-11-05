@@ -4,6 +4,15 @@
  * The fetcher is passed in, so tests never reach the network.
  */
 
+import {
+  BRANCH_LIST_NOT_UNDERSTOOD,
+  BRANCHES_PER_PAGE,
+  mergeBranchPages,
+  morePagesMayExist,
+  nextPageWanted,
+  readBranchPage,
+} from "./branches";
+
 export interface RepoRef {
   owner: string;
   repo: string;
@@ -126,6 +135,8 @@ export type LoadResult =
       statusText: string | null;
       /** The root PROJECTS.md (3.9), or null when the file list has none. */
       projectsText: string | null;
+      /** The default branch, when request 1 told it; null when the reference named a branch (3.13). */
+      defaultBranch: string | null;
     }
   | {
       ok: false;
@@ -305,6 +316,7 @@ export async function loadRepo(
   const { api, get, file } = makeRequests(ref, fetcher, token);
 
   let branch = ref.branch;
+  let defaultBranch: string | null = null;
   if (branch === null) {
     const r1 = await get(api, true);
     if ("ok" in r1) return r1;
@@ -314,6 +326,7 @@ export async function loadRepo(
       return failure("bad-response", 200, "GitHub's answer for the repo had no default branch.");
     }
     branch = def;
+    defaultBranch = def;
   }
 
   const r2 = await get(`${api}/git/trees/${encodeURIComponent(branch)}?recursive=1`, true);
@@ -359,5 +372,64 @@ export async function loadRepo(
     backlogText,
     statusText,
     projectsText,
+    defaultBranch,
+  };
+}
+
+/** What reading a repo's branch list gave (3.13). */
+export interface BranchListResult {
+  /** The names read, in GitHub's order, each once. */
+  names: string[];
+  /** The third page was full: the repo may have more branches. */
+  more: boolean;
+  /** The pages read before any failure. */
+  pagesRead: number;
+  /** Why reading stopped early, or null. */
+  failure: LoadFailure | null;
+}
+
+/**
+ * Reads a repo's branch list with GitHub's "List branches" (3.13): page 1,
+ * then the next page only after a page of 100 items, up to page 3, one
+ * request after another. It needs only the owner and the repo, not a load:
+ * the guided opening of PBI-1.19 is to ask for a repo's branches that way.
+ * The requests go through the same code as a load, with the token given (3.8).
+ */
+export async function listBranches(
+  ref: { owner: string; repo: string },
+  fetcher: Fetcher,
+  token: string | null = null,
+): Promise<BranchListResult> {
+  const { api, get } = makeRequests(ref, fetcher, token);
+  const pages: string[][] = [];
+  const counts: number[] = [];
+  let failure: LoadFailure | null = null;
+  // The cap lives in nextPageWanted alone: the loop ends when it wants no next page.
+  for (let n = 1; ; n++) {
+    // A 404 here is read as any request that is not request 1 or 2 (3.13, "Errors").
+    const answer = await get(`${api}/branches?per_page=${BRANCHES_PER_PAGE}&page=${n}`, false);
+    if ("ok" in answer) {
+      failure = answer;
+      break;
+    }
+    const page = readBranchPage(answer.text);
+    if (!page.ok) {
+      failure = {
+        ok: false,
+        kind: "bad-response",
+        status: 200,
+        message: BRANCH_LIST_NOT_UNDERSTOOD,
+      };
+      break;
+    }
+    pages.push(page.names);
+    counts.push(page.count);
+    if (!nextPageWanted(page.count, counts.length)) break;
+  }
+  return {
+    names: mergeBranchPages(pages),
+    more: failure === null && morePagesMayExist(counts),
+    pagesRead: pages.length,
+    failure,
   };
 }
