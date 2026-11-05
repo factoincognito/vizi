@@ -1037,10 +1037,14 @@ changes none of its reading rules, with one exception, an owner alone
   or a pick of 3.13) also hides the select and `#guide-message`, and
   stops a running branch read, as Open does.
 - **The opening guide's message line** `#guide-message`
-  (`role="status"`, 14 px, muted, under the row, always taking one
-  line's height, an empty line included, so nothing below the address
-  row moves when "Reading…" or "Choose one…" appears on leaving the
-  field; no delay or timer (Clead, 2026-11-05, #85)) says "Reading `<owner>`'s repos…" or "Reading the branches…"
+  (`role="status"`, 14 px, muted, under the row) takes one line's
+  height, empty or not, from the `input` event at which the field's text
+  becomes guided (an owner, `<owner>/` or `<owner>/<repo>`, as read
+  above), and no space while the field is empty or holds text that is
+  not guided. The space is added or removed only on `input` events,
+  never on a blur, a focus, a read starting or a read answering, so a
+  blur that writes "Reading…" or "Choose one…" moves nothing below the
+  address row; no delay or timer (Clead, 2026-11-05, #85). It says "Reading `<owner>`'s repos…" or "Reading the branches…"
   while a read is running, and the opening guide's outcomes. Load
   messages stay in `#message`. Both are shown also before any blur: for
   `acme/` typed, "Reading `<owner>`'s repos…" while the read runs and
@@ -2605,7 +2609,10 @@ needs it.
   their owner. All access is read-only: vizi never changes anything on
   GitHub."
 - The section's parts are 10 px apart; the start column's sections are
-  28 px apart, with 72 px above the first on desktop.
+  28 px apart, with 72 px above the first on desktop. While the opening
+  guide is in use, its message line `#guide-message` sits between the
+  address row and the access line, as its select sits in the row under
+  the decision of 22:47 (3.1, "Guided opening"; Clead, 2026-11-05, #85).
 - The message line `#message` (`role="status"`, as today) follows the
   section and takes no space while it is empty.
 
@@ -4243,12 +4250,16 @@ Items 29 to 31 are PBI-1.19's (3.1, "Guided opening"):
     Also not checked: whether, on a phone, the select shown on the
     field's blur (at once for an owner whose list is kept) can move
     "Open" under a tap that is landing on it. The message line
-    `#guide-message` does not move anything: it always takes one line's
-    height (3.1), and the build's browser tests check, on all four
-    projects, that a click on a token's "Forget" and on the "Private
-    repos" toggle, made with an owner typed in the field and no blur
-    before it, registers, and that the element is where it was before
-    the blur (Clead, 2026-11-05, #85). The select's own appearance above
+    `#guide-message` does not move anything on a blur: it takes its one
+    line's height on the `input` that makes the field's text guided, and
+    gives it back only on an `input` that makes it not guided (3.1), so
+    the idle start page keeps 3.12's spacing. The build's browser tests
+    check, on all four projects, that a click on a token's "Forget" and
+    on the "Private repos" toggle, made with an owner typed in the field
+    and no blur before it, registers, and that the element is where it
+    was before the blur; and that the row-to-access-line gap is 3.12's
+    with an empty field and with a full address (Clead, 2026-11-05,
+    #85). The select's own appearance above
     "Open" on a phone stays as said above.
 31. **Open; PBI-1.19.** Whether `api.github.com` answers
     `/users/<owner>` for an organisation with `"type": "Organization"`
