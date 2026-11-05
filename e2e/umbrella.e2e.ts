@@ -847,6 +847,8 @@ test.describe("two owners' tokens (3.8, 3.9)", () => {
     await useToken(page, TOKEN2, "other");
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toBeVisible();
+    // The hub's branch list, with acme's token, is read before the mark below (3.13).
+    await branchListRead(page);
     for (const s of gets(stub)) expect(s.headers.authorization, s.url).toBe(`Bearer ${TOKEN}`);
 
     await showStatus(page, "projects/notes/").click();

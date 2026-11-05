@@ -574,6 +574,8 @@ test.describe("Forget, per owner (3.8)", () => {
     await useToken(page, TOKEN, true);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
+    // The load's branch list, with the token, is read before the token goes (3.13).
+    await branchListRead(page);
     const before = gets(stub).length;
 
     await forgetButton(page).click();
@@ -641,6 +643,8 @@ test.describe("a second tab (3.8)", () => {
     await useToken(page, TOKEN, true);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
+    // The load's branch list, with the token, is read before the token goes (3.13).
+    await branchListRead(page);
 
     const other = await context.newPage();
     await other.goto("/");
