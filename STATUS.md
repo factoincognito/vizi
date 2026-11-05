@@ -18,8 +18,7 @@ Build: the first version is built and published at https://factoincognito.github
 The umbrella help text (PBI-1.18): in review in PR #84.
 
 ## Next step
-PBI-1.12, PBI-1.10 and PBI-1.6, in the backlog's order. Then the product owner's first try of tokens against real GitHub (`docs/SPEC.md` section 4, items 9 to 15) whenever he has time, then PBI-1.4.
+PBI-1.19 (simplified spec in #82, then the code), PBI-1.12, PBI-1.10 and PBI-1.6, in the backlog's order. Then the product owner's first try of tokens against real GitHub (`docs/SPEC.md` section 4, items 9 to 15) whenever he has time, then PBI-1.4.
 
 ## Blockers
 - Product Owner: the definition of done for this phase (`docs/NEXT_SESSION.md`, entry 1).
-- Product Owner: PBI-1.19's spec is parked after ten CI review rounds (docs/NEXT_SESSION.md, entry 5).
