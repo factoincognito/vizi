@@ -822,9 +822,12 @@ alone (below).
   - **Not checked:** which repos `/user/repos` gives for a fine-grained
     token (the ones it covers, or more), and whether `/orgs/<org>/repos`
     with such a token shows the private repos it covers; the
-    documentation does not say. Fine-grained tokens "always include
-    read-only access to all public repositories" (the token page, as
-    read for 3.12). Section 4, item 29.
+    documentation does not say. "Tokens always include read-only access
+    to all public repositories on GitHub"
+    (`content/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens.md`
+    at the same docs commit, blob `eed00bf0b64880e2aa32f630eb3c0c01ab90cbf2`,
+    "Creating a fine-grained personal access token"). Section 4, item
+    29.
   - **The token:** the one held for the owner at the moment the guide's
     first request for that owner starts (3.8, "Which token a load
     uses"), compared in lower case, with 3.8's headers,
@@ -962,27 +965,34 @@ alone (below).
     with the default branch is a load with `branch` `null` (so 3.14
     saves it as following the default).
     - **Only with the same token.** A load reuses a guide read, running
-      or finished, only when that read carries the token the load uses
-      (the one held for the owner when the load starts). Otherwise the
-      load makes its own requests as "The Repository field" sets out,
-      and the picker reads its list as 3.13 does.
-    - **A failed guide read is reused as a failure.** When the guide's
-      request 1 failed, the load fails with that answer's message and
-      makes no request 1 again (a 401 is handled once, by the guide, as
-      3.8 sets out); when only the branch list failed, the load goes on
-      and the picker reads its list as 3.13 does. So a 404 or a network
-      failure is not asked twice.
+      or finished with success, only when that read carries the token
+      the load uses (the one held for the owner when the load starts).
+      Otherwise the load makes its own requests as "The Repository
+      field" sets out, and the picker reads its list as 3.13 does.
+    - **A failure is shared only while it runs.** One rule for owner
+      lists and repo reads alike: a failed guide read is not kept once it
+      has answered (as "Held in memory only" says), so a later blur, Open
+      or load reads again. A load that waits on a guide read still
+      running takes its outcome: when that request 1 fails, the load
+      fails with its message and makes no request 1 of its own (a 401 is
+      handled once, by the guide, as 3.8 sets out); when only the branch
+      list fails, the load goes on and the picker reads its list as
+      3.13 does.
 - **Typing on, and newest wins.** Every guide answer is for the owner,
-  or the owner and repo, it was asked for. It is kept in the memory
-  cache whenever it arrives, but it changes the datalist, the select or
+  or the owner and repo, it was asked for. A successful answer is kept
+  in the memory cache whenever it arrives (unless its read was
+  abandoned on a token change, above; a failure is not kept), but it
+  changes the datalist, the select or
   the guide's message only if the field's text, read as above, is still
   that owner (for a repo list) or that owner and repo (for a branch
   list) when it arrives; otherwise it is shown when the field comes back
-  to it, from the cache. Any input that changes the field's owner, or
-  its repo, hides the select at once; the datalist follows the owner. A
-  load (by Open, an entry of 3.14, "Open in vizi" or a pick of 3.13)
-  starts as 3.1 sets out and drops no guide answer, since the guide
-  shows nothing of a project.
+  to it, from the cache. Any input by the user in the field (an `input`
+  event) that changes the field's owner, or its repo, hides the select
+  at once. The guide's own write (a repo chosen in its select, which
+  sets the field's value and fires no `input` event) does not hide it;
+  the datalist follows the owner. A load (by Open, an entry of 3.14,
+  "Open in vizi" or a pick of 3.13) starts as 3.1 sets out and drops no
+  guide answer, since the guide shows nothing of a project.
 - **The guide's message line** `#guide-message` (`role="status"`, 14 px,
   muted, under the row, taking no space while empty) says "Reading
   `<owner>`'s repos…" or "Reading the branches…" while a read is due,
@@ -1130,8 +1140,10 @@ alone (below).
       is emptied and the select hidden; the field's text stays;
     - a guide read made without a token, then a token added for `acme`,
       then Open: the load uses the token and makes its own requests;
-    - the guide's request 1 answered 404, then Open: one request 1 in
-      all, and the load shows the 404 message;
+    - Open while the guide's request 1 is due, which then answers 404:
+      one request 1 in all, and the load shows the 404 message; a blur
+      that got a 404, then Open later: the load makes its own request 1
+      (the failure was not kept);
     - accessibility: the field's `list`, the select's label as it
       changes, the focus kept on the select, the tab order field,
       select, Open; the message line's role;
