@@ -656,6 +656,12 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
     text is accepted, in either form.
   - The branch picker (3.13) and the saved repos list (3.14) neither
     read nor write the field, so they are not affected.
+  - From PBI-1.19 the guide ("Guided opening" below) writes into the
+    field: the browser does when a datalist option is chosen, and the
+    guide's select does when a repo is chosen, each `<owner>/<repo>`.
+    The Owner prefill then follows as for typed text. For an owner alone
+    (`acme`), which the one reader refuses, the Owner prefill fills
+    nothing, as today; it fills the owner once a repo is in the field.
 - **One reader.** `src/github.ts` exports one function that reads the
   field's text into a reference, used for submitting the form, for the
   Owner prefill, and, from PBI-1.19, by the guide for its owner-and-repo
@@ -723,7 +729,10 @@ repo shows its branches with the repo's own default branch preselected
 (fomo-f's is `master`). A pasted full address still opens directly.
 The branch picker of 3.13 on a loaded project stays, and its branch
 request is reused. Clead's design, within that decision; built after
-PBI-1.15 (`docs/BACKLOG.md`). It adds to "The Repository field" above
+PBI-1.15 (`docs/BACKLOG.md`); its order against PBI-1.12, also after
+PBI-1.15, is not fixed, so the one test that needs both (3.14's "Save"
+after a guided open) is written in whichever is built second. It adds
+to "The Repository field" above
 and changes none of its reading rules, with one exception, an owner
 alone (below).
 
@@ -941,15 +950,17 @@ alone (below).
     with the token the load uses: the default branch, so the load makes
     no request 1; and the branch list, so the picker of 3.13 makes no
     branch request ("When", "reused" in the decision's words).
-  - **Open straight from the field.** Clicking Open with an owner and a
-    repo in the field blurs the field first, and the blur starts the
-    guide's reads for that repo. Open starts the load at once, as a
+  - **Open straight from the field.** Open and Enter themselves start
+    the guide's reads for an owner and a repo, when they are not held or
+    running for the load's token, so the load never depends on a blur:
+    clicking Open blurs the field first, and that blur may have started
+    them already (they are then shared); Enter in the field does not
+    blur, and starts them. Open starts the load at once, as a
     newer load (3.1); the load makes no request 1 of its own but waits
     for the guide's running reads (shared, above), takes the default
     branch from them, and the picker takes their branch list. A load
     with the default branch is a load with `branch` `null` (so 3.14
-    saves it as following the default). The same holds for Enter in the
-    field.
+    saves it as following the default).
     - **Only with the same token.** A load reuses a guide read, running
       or finished, only when that read carries the token the load uses
       (the one held for the owner when the load starts). Otherwise the
@@ -989,7 +1000,10 @@ alone (below).
   - **403 (rate limit or other), any other status, a network failure,
     an answer not understood:** "The repo list could not be read:
     `<message>`" (or "The branch list could not be read: `<message>`"),
-    with 3.1's or 3.8's message; when a page after the first fails,
+    with 3.1's or 3.8's message (3.8's 403 text speaks of "this repo";
+    for a list it is shown as GitHub's refusal, as written, on purpose,
+    so one message names one cause wherever it appears); when a page
+    after the first fails,
     the names read are shown and the line says "… is incomplete: …", as
     3.13. The field still opens any text as "The Repository field" sets
     out.
@@ -1063,7 +1077,13 @@ alone (below).
       "Branch of acme/widgets" with `master` selected and marked
       " (default)" when the stubbed repo's default is `master`;
     - Open then loads `acme/widgets` with no request 1 and the picker
-      of 3.13 makes no branch request;
+      of 3.13 makes no branch request; choosing another branch and Open
+      loads it by name;
+    - **Save after a guided open,** written in whichever of PBI-1.19 and
+      PBI-1.12 is built second (their order is not fixed; both come
+      after PBI-1.15): 3.14's "Save" stores `null` for a guided open of
+      the default branch and the name for another branch. 3.14's tests
+      gain this case if PBI-1.12 is built second;
     - clicking Open straight from the field with `acme/widgets` in it
       (the blur and Open in one step): the repo's request 1 and branch
       list are made once each, the load waits for them, and the picker
@@ -1072,9 +1092,12 @@ alone (below).
       is still running: the owner's requests are made once;
     - a token for `acme` that belongs to another account: `/user/repos`
       keeps nothing, and the guide lists `acme`'s public repos from
-      `/users/acme/repos`; choosing another branch and Open
-      loads it by name; 3.14's "Save" then stores `null` for the default
-      and the name for the other;
+      `/users/acme/repos`;
+    - the guide's request 1 succeeds and its branch list fails, then
+      Open: the load makes no request 1, goes on, and the picker reads
+      its own list (one branch request set);
+    - a repo whose branch list is empty: no select; Open loads the
+      default branch as 3.1 does;
     - Open with `acme` alone loads nothing, shows the select and the
       message, and clears no results; with a load of another repo still
       running, that load goes on and is shown when it answers;
