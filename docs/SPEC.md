@@ -927,7 +927,8 @@ changes none of its reading rules, with one exception, an owner alone
   changes, it is emptied at once, and filled when that owner's list is
   read or kept. A text that is not guided (such as
   `acme/widgets/tree/main`) has no owner for the opening guide, which
-  counts as an owner change: the datalist is emptied (Clead, 2026-11-05, #85). No custom listbox or combobox is built; the field keeps
+  counts as an owner change: the datalist is emptied (Clead, 2026-11-05,
+  #85). No custom listbox or combobox is built; the field keeps
   its label "Repository" and its role.
 - **Leaving the field** (`blur`), and Open, for guided text. Every blur
   of the field acts as below, wherever the focus goes, Tab to "Open" and
@@ -941,7 +942,8 @@ changes none of its reading rules, with one exception, an owner alone
   field the select shows its text only once it shows that repo's
   branches, so the field's blur into a select still showing `acme`'s
   repos starts a fresh branch read that replaces the select's own
-  (newest wins) (Clead, 2026-11-05, #85). The opening guide shows its result in one native
+  (newest wins) (Clead, 2026-11-05, #85). The opening guide shows its
+  result in one native
   `<select id="guide-select">` with its `<label>`, placed in the address
   row between the field and "Open" (on desktop on the same row, the
   field shrinking, at most 260 px wide; on a phone, under the field and
@@ -1030,7 +1032,8 @@ changes none of its reading rules, with one exception, an owner alone
   Open with an owner alone, for the field's text at that moment, never
   while the user types. Any input by the user in the field (an `input`
   event) that changes the field's owner, or its repo, hides the select
-  at once, and clears `#guide-message` with it (Clead, 2026-11-05, #85). The opening guide's own write (a repo chosen in its select,
+  at once, and clears `#guide-message` with it (Clead, 2026-11-05, #85).
+  The opening guide's own write (a repo chosen in its select,
   which sets the field's value and fires no `input` event) does not hide
   it; it updates the Owner prefill itself ("Where other parts set or
   read the field"). Every other load (an entry of 3.14, "Open in vizi"
@@ -1041,10 +1044,14 @@ changes none of its reading rules, with one exception, an owner alone
   height, empty or not, from the `input` event at which the field's text
   becomes guided (an owner, `<owner>/` or `<owner>/<repo>`, as read
   above), and no space while the field is empty or holds text that is
-  not guided. The space is added or removed only on `input` events,
-  never on a blur, a focus, a read starting or a read answering, so a
-  blur that writes "Reading…" or "Choose one…" moves nothing below the
-  address row; no delay or timer (Clead, 2026-11-05, #85). It says "Reading `<owner>`'s repos…" or "Reading the branches…"
+  not guided. The space is added or removed only on `input` events and
+  on the page's own writes of the field (a repo chosen in the opening
+  guide's select, "Open in vizi"), by the same rule, never on a blur, a
+  focus, a read starting or a read answering, so a blur that writes a
+  one-line message, such as "Reading…" or "Choose one…", moves nothing
+  below the address row; a longer outcome may move content when it
+  arrives; no delay or timer (Clead, 2026-11-05, #85). It says "Reading
+  `<owner>`'s repos…" or "Reading the branches…"
   while a read is running, and the opening guide's outcomes. Load
   messages stay in `#message`. Both are shown also before any blur: for
   `acme/` typed, "Reading `<owner>`'s repos…" while the read runs and
@@ -1073,7 +1080,8 @@ changes none of its reading rules, with one exception, an owner alone
     was not understood." is shown as "The repo list could not be read:
     GitHub's answer for `<owner>` was not understood.", and a repo answer
     without a default branch as "The branch list could not be read:
-    GitHub's answer for the repo had no default branch." (Clead, 2026-11-05, #85).
+    GitHub's answer for the repo had no default branch." (Clead,
+    2026-11-05, #85).
   - **A partly read list:** when a page after the first fails, the
     names read are shown and the line says "The repo list is
     incomplete: `<message>`" (or "The branch list is incomplete: …"), as
@@ -4250,10 +4258,12 @@ Items 29 to 31 are PBI-1.19's (3.1, "Guided opening"):
     Also not checked: whether, on a phone, the select shown on the
     field's blur (at once for an owner whose list is kept) can move
     "Open" under a tap that is landing on it. The message line
-    `#guide-message` does not move anything on a blur: it takes its one
-    line's height on the `input` that makes the field's text guided, and
-    gives it back only on an `input` that makes it not guided (3.1), so
-    the idle start page keeps 3.12's spacing. The build's browser tests
+    `#guide-message` does not move anything on a blur with a one-line
+    message: it takes its one line's height on the `input`, or the
+    page's own write of the field, that makes the field's text guided,
+    and gives it back only on one that makes it not guided (3.1), so the
+    idle start page keeps 3.12's spacing; a longer outcome may move
+    content when it arrives. The build's browser tests
     check, on all four projects, that a click on a token's "Forget" and
     on the "Private repos" toggle, made with an owner typed in the field
     and no blur before it, registers, and that the element is where it
