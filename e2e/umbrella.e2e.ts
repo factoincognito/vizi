@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { type BrowserContext, test as base, expect, type Page, type Route } from "@playwright/test";
 import { isAllowedRequest } from "./guard";
+import { openPanel } from "./panel";
 
 /** Every test: a request other than the page's own document and GitHub's two hosts fails it. */
 const test = base.extend<{ guard: undefined }>({
@@ -220,6 +221,7 @@ test.describe("the Umbrella tab (3.9)", () => {
   test("is not there without a PROJECTS.md", async ({ page, context }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, "https://github.com/acme/plain");
     await expect(page.getByTestId("column").first()).toBeVisible();
     await expect(umbrellaTab(page)).toHaveCount(0);
@@ -238,6 +240,7 @@ test.describe("the Umbrella tab (3.9)", () => {
     });
     page.on("console", (m) => m.type() === "error" && violations.push(m.text()));
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toHaveAttribute("aria-selected", "true");
     expect(await treeOutline(page)).toEqual(EXPECTED_TREE);
@@ -271,6 +274,7 @@ test.describe("the Umbrella tab (3.9)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB_BACKLOG);
     await expect(page.getByRole("tab", { name: "Board" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByTestId("column").first()).toBeVisible();
@@ -282,6 +286,7 @@ test.describe("the Umbrella tab (3.9)", () => {
   test("the tab comes after Report", async ({ page, context }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toBeVisible();
     const names = await page.getByRole("tab").allTextContents();
@@ -292,6 +297,7 @@ test.describe("the Umbrella tab (3.9)", () => {
   test("a file with no pointer gives an empty tree and an Info item", async ({ page, context }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB_EMPTY);
     await expect(umbrellaTab(page)).toHaveAttribute("aria-selected", "true");
     await page.getByRole("tab", { name: /^Report/ }).click();
@@ -306,6 +312,7 @@ test.describe("URL mode (3.9)", () => {
   }) => {
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toHaveAttribute("aria-selected", "true");
     expect(await treeOutline(page)).toEqual(EXPECTED_TREE);
@@ -322,6 +329,7 @@ test.describe("URL mode (3.9)", () => {
   test("with a backlog it opens on the Board", async ({ page, context }) => {
     const stub = await stubGithub(context, { hubBacklog: true });
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await expect(page.getByTestId("column").first()).toBeVisible();
     await expect(page.getByRole("tab", { name: "Board" })).toHaveAttribute("aria-selected", "true");
@@ -334,6 +342,7 @@ test.describe("URL mode (3.9)", () => {
       status: (url) => (url === `${RAW_HUB}/PROJECTS.md` ? 500 : undefined),
     });
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await expect(page.locator("#message")).toContainText("HTTP 500");
     await expect(page.locator("#results")).toBeHidden();
@@ -347,6 +356,7 @@ test.describe("the links of a repo pointer (3.9)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     const link = pointer(page, "acme/lab-1").getByRole("link", { name: "On GitHub" });
     await expect(link).toHaveAttribute("href", "https://github.com/acme/lab-1");
@@ -366,6 +376,7 @@ test.describe("the links of a repo pointer (3.9)", () => {
   }) => {
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toBeVisible();
     const before = gets(stub).length;
@@ -394,6 +405,7 @@ test.describe("the links of a repo pointer (3.9)", () => {
   }) => {
     const stub = await stubGithub(context, { hold: (url, n) => url === `${API}/hub` && n === 2 });
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toBeVisible();
     await openUrl(page, HUB); // the second request for the hub is held
@@ -414,6 +426,7 @@ test.describe("the links of a repo pointer (3.9)", () => {
   }) => {
     await stubGithub(context, { status: (url) => (url === `${API}/lab-1` ? 404 : undefined) });
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await pointer(page, "acme/lab-1").getByRole("link", { name: "Open in vizi" }).click();
     await expect(page.locator("#message")).toContainText("Not found or not public");
@@ -428,6 +441,7 @@ test.describe("Show status of a folder pointer (3.9)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toBeVisible();
     await expect(panel(page)).toBeHidden();
@@ -452,6 +466,7 @@ test.describe("Show status of a folder pointer (3.9)", () => {
   test("what the status could not give is shown with it", async ({ page, context }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await showStatus(page, "projects/odd/").click();
     await expect(panel(page).getByTestId("pstatus-focus")).toHaveText("Odd focus.");
@@ -463,6 +478,7 @@ test.describe("Show status of a folder pointer (3.9)", () => {
   test("a folder without STATUS.md says so, with no request", async ({ page, context }) => {
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toBeVisible();
     const before = stub.seen.length;
@@ -478,6 +494,7 @@ test.describe("Show status of a folder pointer (3.9)", () => {
   }) => {
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toBeVisible();
     expect(gets(stub).filter((s) => s.url.includes("/projects/"))).toEqual([]);
@@ -495,6 +512,7 @@ test.describe("Show status of a folder pointer (3.9)", () => {
   }) => {
     await stubGithub(context, { status: (url) => (url === NOTES_RAW ? 500 : undefined) });
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await showStatus(page, "projects/notes/").click();
     await expect(panel(page)).toContainText("HTTP 500");
@@ -506,6 +524,7 @@ test.describe("one panel, the newest wins (3.9)", () => {
   test("the next Show status, for any pointer, replaces the panel", async ({ page, context }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await showStatus(page, "projects/notes/").click();
     await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("Notes phase.");
@@ -536,6 +555,7 @@ test.describe("one panel, the newest wins (3.9)", () => {
       text: answerByCall,
     });
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await showStatus(page, "projects/notes/").click();
     await expect.poll(() => gets(stub).filter((s) => s.url === NOTES_RAW).length).toBe(1);
@@ -556,6 +576,7 @@ test.describe("one panel, the newest wins (3.9)", () => {
   }) => {
     const stub = await stubGithub(context, { hold: (url, n) => url === NOTES_RAW && n === 1 });
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await showStatus(page, "projects/notes/").click();
     await expect.poll(() => gets(stub).filter((s) => s.url === NOTES_RAW).length).toBe(1);
@@ -576,6 +597,7 @@ test.describe("one panel, the newest wins (3.9)", () => {
       status: (url) => (url === NOTES_RAW ? 500 : undefined),
     });
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await showStatus(page, "projects/notes/").click();
     await expect.poll(() => gets(stub).length).toBeGreaterThan(0);
@@ -593,6 +615,7 @@ test.describe("one panel, the newest wins (3.9)", () => {
   }) => {
     const stub = await stubGithub(context, { hold: (url, n) => url === NOTES_RAW && n === 1 });
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await showStatus(page, "projects/notes/").click();
     await expect.poll(() => gets(stub).filter((s) => s.url === NOTES_RAW).length).toBe(1);
@@ -611,6 +634,7 @@ test.describe("one panel, the newest wins (3.9)", () => {
   }) => {
     const stub = await stubGithub(context, { hold: (url, n) => url === NOTES_RAW && n === 1 });
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await showStatus(page, "projects/notes/").click();
     await expect.poll(() => gets(stub).filter((s) => s.url === NOTES_RAW).length).toBe(1);
@@ -624,6 +648,7 @@ test.describe("one panel, the newest wins (3.9)", () => {
   test("a new project starts with no panel", async ({ page, context }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await showStatus(page, "projects/notes/").click();
     await expect(panel(page)).toBeVisible();
@@ -648,6 +673,7 @@ test.describe("with a token held (3.8, 3.9)", () => {
   }) => {
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page);
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toBeVisible();
@@ -673,6 +699,7 @@ test.describe("with a token held (3.8, 3.9)", () => {
   test("a 401 for a status read forgets the token and says so", async ({ page, context }) => {
     await stubGithub(context, { status: (url) => (url === NOTES_API ? 401 : undefined) });
     await page.goto("/");
+    await openPanel(page);
     await useToken(page);
     await openUrl(page, HUB);
     await showStatus(page, "projects/notes/").click();
@@ -686,6 +713,7 @@ test.describe("with a token held (3.8, 3.9)", () => {
   }) => {
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await showStatus(page, "projects/notes/").click();
     await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("Notes phase.");
@@ -702,6 +730,7 @@ test.describe("a status read with the token, in a project loaded without one (3.
   ) {
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toBeVisible();
     await page.locator("#token-input").fill(TOKEN);
@@ -732,6 +761,7 @@ test.describe("a status read with the token, in a project loaded without one (3.
     await tokenlessUmbrellaThenToken(page, context, true);
     const other = await context.newPage();
     await other.goto("/");
+    await openPanel(other);
     await other.evaluate(() => localStorage.removeItem("vizi.githubTokens"));
     await expect(page.getByTestId("token-line")).toBeHidden();
     await expect(panel(page)).toBeHidden();
@@ -745,6 +775,7 @@ test.describe("a status read with the token, in a project loaded without one (3.
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await showStatus(page, "projects/notes/").click();
     await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("Notes phase.");
@@ -771,6 +802,7 @@ test.describe("a status read with the token, in a project loaded without one (3.
   test("a 401 on Show status leaves no empty panel", async ({ page, context }) => {
     await stubGithub(context, { status: (url) => (url === NOTES_API ? 401 : undefined) });
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await page.locator("#token-input").fill(TOKEN);
     await page.locator("#token-use").click();
@@ -797,6 +829,7 @@ test.describe("two owners' tokens (3.8, 3.9)", () => {
   }) => {
     const stub = await stubGithub(context, { cross: true });
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, "acme");
     await useToken(page, TOKEN2, "other");
     await openUrl(page, HUB);
@@ -831,6 +864,7 @@ test.describe("two owners' tokens (3.8, 3.9)", () => {
   }) => {
     const stub = await stubGithub(context, { cross: true });
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN2, "other");
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toBeVisible();
@@ -848,6 +882,7 @@ test.describe("two owners' tokens (3.8, 3.9)", () => {
   }) => {
     await stubGithub(context, { cross: true });
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, HUB);
     await expect(page.locator("#owner-input")).toHaveValue("acme");
     await pointer(page, "other/gadgets").getByRole("link", { name: "Open in vizi" }).click();
@@ -867,6 +902,7 @@ test.describe("two owners' tokens (3.8, 3.9)", () => {
   }) => {
     await stubGithub(context, { cross: true });
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, "acme");
     await useToken(page, TOKEN2, "other");
     await openUrl(page, HUB);
@@ -889,6 +925,7 @@ test.describe("two owners' tokens (3.8, 3.9)", () => {
       status: (url) => (url === NOTES_API ? 401 : undefined),
     });
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, "acme");
     await useToken(page, TOKEN2, "other");
     await openUrl(page, HUB);

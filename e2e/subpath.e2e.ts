@@ -11,3 +11,13 @@ test("the built page has no root-relative references, so it works under a sub-pa
   expect(html).not.toMatch(/<script[^>]+\bsrc\s*=/);
   expect(html).not.toMatch(/<link[^>]+rel=["']stylesheet["']/);
 });
+
+// The three Inter faces are inlined as data: URLs, so the page still loads nothing but itself (3.12).
+test("every url() in the built page is one of the three inlined WOFF2 fonts, and it holds no token", () => {
+  const html = readFileSync("dist/index.html", "utf8");
+  const urls = [...html.matchAll(/url\(\s*["']?([^"')\s]+)/g)].map((m) => m[1] ?? "");
+  expect(urls).toHaveLength(3);
+  for (const u of urls) expect(u.startsWith("data:font/woff2;base64,")).toBe(true);
+  expect(new Set(urls).size).toBe(3);
+  expect(html).not.toMatch(/github_pat_[A-Za-z0-9_]{10,}/);
+});

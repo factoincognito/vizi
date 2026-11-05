@@ -117,7 +117,7 @@ const focused = (page: Page) =>
   });
 
 test.describe("opening the help view (3.10)", () => {
-  test("the control is on the start page under the h1, is a button, and Tab reaches it", async ({
+  test("the control is in the page's header, after the h1, is a button, and Tab reaches it", async ({
     page,
   }) => {
     await page.goto("/");
@@ -127,10 +127,10 @@ test.describe("opening the help view (3.10)", () => {
       "BUTTON",
       "button",
     ]);
-    // Under the heading: the h1 comes before the control in the page.
+    // In the header, at the right of the h1 (3.12, "Changes to the help view", item 1): after it in the page.
     const after = await page.evaluate(() => {
-      const h1 = document.querySelector("h1");
-      const c = document.getElementById("help-open");
+      const h1 = document.querySelector("header > h1");
+      const c = document.querySelector("header #help-open");
       return Boolean(h1 && c && h1.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING);
     });
     expect(after).toBe(true);
@@ -150,7 +150,9 @@ test.describe("opening the help view (3.10)", () => {
     await expect(page.locator("#url-input")).toBeHidden();
     await expect(page.locator("#token-input")).toBeHidden();
     await expect(page.locator("#results")).toBeHidden();
+    // The control and the footer are outside the wrapper, so opening hides them too (3.12, item 2).
     await expect(control(page)).toBeHidden();
+    await expect(page.locator("footer")).toBeHidden();
     expect(await focused(page)).toBe("help-title");
     await expect(page.locator("#help-title")).toHaveAttribute("tabindex", "-1");
     await expect(page.locator("#help-title")).toHaveText(HELP_TITLE);
@@ -180,9 +182,10 @@ test.describe("opening the help view (3.10)", () => {
         el.tagName,
         el.getAttribute("aria-labelledby"),
         el.closest("#start") === null,
-        el.parentElement?.id,
+        el.parentElement?.tagName,
+        document.getElementById("start")?.parentElement === el.parentElement,
       ]),
-    ).toEqual(["SECTION", "help-title", true, "app"]);
+    ).toEqual(["SECTION", "help-title", true, "MAIN", true]);
     expect(page.url()).toBe(before);
     expect(await page.evaluate(() => history.length)).toBe(entries);
     expect(await page.evaluate(() => location.hash)).toBe("");
@@ -204,12 +207,27 @@ test.describe("the view's structure and text (3.10)", () => {
     await page.goto("/");
     await openView(page);
     const tags = await page.evaluate(() => {
-      const h1 = document.querySelector("#app > h1");
+      const h1 = document.querySelector("header > h1");
       const section = document.getElementById("help");
       const inView = section ? [...section.querySelectorAll("h1, h2, h3, h4, h5, h6")] : [];
       return [h1, ...inView].map((el) => el?.tagName ?? "none");
     });
     expect(tags).toEqual(["H1", "H2", "H3", "H3", "H3", "H3", "H3"]);
+    // The start page's other headings are all in the hidden wrapper, so none is read while the view
+    // is open: the h2 "Open a project from GitHub", the panel's h2 and its h3 "Add a token" (3.10,
+    // "Accessibility", as 3.12 changes it; its list leaves out the new h2, which is there too).
+    const hidden = await page.evaluate(() => {
+      const start = document.getElementById("start");
+      return [...document.querySelectorAll("h2, h3")]
+        .filter((el) => !document.getElementById("help")?.contains(el))
+        .map((el) => [el.id, el.tagName, start?.contains(el) ?? false, start?.hidden ?? false]);
+    });
+    expect(hidden).toEqual([
+      ["open-project-title", "H2", true, true],
+      ["private-repos-title", "H2", true, true],
+      ["token-add-title", "H3", true, true],
+      ["project-name", "H2", true, true],
+    ]);
     // Each h3 is a step of the ordered list.
     expect(await page.locator("#help ol > li > h3").count()).toBe(5);
     expect(await page.locator("#help ol > li").count()).toBe(5);
@@ -313,19 +331,18 @@ test.describe("the view's structure and text (3.10)", () => {
     });
   });
 
-  test("every control label the text names exists on the start page", async ({ page }) => {
+  test("every control label the text names exists on the start page, inside the panel", async ({
+    page,
+  }) => {
     await page.goto("/");
+    // The panel's own name, on its toggle; the other labels inside the panel (3.12, item 6).
+    await expect(page.locator("#private-repos-toggle .toggle-label")).toHaveText("Private repos");
     const labels = await page.evaluate(() =>
-      [...document.querySelectorAll("#start label, #start button")].map((el) =>
+      [...document.querySelectorAll("#private-repos label, #private-repos button")].map((el) =>
         (el.textContent ?? "").trim(),
       ),
     );
-    for (const label of [
-      "Owner",
-      "GitHub token (for private repos)",
-      "Use",
-      "Remember the token",
-    ]) {
+    for (const label of ["Owner", "Remember in this browser", "Add"]) {
       expect(labels, label).toContain(label);
     }
   });
@@ -361,6 +378,7 @@ test.describe("closing the help view (3.10)", () => {
       await expect(view(page)).toBeHidden();
       await expect(start(page)).toBeVisible();
       await expect(control(page)).toBeVisible();
+      await expect(page.locator("footer")).toBeVisible();
       expect(await focused(page)).toBe("help-open");
       await expect(page.locator("#results")).toBeVisible();
       await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");

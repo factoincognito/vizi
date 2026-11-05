@@ -1449,20 +1449,24 @@ Clead's design, within that intent. Nothing is added to or removed from
 the five steps and the closing link. The link is not a sixth step.
 
 - **Opening and closing.**
-  - On the start page, under the "Vizi - backlog visualizer" heading,
-    there is a control with the text "How to make your project vizi
-    compatible". It is a `<button type="button">` styled as a link: it
-    acts inside the page and goes nowhere.
-  - The page's start content (the control, the inputs, the message line
-    and the results) sits in one wrapper element. Using the control sets
-    `hidden` on that wrapper only and shows the help view. Nothing is
-    removed or cleared, and the `hidden` of `#results` stays with the
-    load code, which sets it as today (a successful load shows the
-    results, a failed or refused load, or a forgotten token, hides them).
-    So the control is hidden while the view is open, and nothing else on
-    the start page can be focused.
-  - The view's `<section>` sits outside the wrapper, as its sibling under
-    the `h1`, so hiding the wrapper never hides the view.
+  - In the page's `<header>`, at the right of the `h1` "vizi backlog
+    visualizer" (on a phone, under it), there is a control with the text
+    "How to make your project vizi compatible" (from PBI-1.16, 3.12;
+    before it, under the "Vizi - backlog visualizer" heading). It is a
+    `<button type="button">` styled as a link: it acts inside the page
+    and goes nowhere.
+  - The page's start content (the inputs, the message line and the
+    results) sits in one wrapper element. The `h1` and the control are
+    in the page's `<header>`, outside the wrapper (3.12). Using the
+    control sets `hidden` on the wrapper, on the control and on the
+    page's `<footer>`, and shows the help view. Nothing is removed or
+    cleared, and the `hidden` of `#results` stays with the load code,
+    which sets it as today (a successful load shows the results, a
+    failed or refused load, or a forgotten token, hides them). So the
+    control is hidden while the view is open, and nothing else on the
+    start page can be focused.
+  - The view's `<section>` sits outside the wrapper, as its sibling in
+    `<main>`, so hiding the wrapper never hides the view.
   - A load that is under way carries on and fills the wrapper's content
     unseen. Opening the view starts no load and cancels none, and a load
     never moves the focus.
@@ -1470,7 +1474,8 @@ the five steps and the closing link. The link is not a sixth step.
     its end, or with the Escape key. Closing shows the wrapper again,
     with the current state, not the state from before the view opened: a
     project that loaded meanwhile is shown; the results a failed load
-    cleared stay hidden, with that load's message shown. Then the focus
+    cleared stay hidden, with that load's message shown. Closing removes
+    `hidden` from the wrapper, the control and the footer. Then the focus
     moves to the control, which is shown again by then. Escape with the
     view closed does nothing.
   - **No address.** The view has no hash and no history entry. The page
@@ -1580,18 +1585,22 @@ the five steps and the closing link. The link is not a sixth step.
      `projects/notes/`, and nothing in the report (checked 2026-11-04).
   5. **A private repo: with a token.** Make a fine-grained token for
      the owner, limited to the chosen repos, with an expiry and the
-     repository permission "Contents" set to read-only. Type the owner
-     and paste the token into the fields under the address, then "Use";
-     tick "Remember the token" to keep it in this browser (3.8). It is
-     sent only to GitHub. The example shows the token's format and no
+     repository permission "Contents" with read access (the words of the
+     token guide, 3.12). Open "Private repos", then, under "Add a token",
+     type the owner in "Owner" and paste the token into "Fine-grained
+     token, read-only"; tick "Remember in this browser" to keep it in
+     this browser, then "Add" (the box before "Add", as the page has
+     them; 3.8, 3.12). It is sent only to GitHub. The example shows the token's format and no
      token: `github_pat_<letters, digits and underscores>`. It is written
      with the angle-bracket placeholder, which the token rule of 3.8
      refuses, so it cannot be mistaken for one, and no text in the view
      holds `github_pat_` followed by ten or more letters, digits or
      underscores. The help text for the step ends: "vizi opens
      projects from GitHub, and a private one needs this token."
-     The permission name the step uses is the one 3.8 expects; it is not
-     yet checked against GitHub (section 4, items 10, 11 and 19).
+     The permission name and the level the step uses are checked against
+     GitHub's documentation (3.12, "The guide, checked against GitHub's
+     documentation"; section 4, item 19); what GitHub answers to such a
+     token is still section 4, items 10 and 11.
 - **The closing link.** After the ordered list of steps, outside it, with
   no heading and no example: a link "The full format, `docs/BACKLOG-FORMAT.md`,
   on GitHub" to
@@ -1603,9 +1612,10 @@ the five steps and the closing link. The link is not a sixth step.
     step's title an `h3`, and no level is skipped. The view is a
     `<section>` labelled by its `h2`. The five steps are an ordered list;
     the closing link is after it. (3.7 keeps `h1` and `h2` for the page.
-    The hidden wrapper holds the page's own `h2` of the results and
-    `h3` of "Tokens in use", and a loaded project's headings from `h3`;
-    none is read while the wrapper is hidden.)
+    The hidden wrapper holds the page's own `h2` "Open a project from
+    GitHub", the "Private repos" panel's `h2` and its "Add a token"
+    `h3` (3.12), the `h2` of the results, and a loaded project's
+    headings from `h3`; none is read while the wrapper is hidden.)
   - Keyboard: the control, the Back buttons and the final link are native
     elements in the page's tab order, and work with Enter and Space. On
     opening, the focus moves to the view's `h2` (`tabindex="-1"`). Escape
@@ -1648,6 +1658,7 @@ the five steps and the closing link. The link is not a sixth step.
       a repo pointer and a folder pointer, and an empty report;
     - step 5's token example is refused by `parseToken`, and no part of
       the help text matches `github_pat_[A-Za-z0-9_]{10,}`;
+    - step 5 says "read access" (3.12);
     - the closing link is an `https://github.com/factoincognito/vizi/`
       URL ending in `docs/BACKLOG-FORMAT.md`.
 
@@ -1658,7 +1669,7 @@ the five steps and the closing link. The link is not a sixth step.
     or `insertAdjacentHTML`.
   - browser (Playwright, GitHub stubbed, in light and dark, at phone and
     desktop width as the other page tests are):
-    - the control is on the start page and reachable with Tab; Enter
+    - the control is in the page's header and reachable with Tab; Enter
       opens the view; the inputs and results are hidden and the focus is
       on the `h2`;
     - the heading structure, over the `h1` and the view's `<section>`
@@ -1672,8 +1683,8 @@ the five steps and the closing link. The link is not a sixth step.
       accessible name;
     - each code block's text equals the constant in `src/help.ts`; the
       step titles are in order; every control label the text names
-      ("Owner", "Use", "Remember the token")
-      exists on the start page;
+      ("Private repos", "Owner", "Remember in this browser" and "Add")
+      exists on the start page, inside the "Private repos" panel (3.12);
     - Escape and both Back buttons close it, the control is shown again,
       the focus returns to it, and a project loaded before is still
       there; Escape with the view closed does nothing;
@@ -3441,20 +3452,26 @@ Item 19 is PBI-1.13's (3.10):
 
 Items 20 to 23 are PBI-1.16's (3.12):
 
-20. **Open; PBI-1.16.** Whether `vite-plugin-singlefile` 2.3.3, with its
-    default settings, inlines the three font files (about 14 KB each)
-    as `data:` URLs. If it does not, the build sets Vite's
-    `assetsInlineLimit`; the test of `e2e/subpath.e2e.ts` checks the
-    result. Not checked.
-21. **Open; PBI-1.16.** Whether Playwright reports a font loaded from a
-    `data:` URL as a request. If it does, the load check and the guard
-    accept exactly the built page's own three font URLs (3.12, Tests).
-    Not checked.
-22. **Open; PBI-1.16.** Whether the built page holds code of Vite's own
-    (for example its module-preload polyfill) that would need its own
-    entry in `THIRD-PARTY-NOTICES.md`, which PBI-1.16 creates. Not
-    checked; the builder of PBI-1.16 checks the built page and adds an
-    entry if it does.
+20. **Settled (PBI-1.16, 2026-11-04).** `vite-plugin-singlefile` 2.3.3,
+    with its default settings, inlines the three font files (14336,
+    14712 and 14600 bytes) as `data:font/woff2;base64,` URLs, so
+    `vite.config.mts` does not change. `e2e/subpath.e2e.ts` checks that
+    the built page has exactly three such `url()`s and no other.
+21. **Settled (PBI-1.16, 2026-11-04).** Playwright (1.63.0, Chromium)
+    does not report the page's inlined `data:` fonts as requests: the
+    load check of `e2e/smoke.e2e.ts` (the page requests only its own
+    document) and the guard of `e2e/guard.ts` pass unchanged while the
+    three faces load (`e2e/start.e2e.ts`, "the font loaded").
+22. **Settled (PBI-1.16, 2026-11-04).** The built page holds Vite's own
+    module-preload polyfill (the `relList` and `modulepreload` check
+    with a `MutationObserver` on the document, at the start of the
+    inline script). It is Vite 8.3.1's code (`node_modules/vite`,
+    licence MIT, "Copyright (c) 2019-present, VoidZero Inc. and Vite
+    contributors"), so `THIRD-PARTY-NOTICES.md`, which existed already
+    (PR #68), has an entry for it with the copyright and the licence
+    text, and the page's footer links to that file. Turning the
+    polyfill off in `vite.config.mts` was not chosen: it would change
+    the build for a notice the footer already carries.
 23. **Open; PBI-1.16.** Whether `v4.1` is the release GitHub marks as
     rsms/inter's latest. It is the highest version tag (read through
     git on 2026-11-04); the releases API was refused to this session.

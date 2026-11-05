@@ -1,6 +1,6 @@
 # Vizi - backlog visualizer — Next Session Planning
 
-**Last Updated:** 2026-11-04
+**Last Updated:** 2026-11-05
 **Author:** Clead (Tech Owner)
 **Purpose:** Staging area for reasoning, revised assumptions, and plan-adaptation thoughts that aren't yet mature enough to be a PBI, a decision, a strategy update, or a vision-doc change. Complements `docs/BACKLOG.md` — it does not replace it. Discrete, scoped, actionable work belongs in the backlog as a PBI, not here.
 
@@ -68,28 +68,6 @@ trailer lines, nothing else of the description or messages.
 instructions change by a few lines.
 **Action:** Clead asks the product owner to accept, change or reject (b);
 until he decides the contract stays as it is.
-
-### 3. Vite's code in the built page — new, answers SPEC open item 22
-
-**Previous assumption:** SPEC "Known unknowns" item 22 left open whether the
-built page holds code of Vite's own that needs an entry in
-`THIRD-PARTY-NOTICES.md`, for the builder of PBI-1.16 to check.
-**Revised assessment:** checked 2026-11-04 on `main` (`9560d78`) with
-`npm run build`: yes. The built `dist/index.html` contains Vite's inlined
-`modulepreload` polyfill (Vite is MIT, whose licence requires its notice to
-go with copies of the code), and the live page carries no notice for it.
-`THIRD-PARTY-NOTICES.md` exists since PR #68 (it lists the root
-devDependencies at the top level, not their transitive dependencies, which
-have not been checked licence by licence); the PBI-1.16 spec said it
-would create the file.
-**Impact on plan:** none on the order. The page is live on GitHub Pages now,
-and the policy (rule 5, Merge and Release gates) asks for the notice to
-reach the end user, so the entry and the footer link of PBI-1.16 should
-cover the polyfill; the other fix is turning the polyfill off in
-`vite.config.mts` (it changes the CSP hashes).
-**Action:** Clead tells the PBI-1.16 builder (this entry is the pointer),
-adds the Inter section to the existing file instead of creating it, and
-reports the finding to the product owner.
 
 ### 4. Follow-ups of the CI reviewer pilot — new, small, none blocks the pilot
 
