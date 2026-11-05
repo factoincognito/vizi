@@ -2,9 +2,7 @@
 
 **Last Updated:** 2026-11-05
 **Author:** Clead (Tech Owner)
-**Purpose:** Staging area for reasoning, revised assumptions, and plan-adaptation thoughts that aren't yet mature enough to be a PBI, a decision, a strategy update, or a vision-doc change. Complements `docs/BACKLOG.md` — it does not replace it. Discrete, scoped, actionable work belongs in the backlog as a PBI, not here.
-
-**The rule that keeps this useful, not a junk drawer:** every entry below must get a disposition each session it's touched — promoted to a PBI, a decision, or a formal doc update; re-affirmed as still-next; or deleted as resolved/obsolete. This file is read and triaged at the start of every session (see `CLAUDE.md` session-start routine). It is not a substitute for the backlog — it's where things live before they're ready to become backlog items.
+**Purpose:** Staging area for reasoning, revised assumptions, and plan-adaptation thoughts that aren't yet mature enough to be a PBI, a decision, a strategy update, or a vision-doc change. Complements `docs/BACKLOG.md` — it does not replace it. How it is read and kept: product-office Process P-1 § 4 (3), P-8 § 4 and P-9 § 1 (2).
 
 ---
 
@@ -53,8 +51,11 @@ says.
 **Revised assessment:** two gaps, found in the reviews of PR #68.
 (a) `memory/standards.md` section 7 listed three inputs, without
 `CLAUDE.md`, and the contract in `docs/ROUTINES.md` said the same; the
-brief of 2026-11-04 adds `CLAUDE.md`. Resolved: both list four now, and the
-CI reviewer is Crog in `CLAUDE.md`, rule 7.
+brief of 2026-11-04 adds `CLAUDE.md`. Resolved: `memory/standards.md`
+section 7 and `RULES.md` L § 3 (1) list the four inputs now (the
+`docs/ROUTINES.md` contract was removed at the PO-72 cutover), and the
+CI reviewer is Crog in `RULES.md` L § 4 (until the PO-72 cutover,
+`CLAUDE.md` rule 7).
 (b) The Review Standard asks every reviewer, the manual Crog agents
 included, to check the test coverage table
 and the red run (section 4) and to judge each `Test-exempt:` reason. The
@@ -64,10 +65,35 @@ the CI reviewer lists them under "What I did not check" and cannot approve
 on them. Clead's proposal, not decided: give it the two PR description
 sections ("Test coverage narrative", "Red run") and the `Test-exempt:`
 trailer lines, nothing else of the description or messages.
+(c) Since the PO-72 cutover (#88), `CLAUDE.md` is a short entry point:
+vizi's local rules are in `RULES.md`, and the global ones in the product
+office's Rules, a private repository the CI reviewer cannot read. The CI
+reviewer still reads `CLAUDE.md`, not `RULES.md`, so it no longer sees
+the rules it checks a diff against, and `.github/reviewer/instructions.md`
+still tells it to check against `CLAUDE.md`. Decided by the product owner,
+2026-11-05 18:49 (product-office DECISIONS.md): `RULES.md` is added to the
+documents it reads (`RULES.md` L § 3 (1), `memory/standards.md` § 7,
+`REVIEW_DOCS` in `.github/reviewer/review.mjs`), in its own PR right after
+#88 merges, reviewed by a manual Opus Crog under `RULES.md` L § 4 (8). That
+gives it the local rules; the global Rules stay unreadable in CI. Under `RULES.md`
+L § 4 (2) and (7), a CI `APPROVE` counted as Crog's review of a
+rules or process change (product-office `RULES.md` § 28 (1)(b)), and the
+CI reviewer cannot check such a change against the global Rules that
+govern it. Decided by the product owner, 2026-11-05 18:34 (product-office
+DECISIONS.md): until the template ships its public copy of the product
+office's `RULES.md`, a CI verdict counts as Crog's review for vizi code and
+config only, and a rules or process change gets a manual Opus Crog review
+(`RULES.md` L § 4 (11)). That decision accepts the gap for code PRs: a CI
+review of vizi code checks it against `CLAUDE.md`, `memory/standards.md`
+and `docs/SPEC.md` (`RULES.md` L § 3 (1)), and the global Rules stay
+unchecked by the CI reviewer until the public copy exists. Until the
+`REVIEW_DOCS` PR merges, the CI reviewer does not read vizi's local rules
+either.
 **Impact on plan:** (b) widens the contract (a WHAT); the script and
 instructions change by a few lines.
-**Action:** Clead asks the product owner to accept, change or reject (b);
-until he decides the contract stays as it is.
+**Action:** (c): Clead opens the `REVIEW_DOCS` PR right after #88 merges.
+(b): Clead asks the product owner to accept, change or reject it; until he
+decides, that part of the contract stays as it is.
 
 ### 4. Follow-ups of the CI reviewer pilot — new, small, none blocks the pilot
 
@@ -87,7 +113,7 @@ runs (non-blocking points, all Clead's call):
   let the script log the URL of the comment it posted, so the merger can
   tie a comment to its run.
 - `hasVerdictFor` trusts any comment by the Actions bot that starts
-  `Crog review:` (rule 7 of `CLAUDE.md` says which comment counts, but the
+  `Crog review:` (`RULES.md` L § 4 (2) says which comment counts, but the
   script's skip check is looser); the script could record the base SHA
   next to the head; actions are pinned by major tag, as in `ci.yml`.
 **Impact on plan:** none now.

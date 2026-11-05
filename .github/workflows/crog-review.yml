@@ -5,7 +5,7 @@ name: Crog review
 # credits. It is NOT anthropics/claude-code-action, which the credits do not
 # cover. The job only reads code and posts one comment; it never merges,
 # approves through GitHub's review API, or pushes. Merging stays with the
-# sessions (CLAUDE.md, Change execution model).
+# sessions (RULES.md L § 4 (9)).
 #
 # pull_request, never pull_request_target: a pull request from a fork gets no
 # secrets, and the job is skipped for it.
