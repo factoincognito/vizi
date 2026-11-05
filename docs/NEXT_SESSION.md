@@ -51,7 +51,9 @@ says.
 **Revised assessment:** two gaps, found in the reviews of PR #68.
 (a) `memory/standards.md` section 7 listed three inputs, without
 `CLAUDE.md`, and the contract in `docs/ROUTINES.md` said the same; the
-brief of 2026-11-04 adds `CLAUDE.md`. Resolved: both list four now, and the
+brief of 2026-11-04 adds `CLAUDE.md`. Resolved: `memory/standards.md`
+section 7 and `RULES.md` L § 3 (1) list the four inputs now (the
+`docs/ROUTINES.md` contract was removed at the PO-72 cutover), and the
 CI reviewer is Crog in `RULES.md` L § 4 (until the PO-72 cutover,
 `CLAUDE.md` rule 7).
 (b) The Review Standard asks every reviewer, the manual Crog agents
@@ -79,7 +81,12 @@ govern it. Decided by the product owner, 2026-11-05 18:34 (product-office
 DECISIONS.md): until the template ships its public copy of the product
 office's `RULES.md`, a CI verdict counts as Crog's review for vizi code and
 config only, and a rules or process change gets a manual Opus Crog review
-(`RULES.md` L § 4 (11)). Adding `RULES.md` to `REVIEW_DOCS` is still open.
+(`RULES.md` L § 4 (11)). That decision accepts the gap for code PRs: a CI
+review of vizi code checks it against `CLAUDE.md`, `memory/standards.md`
+and `docs/SPEC.md` (`RULES.md` L § 3 (1)), and the global Rules stay
+unchecked by the CI reviewer until the public copy exists. Adding
+`RULES.md` to `REVIEW_DOCS` is still open; until then the CI reviewer does
+not read vizi's local rules either.
 **Impact on plan:** (b) and (c) widen the contract (a WHAT); the script
 and instructions change by a few lines.
 **Action:** Clead asks the product owner to accept, change or reject (b)
