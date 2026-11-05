@@ -375,11 +375,16 @@ startup: fetching a backlog after an address is typed is allowed.
 Clead's design: the load check stays as it is. The only requests the
 page ever makes are the GitHub requests of 3.1, after the user enters a
 URL, and, from PBI-1.15, the branch list of 3.13 after such a load, also
-to `api.github.com`. Content the page shows never makes a request of its
-own (3.7). The browser tests stub GitHub's answers with Playwright
-routes, so no test reaches the network. Publishing on GitHub Pages (2.2)
-does not change this reading: what the page loads at startup is still
-only its own document.
+to `api.github.com`. From PBI-1.19 the guide of 3.1 ("Guided opening")
+also reads an owner's repo list and a repo's branches, from
+`api.github.com` only, while the user types in or leaves the Repository
+field, before an address is submitted. The approved reading still holds:
+it covers what the page loads at startup, and every such request follows
+something the user typed. Content the page shows never makes a request
+of its own (3.7). The browser tests stub GitHub's answers with
+Playwright routes, so no test reaches the network. Publishing on GitHub
+Pages (2.2) does not change this reading: what the page loads at startup
+is still only its own document.
 
 **Content-Security-Policy.** Clead's design.
 
@@ -474,7 +479,10 @@ the points the text above it leaves open.
   and 2) and up to three to `raw.githubusercontent.com` (request 3): two
   to five in all when the backlog file is found. From PBI-1.15 the
   branch picker reads the repo's branch list after a load succeeds, with
-  one to three more requests to `api.github.com` (3.13). If request 1 or
+  one to three more requests to `api.github.com` (3.13). From PBI-1.19
+  the guide ("Guided opening" below) makes requests of its own before a
+  load, and a load opened after it reuses the default branch and the
+  branch list, so it can make fewer. If request 1 or
   2 answers 404 and no token is held for the owner, the page says: "Not
   found or not public. If the repo is private, add a token for its
   owner." (3.8 sets out the tokens; Clead's design; with a token held
@@ -719,12 +727,20 @@ alone (below).
 - **What the guide reads from the field** (a pure function of the
   field's text, `src/guide.ts`, Clead's design). After trimming:
   - **an owner alone:** text that matches 3.1's name rule, with no `/`,
-    or with one `/` at its end (`acme`, `acme/`);
+    or with one `/` at its end (`acme`, `acme/`), and that is not a
+    host: text that, in lower case, is `github.com` or
+    `www.github.com`, with or without a `/` at its end, is never an
+    owner for the guide, since 3.1 reads text starting with
+    `github.com/` or `www.github.com/` only as form 2. Someone typing
+    `github.com/acme/widgets` by hand therefore makes no guide request
+    at `github.com/`, nor at `github.com` on leaving the field;
   - **an owner and a repo:** text that the Repository field reads as
     form 1, `<owner>/<repo>`, with no `/tree/` (`acme/widgets`,
     `acme/widgets/`);
-  - **anything else** (a host form, with or without a scheme; any text
-    with `/tree/`; a refused text) is **not guided**: no guide request
+  - **anything else** (a host form, with or without a scheme, and any
+    text that starts, in any case, with `github.com/`,
+    `www.github.com/`, `https://` or `http://`, complete or not; any
+    text with `/tree/`; a refused text) is **not guided**: no guide request
     is made for it, and Open and Enter load it exactly as "The
     Repository field" sets out. So a pasted full address opens as
     before, with Open or Enter (Clead's reading of "still opens
@@ -746,7 +762,11 @@ alone (below).
        `type` is `"User"` or `"Organization"`. The documentation gives it
        `"fineGrainedPat": true`, no permission (`"permissions": []`,
        `"allowPermissionlessAccess": true`), `"allowsPublicRead": true`,
-       and the status codes 200 and 404.
+       and the status codes 200 and 404. An answer that is not an
+       object, or whose `type` is missing or neither `"User"` nor
+       `"Organization"`: "GitHub's answer for `<owner>` was not
+       understood." No repo request, no list, no select; not kept in
+       the cache.
     2. Then the repos, `per_page=100&page=<n>`, `<n>` from 1:
        - an **organisation:** `GET /orgs/<owner>/repos?type=all&sort=full_name`,
          "List organization repositories": "Lists repositories for the
@@ -857,13 +877,18 @@ alone (below).
     `#message` says "Choose one of `<owner>`'s repos, or type
     `<owner>/<repo>`." This replaces, for an owner alone only, the
     refusal message of "The Repository field": the field now takes
-    `<owner>` (the decision). It counts as a newer load (3.1, "Two
-    loads at once") and clears no results.
+    `<owner>` (the decision). It is not a load: it does not count as a
+    newer load (3.1, "Two loads at once"), so a load still running goes
+    on and is shown when it answers, and no results are cleared. Only
+    an Open that starts a load replaces an older one.
   - **An owner and a repo:** the guide reads the repo and its branches,
     once per repo per page visit, held in memory as the owner's list
     is, with the token held for the owner at that moment:
     `GET /repos/<owner>/<repo>`, request 1 of 3.1, for
-    `default_branch`; then the branch list of 3.13 ("Which request lists
+    `default_branch` (an answer without a non-empty `default_branch`
+    string gives 3.1's "GitHub's answer for the repo had no default
+    branch", in `#guide-message`, and no select, and is not kept); then
+    the branch list of 3.13 ("Which request lists
     the branches", the same `listBranches`, pages and cap). The select's
     label becomes "Branch of `<owner>/<repo>`", its options are the
     branches as 3.13 orders them (the default first, " (default)" after
@@ -950,7 +975,12 @@ alone (below).
   - unit (`src/guide.test.ts`): `acme`, `acme/` are an owner alone;
     `acme/widgets`, `acme/widgets/` an owner and a repo;
     `github.com/acme/widgets`, `https://github.com/acme`,
-    `acme/widgets/tree/main`, `ac me` and the empty text are not guided;
+    `acme/widgets/tree/main`, `ac me` and the empty text are not guided,
+    and neither are `github.com`, `github.com/`, `GitHub.com/`,
+    `www.github.com`, `www.github.com/`, `https://` and `http://gi`;
+    `/users/<owner>` answered with an array, with no `type` or with
+    `"type": "Bot"` gives the "not understood" message; a repo answer
+    without `default_branch` gives the no-default message;
     the request kind: organisation, user with a token, user without;
     a page parsed (an item without a valid `name` skipped, a repeat once,
     `/user/repos` items of another owner dropped, the order by
@@ -980,7 +1010,12 @@ alone (below).
       loads it by name; 3.14's "Save" then stores `null` for the default
       and the name for the other;
     - Open with `acme` alone loads nothing, shows the select and the
-      message, and clears no results;
+      message, and clears no results; with a load of another repo still
+      running, that load goes on and is shown when it answers;
+    - typing `github.com/acme/widgets` character by character makes no
+      guide request, and leaving the field at `github.com` makes none;
+    - `/users/acme` answered with `"type": "Bot"`, and a repo answered
+      without `default_branch`, each show their message and no select;
     - a pasted `https://github.com/acme/widgets/tree/dev` and
       `github.com/acme/widgets` make no guide request and load with Open
       as before;
@@ -1200,7 +1235,9 @@ the tests check:
    shown as a link with the alt text, under item 4, or as the alt text.
    Nothing in the content makes the page request anything: no images,
    frames, styles, fonts or scripts. The page's only requests are those
-   of 3.1, after the user enters a URL (2.3).
+   of 3.1, after the user enters a URL (2.3), with the branch list of
+   3.13 and, from PBI-1.19, the guide's reads of 3.1 ("Guided opening")
+   while the user types in or leaves the Repository field.
 
 Tests for it include, at least: `<script>` and `<img src=x onerror=…>`
 in a description (shown as text, nothing runs); a link to
@@ -1555,8 +1592,9 @@ forgets the token held at that moment.
   The branch and each segment of the path are percent-encoded. So a
   load with a token makes two to five requests (with `PROJECTS.md`,
   3.9), all to `api.github.com`. The branch list of 3.13, after a load,
-  goes to `api.github.com` the same way, with the token that load used.
-  A redirect within `api.github.com`,
+  goes to `api.github.com` the same way, with the token that load used,
+  and so do the guide's reads of 3.1 ("Guided opening"), with the token
+  held for the owner when they start. A redirect within `api.github.com`,
   such as a 301 for a renamed or moved repo, is followed with the
   `Authorization` header kept, so the token still reaches only GitHub;
   what GitHub's redirects look like, and that a browser drops the
@@ -2787,6 +2825,7 @@ columns; the mockup's phone board, at 390 px; tested at 375 px):
   the `h1` and the help view's section, so it is not affected.)
 - **Keyboard.** Every control is a native element in the page's tab
   order, in the order of the page: the help control, the address field,
+  the guide's select when shown (from PBI-1.19, 3.1 "Guided opening"),
   "Open", the panel's toggle, then, when opened, each row's checkbox and
   "Forget", the migration block's field, "Keep" and "Forget it", the Add
   fields, "Remember in this browser", "Add", the guide's toggle, "Forget
@@ -3638,8 +3677,9 @@ As 3.8 does for tokens (Clead's design):
 - "Save" in its "Saved" state has `aria-disabled="true"` and keeps its
   place in the tab order.
 - Messages go to the page's `role="status"` line `#message`.
-- Tab order: the address section, then each entry's open button and
-  "×" in turn, then the "Private repos" panel.
+- Tab order: the address section (the field, the guide's select of 3.1
+  when shown, then "Open"), then each entry's open button and "×" in
+  turn, then the "Private repos" panel.
 - Sizes, colours, focus ring and contrast as in 3.12: the open buttons
   use `--fg` on `--card` (17.62:1 light, 15.22:1 dark); the "×" uses
   `--fg` too.
@@ -3759,8 +3799,11 @@ PBI-1.2's; their outcome after it (PR #9):
 3. **Open; PBI-1.4.** GitHub's anonymous rate limit as a browser sees
    it. One load makes one or two `api.github.com` requests (3.1,
    requests 1 and 2) and up to three to `raw.githubusercontent.com`,
-   and each "Show status" of the umbrella view one more (3.9). The
-   checks in 3.1 ran through a proxy that appears to add credentials, so
+   and each "Show status" of the umbrella view one more (3.9); from
+   PBI-1.19 the guide's reads add two to four per owner and two to four
+   per repo, once per page visit (3.1, "Guided opening", which also
+   quotes GitHub's documented limit of 60 anonymous requests per hour).
+   The checks in 3.1 ran through a proxy that appears to add credentials, so
    they do not show the anonymous limit.
 4. **Open; PBI-1.4.** What an anonymous request for a private repo gets
    back. The page shows its 404 message (3.1) for a 404 on request 1
