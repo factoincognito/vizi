@@ -94,6 +94,28 @@ runs (non-blocking points, all Clead's call):
 **Action:** Clead does them in one small PR when the pilot is judged, or
 drops them if the pilot ends.
 
+### 5. PBI-1.19 spec, parked after ten CI review rounds — new, for the product owner
+
+**Previous assumption:** the guided-opening spec (#82) would settle in a
+few rounds, as the other specs did on 2026-11-04.
+**Revised assessment:** the CI Crog review asked for changes ten times
+(heads `e98d14c` to `23ae1dc`) and approved once, at `17e4f85`, before
+Clead asked for four more points. Author and reviewer agree on every
+finding; each round finds one further edge case in the caching of the
+repo and branch lists. Last verdict:
+https://github.com/factoincognito/vizi/pull/82#issuecomment-6647253703.
+Clead's proposed settlement for the two open points: keep a successful
+request 1 on its own, so a later Open never repeats it; keep capped owner
+lists with their cap flag; treat only failed later pages as not kept,
+re-read on blur or Open, not on `/`.
+**Impact on plan:** PBI-1.19 is not built in the unattended run of
+2026-11-04; the rest of the run goes on without it (PBI-1.18, PBI-1.12,
+PBI-1.10, PBI-1.6). #82 stays open.
+**Action:** the product owner says whether to settle it as proposed (one
+more push and review), to simplify the feature (for example no cache
+beyond one page visit's owner list), or to wait until he has tried the
+branch picker.
+
 ---
 
 ## Items that do not change
