@@ -2,7 +2,7 @@
 //
 // Reads the changed files of base...head first: a pull request that changes only
 // review-free files (REVIEW_FREE_FILES) is skipped, with no model call and no
-// comment. Otherwise it reads the diff of base...head and three review documents
+// comment. Otherwise it reads the diff of base...head and four review documents
 // (as they are on the base commit), asks the model for a verdict, and posts ONE
 // comment on the pull request. It never merges, never approves through GitHub's
 // review API and never pushes: the only GitHub calls are listed in `github()`
@@ -17,8 +17,10 @@ import { query, SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from "@anthropic-ai/claude-agen
 
 export const BOUNDARY_MARKER = SYSTEM_PROMPT_DYNAMIC_BOUNDARY;
 
-// The review documents, in cache order: the most stable first.
-export const REVIEW_DOCS = ["CLAUDE.md", "memory/standards.md", "docs/SPEC.md"];
+// The review documents, in cache order: the most stable first. RULES.md holds
+// vizi's local rules (product owner, 2026-11-05 18:49, product-office DECISIONS.md;
+// RULES.md L § 3 (1)).
+export const REVIEW_DOCS = ["CLAUDE.md", "RULES.md", "memory/standards.md", "docs/SPEC.md"];
 
 // Files with no review gate (product-office RULES.md § 28 (1)(c): backlog,
 // changelog, STATUS.md, notes; RULES.md L § 4 (5)). A PR that changes only these

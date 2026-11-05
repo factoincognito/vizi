@@ -214,9 +214,7 @@ test("cache order: instructions, then CLAUDE.md, RULES.md, standards, SPEC, boun
     "RULES-MD-TEXT",
     "STANDARDS-TEXT",
     "SPEC-TEXT",
-  ].map((s) =>
-    fixed.indexOf(s),
-  );
+  ].map((s) => fixed.indexOf(s));
   assert.ok(
     order.every((i) => i >= 0),
     "all fixed parts are in the fixed block",

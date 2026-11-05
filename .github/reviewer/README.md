@@ -11,7 +11,8 @@ and is not part of the built page or the root `package.json`.
 ## Files
 
 - `review.mjs`: reads the changed files and the diff of base...head from the
-  GitHub API (pinned to the two SHAs) and three documents from the base commit,
+  GitHub API (pinned to the two SHAs) and four documents from the base commit
+  (`REVIEW_DOCS`: `CLAUDE.md`, `RULES.md`, `memory/standards.md`, `docs/SPEC.md`),
   calls the model, posts one comment. The only GitHub calls: read the compare
   (its file list, then its diff), list the PR's comments, post a comment.
 - `instructions.md`: the reviewer's fixed instructions (first in the cached
@@ -41,8 +42,8 @@ there), is not skipped.
 
 ## Prompt caching
 
-The system prompt is `[instructions + CLAUDE.md + standards + SPEC, boundary
-marker, PR number and SHAs]`; the diff is the user message. The fixed block is
+The system prompt is `[instructions + CLAUDE.md + RULES.md + standards + SPEC,
+boundary marker, PR number and SHAs]`; the diff is the user message. The fixed block is
 the same for every review of the same base commit, so a second review within the
 cache lifetime reads it from the cache. The lifetime is 1 hour: `review.mjs`
 passes `settings: { promptCacheTtl: "1h" }` to the SDK (its `--settings` layer,

@@ -67,33 +67,30 @@ sections ("Test coverage narrative", "Red run") and the `Test-exempt:`
 trailer lines, nothing else of the description or messages.
 (c) Since the PO-72 cutover (#88), `CLAUDE.md` is a short entry point:
 vizi's local rules are in `RULES.md`, and the global ones in the product
-office's Rules, a private repository the CI reviewer cannot read. The CI
-reviewer still reads `CLAUDE.md`, not `RULES.md`, so it no longer sees
-the rules it checks a diff against, and `.github/reviewer/instructions.md`
-still tells it to check against `CLAUDE.md`. Decided by the product owner,
-2026-11-05 18:49 (product-office DECISIONS.md): `RULES.md` is added to the
-documents it reads (`RULES.md` L § 3 (1), `memory/standards.md` § 7,
-`REVIEW_DOCS` in `.github/reviewer/review.mjs`), in its own PR right after
-#88 merges, reviewed by a manual Opus Crog under `RULES.md` L § 4 (8). That
-gives it the local rules; the global Rules stay unreadable in CI. Under `RULES.md`
-L § 4 (2) and (7), a CI `APPROVE` counted as Crog's review of a
-rules or process change (product-office `RULES.md` § 28 (1)(b)), and the
-CI reviewer cannot check such a change against the global Rules that
-govern it. Decided by the product owner, 2026-11-05 18:34 (product-office
-DECISIONS.md): until the template ships its public copy of the product
-office's `RULES.md`, a CI verdict counts as Crog's review for vizi code and
-config only, and a rules or process change gets a manual Opus Crog review
-(`RULES.md` L § 4 (11)). That decision accepts the gap for code PRs: a CI
-review of vizi code checks it against `CLAUDE.md`, `memory/standards.md`
-and `docs/SPEC.md` (`RULES.md` L § 3 (1)), and the global Rules stay
-unchecked by the CI reviewer until the public copy exists. Until the
-`REVIEW_DOCS` PR merges, the CI reviewer does not read vizi's local rules
-either.
+office's Rules, a private repository the CI reviewer cannot read. Decided by
+the product owner, 2026-11-05 18:49 (product-office DECISIONS.md): `RULES.md`
+is added to the documents the CI reviewer reads. Done in #89: `RULES.md`
+L § 3 (1), `memory/standards.md` § 7, `REVIEW_DOCS` in
+`.github/reviewer/review.mjs`, `.github/reviewer/instructions.md` (it checks
+against `RULES.md` and lists what needs the global Rules under "What I did not
+check") and `docs/ROUTINES.md` name it. That gives it the local rules; the
+global Rules stay unreadable in CI. Under `RULES.md` L § 4 (2) and (7), a CI
+`APPROVE` counted as Crog's review of a rules or process change
+(product-office `RULES.md` § 28 (1)(b)), and the CI reviewer cannot check such
+a change against the global Rules that govern it. Decided by the product
+owner, 2026-11-05 18:34 (product-office DECISIONS.md): until the template
+ships its public copy of the product office's `RULES.md`, a CI verdict counts
+as Crog's review for vizi code and config only, and a rules or process change
+gets a manual Opus Crog review (`RULES.md` L § 4 (11)). That decision accepts
+the gap for code PRs: a CI review of vizi code checks it against `CLAUDE.md`,
+`RULES.md`, `memory/standards.md` and `docs/SPEC.md` (`RULES.md` L § 3 (1)),
+and the global Rules stay unchecked by the CI reviewer until the public copy
+exists.
 **Impact on plan:** (b) widens the contract (a WHAT); the script and
 instructions change by a few lines.
-**Action:** (c): Clead opens the `REVIEW_DOCS` PR right after #88 merges.
-(b): Clead asks the product owner to accept, change or reject it; until he
-decides, that part of the contract stays as it is.
+**Action:** (b): Clead asks the product owner to accept, change or reject it;
+until he decides, that part of the contract stays as it is. (c): none; done
+in #89.
 
 ### 4. Follow-ups of the CI reviewer pilot — new, small, none blocks the pilot
 

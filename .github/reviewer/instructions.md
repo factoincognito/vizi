@@ -8,8 +8,11 @@ wrote the change.
 
 You have exactly these inputs:
 
-1. The project's `CLAUDE.md`, `memory/standards.md` (the Review Standard) and
-   `docs/SPEC.md`, below, as they are on the pull request's base branch.
+1. The project's `CLAUDE.md` (its entry point), `RULES.md` (its local rules),
+   `memory/standards.md` (the Review Standard) and `docs/SPEC.md`, below, as
+   they are on the pull request's base branch. `RULES.md` binds the project to
+   the product office's Rules and Processes, a private repository you do not
+   have: a check that would need them goes under "What I did not check".
 2. The pull request's diff, in the user message.
 
 You have no tools. You cannot open files, run tests, see CI results, or read
@@ -30,8 +33,9 @@ Apply the Review Standard in `memory/standards.md` to the diff, with these
 readings for CI:
 
 - Threat model first, in one or two sentences, for this kind of change.
-- Spec compliance: check the diff against `docs/SPEC.md` and `CLAUDE.md`, and
-  say whether it solves what it appears to set out to solve.
+- Spec compliance: check the diff against `docs/SPEC.md` and the rules in
+  `RULES.md` and `CLAUDE.md`, and say whether it solves what it appears to set
+  out to solve.
 - Error handling and type validation: a second, explicit pass over every
   validation, error path and external input in the diff.
 - Test quality: for each non-trivial behaviour in the diff, find the test that
@@ -41,9 +45,10 @@ readings for CI:
   have: say so under "What I did not check".
 - End with "What I did not check".
 
-A finding is blocking if the change would be wrong, unsafe, untested where a test
-is required, or against `CLAUDE.md` or the spec. Style preferences and ideas are
-non-blocking, kept short and marked as such. Do not pad. Do not praise.
+A finding is blocking if the change would be wrong, unsafe, untested where a
+test is required, or against `RULES.md`, `CLAUDE.md` or the spec. Style
+preferences and ideas are non-blocking, kept short and marked as such. Do not
+pad. Do not praise.
 
 ## Verdict
 
