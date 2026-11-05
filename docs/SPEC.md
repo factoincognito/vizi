@@ -185,7 +185,9 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
     repo list and a repo shows its branches with the repo's own default
     branch preselected; a pasted full address still opens directly. The
     picker of PBI-1.15 on a loaded project stays and its branch request
-    is reused. Open to change after he tries it. How vizi does it is
+    is reused. Open to change after he tries it. Simplified by his
+    decision of 2026-11-05 (07:41): no caching of repo or branch lists
+    beyond the owner's repo list for one page visit. How vizi does it is
     3.1, "Guided opening".
 
 **Clead's design (the HOW), within the approved intent.** Everything else
@@ -481,13 +483,12 @@ the points the text above it leaves open.
   branch picker reads the repo's branch list after a load succeeds, with
   one to three more requests to `api.github.com` (3.13). From PBI-1.19
   the opening guide ("Guided opening" below) makes requests of its own
-  before a load, and a load opened after it reuses the default branch
-  and the branch list, so it can make fewer. If request 1 or 2 answers
-  404 and no token is held for the owner, the page says: "Not found or
-  not public. If the repo is private, add a token for its owner." (3.8
-  sets out the tokens; Clead's design; with a token held for the owner,
-  3.8 sets out the message.) Any other failed request is shown with its
-  HTTP status and is not retried.
+  before a load; the load still makes its own, as here. If request 1 or
+  2 answers 404 and no token is held for the owner, the page says: "Not
+  found or not public. If the repo is private, add a token for its
+  owner." (3.8 sets out the tokens; Clead's design; with a token held
+  for the owner, 3.8 sets out the message.) Any other failed request is
+  shown with its HTTP status and is not retried.
 - `api.github.com` and `raw.githubusercontent.com` both answer with
   `Access-Control-Allow-Origin: *`, so a browser page can read them
   (checked with `curl` on 2026-11-03, and again on 2026-11-04 against
@@ -644,10 +645,7 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
   3.1, unchanged: its requests, messages, the newest-wins rule, and the
   token held for the owner, compared in lower case (3.8, "Which token a
   load uses"). The short form and the long form of one repo load the
-  same way. (From PBI-1.19, a load of guided text may take its default
-  branch and branch list from the opening guide instead of asking for
-  them: "Guided opening" below. A pasted address, which is not guided,
-  always makes a fresh request 1.)
+  same way.
 - **Where other parts set or read the field.**
   - The umbrella view's "Open in vizi" (3.9) puts `<owner>/<repo>`,
     the field's own form, into the field (in place of
@@ -736,13 +734,18 @@ When the field loses focus, an owner alone shows the repo list, and a
 repo shows its branches with the repo's own default branch preselected
 (fomo-f's is `master`). A pasted full address still opens directly.
 The branch picker of 3.13 on a loaded project stays, and its branch
-request is reused. Clead calls the feature "the opening guide". Clead's
-design, within that decision; built after
-PBI-1.15 (`docs/BACKLOG.md`); its order against PBI-1.12, also after
-PBI-1.15, is not fixed, so the one test that needs both (3.14's "Save"
-after a guided open) is written in whichever is built second. It adds
-to "The Repository field" above and changes none of its reading rules,
-with one exception, an owner alone (below).
+request is reused. Simplified by his decision of 2026-11-05 (07:41): no
+caching of repo or branch lists beyond the owner's repo list for one
+page visit. So "reused" is read as the request, not its answer (Clead's
+reading): the opening guide lists a repo's branches with 3.13's own
+request, and the picker still reads its list after a load as 3.13 sets
+out. Clead calls the feature "the opening guide". Clead's design, within
+those decisions; built after PBI-1.15 (`docs/BACKLOG.md`); its order
+against PBI-1.12, also after PBI-1.15, is not fixed, so the one test
+that needs both (3.14's "Save" after a guided open) is written in
+whichever is built second. It adds to "The Repository field" above and
+changes none of its reading rules, with one exception, an owner alone
+(below).
 
 - **What the opening guide reads from the field** (a pure function of
   the field's text, `src/guide.ts`, Clead's design). It calls the one
@@ -797,8 +800,7 @@ with one exception, an owner alone (below).
        and the status codes 200 and 404. An answer that is not an
        object, or whose `type` is missing or neither `"User"` nor
        `"Organization"`: "GitHub's answer for `<owner>` was not
-       understood." No repo request, no list, no select; not kept in
-       the cache.
+       understood." No repo request, no list, no select.
     2. Then the repos, `per_page=100&page=<n>`, `<n>` from 1:
        - an **organisation:** `GET /orgs/<owner>/repos?type=all&sort=full_name`,
          "List organization repositories": "Lists repositories for the
@@ -811,11 +813,12 @@ with one exception, an owner alone (below).
          :write, or :admin) to access", with `affiliation`
          `owner,collaborator,organization_member` by default. Only the
          items whose `owner.login` equals the owner (without regard to
-         case) are kept, since a token named for an owner may belong to
-         another account (3.8). There is no second request when none
-         is kept (Clead's call, so an owner costs at most four
-         requests): the line then says the owner has no repos vizi can
-         see with its token, with the hint below;
+         case) are listed, since a token named for an owner may belong
+         to another account (3.8). There is no second page when page 1
+         leaves no item (Clead's call, so an owner costs at most four
+         requests), and the list counts as read in full: the line then
+         says the owner has no repos vizi can see with its token, with
+         the hint below;
        - a **user, without a token for that owner:**
          `GET /users/<owner>/repos?type=owner&sort=full_name`, "List
          repositories for a user": "Lists public repositories for the
@@ -837,12 +840,12 @@ with one exception, an owner alone (below).
     at the same docs commit, blob `eed00bf0b64880e2aa32f630eb3c0c01ab90cbf2`,
     "Creating a fine-grained personal access token"). Section 4, item
     29.
-  - **The token:** the one held for the owner at the moment the opening
-    guide's first request for that owner starts (3.8, "Which token a
-    load uses"), compared in lower case, with 3.8's headers,
-    `credentials: "omit"` and `cache: "no-store"`; without one, the
-    requests go anonymously. Every opening-guide request goes to
-    `api.github.com`, with or without a token.
+  - **The token:** the one held for the owner at the moment an
+    opening-guide read starts (3.8, "Which token a load uses"), compared
+    in lower case, with 3.8's headers, `credentials: "omit"` and
+    `cache: "no-store"`; without one, the requests go anonymously. Every
+    opening-guide request goes to `api.github.com`, with or without a
+    token.
   - **Pages and the cap,** as 3.13: page 1, then the next page only
     while the page before held exactly 100 items (counted before any is
     skipped), up to page 3, one after another. Past the cap the opening
@@ -855,51 +858,46 @@ with one exception, an owner alone (below).
     sorted by their character codes. Nothing else of an item is kept:
     not whether it is private. An answer that is not an array: "GitHub's
     answer for the repo list was not understood."
-- **When a list is read: one request set per owner per page visit.**
-  - **A running read is shared.** The cache holds a read from the
-    moment it starts, not only once it has answered: anything that needs
-    an owner's list, or a repo's default branch and branches, while that
-    read is running (a second `/`, a blur, Open, a load) waits for the
-    same read and makes no request of its own. So there is one request
-    set per owner, and one per repo, whatever starts them.
-  - The opening guide reads an owner's list the first time the field's
-    text becomes that owner alone with its `/` typed (`acme/`), or when
-    the field loses focus, or Open is used, with that owner alone in it
-    (`acme`), and never again for that owner while the page is open,
-    unless the token held for it changes (below). Typing on (`acme/w`,
-    `acme/wi`, …) makes no request: the datalist is filtered by the
-    browser. No request is made on any other keystroke (Clead's design).
-  - **Held in memory only:** a `Map` from the lower-cased owner to its
-    list (the names and the token it was read with; a partly read or
-    capped list is not kept, see "Edge cases"). Nothing is written to the browser's storage; a reload
-    reads again. The entry for an owner is dropped when the token held
-    for that owner changes in any way: "Add", "Forget", "Forget all
-    tokens", a 401, or another tab's `storage` event (3.8). A failed
-    read is not kept: the next time the field loses focus, or Open is
-    used, with that owner alone, it is read once more.
-  - **A read outlives no token change.** Each opening-guide read carries
-    the token it started with (or none). When the token held for its
-    owner changes in any of those ways while the read is running, the
-    read is abandoned: it makes no further request (no further page, and
-    no branch list after request 1; the page's fetch refuses before the
-    request is made, as 3.8 builds it for a replaced load), and its
-    answer, when it comes, is neither cached nor shown. So a list read
-    with a forgotten token never reaches the cache, the datalist or the
-    select.
-  - **What a token change hides.** The same changes, for an owner, empty
-    the datalist and hide the select and the opening guide's message
-    line when they hold that owner's repos or one of that owner's repos'
-    branches (3.8, "Forget, per owner"). The field's text stays; the
-    next `/`, blur or Open reads again, with the token now held.
+- **What is kept: an owner's repo list, for one page visit, and nothing
+  else** (the 07:41 decision).
+  - **Kept:** an owner's repo list read in full, that is every page
+    answered and the 300 cap not reached, an empty list included. It is
+    held in page memory only, in a `Map` from the lower-cased owner to
+    the names and the token they were read with, until the page is
+    reloaded or closed. Nothing is written to the browser's storage.
+  - **Not kept:** a failed read; a partly read list (a later page
+    failed, or the cap was reached); a repo's default branch; any branch
+    list. Each of these is read again the next time it is needed.
+  - **When an owner's list is read:** when the field's text becomes that
+    owner alone with its `/` typed (`acme/`), when the field loses focus
+    with that owner alone in it (`acme`), and on Open with that owner
+    alone. No request is made then when the owner's list is kept, or
+    while a read of it is running (the running read's answer serves).
+    Typing on (`acme/w`, `acme/wi`, …) makes no request: the datalist is
+    filtered by the browser. No request is made on any other keystroke
+    (Clead's design).
+  - **A token change** for the owner ("Add", "Forget", "Forget all
+    tokens", a 401, or another tab's `storage` event, 3.8) drops that
+    owner's kept list, and abandons every opening-guide read for that
+    owner that is running: it makes no further request (no further
+    page, and no branch list after request 1; the page's fetch refuses
+    before the request is made, as 3.8 builds it for a replaced load),
+    and its answer, when it comes, is neither kept nor shown. The same
+    change empties the datalist and hides the select and
+    `#guide-message` when they hold that owner's repos or the branches
+    of one of that owner's repos (3.8, "Forget, per owner"). The field's
+    text stays; the next `/`, blur or Open reads again, with the token
+    now held.
   - **The anonymous rate limit:** "The primary rate limit for
     unauthenticated requests is 60 requests per hour", per IP address,
     and 5,000 per hour for a personal access token
     (`data/reusables/rest-api/primary-rate-limit-unauthenticated-users.md`
     at the same docs commit, blob
-    `110917f527966078d4e1c56a48d2f1a705b0ceed`). One owner costs two to
-    four requests (request 1 above and one to three pages); a repo's
-    branches, below, two to four more. A load then costs what 3.1 says,
-    less what the opening guide already read.
+    `110917f527966078d4e1c56a48d2f1a705b0ceed`). An owner's list costs
+    two to four requests (request 1 above and one to three pages), once
+    per page visit when it is read in full. Each time a repo's branches
+    are shown (below) costs two to four more. A load then costs what 3.1
+    says, and the picker's list what 3.13 says.
 - **The list while typing: a native `<datalist>`** (Clead's call, native
   first, as 3.13's select). The field gets `list="repo-list"` and keeps
   `autocomplete="off"`, the privacy-safe choice: the browser is asked
@@ -916,8 +914,8 @@ with one exception, an owner alone (below).
   writes it into the field, which is then an owner and a repo. The
   datalist holds only the current owner's repos: when the field's owner
   changes, it is emptied at once, and filled when that owner's list is
-  held. No custom listbox or combobox is built; the field keeps its
-  label "Repository" and its role.
+  read or kept. No custom listbox or combobox is built; the field keeps
+  its label "Repository" and its role.
 - **Leaving the field** (`blur`), and Open, for guided text. The opening
   guide shows its result in one native `<select id="guide-select">` with
   its `<label>`, placed in the address row between the field and "Open"
@@ -934,12 +932,12 @@ with one exception, an owner alone (below).
     each arrow key, as 3.13 sets out). When the select loses focus with
     a repo chosen, the opening guide goes on as for an owner and a repo,
     below. **Open with an owner alone** loads nothing. It reads the
-    owner's list if it is neither held nor running (a running read is
-    shared), and then, by the list's outcome:
-    - a list with at least one repo, held now or when the read answers
-      while the field still holds that owner alone: the select is
-      shown, and `#message` says "Choose one of `<owner>`'s repos, or
-      type `<owner>/<repo>`.";
+    owner's list as "When an owner's list is read" says, and then, by
+    the list's outcome:
+    - a list with at least one repo, kept or partly read, now or when
+      the read answers while the field still holds that owner alone:
+      the select is shown, and `#message` says "Choose one of
+      `<owner>`'s repos, or type `<owner>/<repo>`.";
     - still reading: `#guide-message` says "Reading `<owner>`'s repos…",
       `#message` is left as it is, and no select is shown yet;
     - a failed read (404, not understood, 403, any other failure) or a
@@ -948,125 +946,89 @@ with one exception, an owner alone (below).
 
     This replaces, for an owner alone only, the refusal message of "The
     Repository field": the field now takes `<owner>` (the decision). It
-    is not a load: it does not count as a
-    newer load (3.1, "Two loads at once"), so a load still running goes
-    on and is shown when it answers, and no results are cleared. Only
-    an Open that starts a load replaces an older one.
-  - **An owner and a repo:** the opening guide reads the repo and its
-    branches, once per repo per page visit, held in memory as the
-    owner's list is, in a `Map` keyed by the lower-cased owner, `/` and
-    the lower-cased repo (so `Acme/Widgets` and `acme/widgets` share one
-    read), with the token held for the owner at that moment: `GET
-    /repos/<owner>/<repo>`, request 1 of 3.1, for `default_branch` (an
-    answer without a non-empty `default_branch` string gives 3.1's
-    "GitHub's answer for the repo had no default branch", in
-    `#guide-message`, and no select, and is not kept); then the branch
-    list of 3.13 ("Which request lists the branches", the same
-    `listBranches`, pages and cap). The select's label becomes "Branch
-    of `<owner>/<repo>`", its options are the branches as 3.13 orders
-    them (the default first, " (default)" after it, then by character
-    codes; `#` and `%` disabled), and the default branch is selected:
-    for `fomo-t/fomo-f`, `master`. The select is the same element, so a
-    focus on it stays.
-  - **Open with an owner and a repo,** and a branch select shown for
-    that same owner and repo (without regard to case for owner and
-    repo): the load is the one of 3.1 for the reference `{owner, repo,
-    branch}`, where `branch` is the selected branch, or `null` when the
-    default is selected, so 3.14 saves it as following the default. The
-    load reuses what the opening guide read, when it was read with the
-    token the load uses: the default branch, so the load makes no
-    request 1; and the branch list, so the picker of 3.13 makes no
-    branch request ("When", "reused" in the decision's words).
-  - **Open straight from the field.** Open and Enter themselves start
-    the opening guide's reads for an owner and a repo, when they are not
-    held or running for the load's token, so the load never depends on a
-    blur: clicking Open blurs the field first, and that blur may have
-    started them already (they are then shared); Enter in the field does
-    not blur, and starts them. Whether Enter, while the browser shows
-    the datalist's suggestions, chooses a suggestion instead of
-    submitting is the browser's own behaviour and was not checked (item
-    30); the opening guide handles an Enter that does submit as Open,
-    and one that chooses a suggestion as any change of the field. Open
-    starts the load at once, as a newer load (3.1); the load makes no
-    request 1 of its own but waits for the opening guide's running reads
-    (shared, above), takes the default branch from them, and the picker
-    takes their branch list. A load with the default branch is a load
-    with `branch` `null` (so 3.14 saves it as following the default).
-    - **Only with the same token.** A load reuses an opening-guide read,
-      running or finished with success, only when that read carries the
-      token the load uses (the one held for the owner when the load
-      starts). Otherwise the load makes its own requests as "The
-      Repository field" sets out, and the picker reads its list as 3.13
-      does.
-    - **An abandoned read.** When an opening-guide read that a load
-      waits on is abandoned on a token change (above), the load, unless
-      it has been replaced (a Forget counts as a newer load, 3.8), makes
-      its own requests with its own token, as 3.8 lets a load keep the
-      token it started with.
-    - **A failure is shared only while it runs.** One rule for owner
-      lists and repo reads alike: a failed opening-guide read is not
-      kept once it has answered (as "Held in memory only" says), so a
-      later blur, Open or load reads again. A load that waits on an
-      opening-guide read still running takes its outcome: when that
-      request 1 fails, the load fails with its message and makes no
-      request 1 of its own (a 401 is handled once, by the opening guide,
-      as 3.8 sets out); when only the branch list fails, or is only
-      partly read (below), the load goes on and the picker reads its
-      list as 3.13 does.
+    is not a load: it does not count as a newer load (3.1, "Two loads at
+    once"), so a load still running goes on and is shown when it
+    answers, and no results are cleared.
+  - **An owner and a repo:** each time the field loses focus with an
+    owner and a repo in it, or the select loses focus with a repo
+    chosen, the opening guide reads, fresh, with the token held for the
+    owner at that moment: `GET /repos/<owner>/<repo>`, request 1 of 3.1,
+    for `default_branch` (an answer without a non-empty
+    `default_branch` string gives 3.1's "GitHub's answer for the repo
+    had no default branch", in `#guide-message`, and no select); then
+    the branch list with 3.13's request ("Which request lists the
+    branches", the same `listBranches`, pages and cap). A new read
+    replaces the one before it: the older read's answer is dropped. The
+    select's label becomes "Branch of `<owner>/<repo>`", its options are
+    the branches as 3.13 orders them (the default first, " (default)"
+    after it, then by character codes; `#` and `%` disabled), and the
+    default branch is selected: for `fomo-t/fomo-f`, `master`. The
+    select is the same element, so a focus on it stays.
+  - **Open with an owner and a repo** (and Enter in the field, which
+    does the same) starts the load of 3.1 for the reference `{owner,
+    repo, branch}`, as a newer load (3.1). `branch` is the branch
+    selected in a branch select shown for that same owner and repo
+    (without regard to case for owner and repo), or `null` when the
+    default is selected or no such select is shown, so 3.14 saves it as
+    following the default. The load makes its own requests as "The
+    Repository field" sets out (request 1 when `branch` is `null`), and
+    the picker of 3.13 then reads its own list: nothing the opening
+    guide read is reused. Open hides the select and `#guide-message`,
+    and the answer of a branch read still running is dropped. Whether
+    Enter, while the browser shows the datalist's suggestions, chooses a
+    suggestion instead of submitting is the browser's own behaviour and
+    was not checked (item 30); the opening guide handles an Enter that
+    does submit as Open, and one that chooses a suggestion as any change
+    of the field.
 - **Typing on, and newest wins.** Every opening-guide answer is for the
-  owner, or the owner and repo, it was asked for. A successful answer is
-  kept in the memory cache whenever it arrives (unless its read was
-  abandoned on a token change, above; a failure is not kept), but it
-  changes the datalist, the select or the opening guide's message only
-  if the field's text, read as above, is still that owner (for a repo
-  list) or that owner and repo (for a branch list) when it arrives;
-  otherwise it is used, from the cache, when the field comes back to it.
-  The datalist follows the field while typing; the select is shown only
-  after a blur of the field or of the select, or an Open or Enter, for
-  the field's text at that moment, never while the user types. Any input
-  by the user in the field (an `input` event) that changes the field's
-  owner, or its repo, hides the select at once. The opening guide's own
-  write (a repo chosen in its select, which sets the field's value and
-  fires no `input` event) does not hide it; it updates the Owner prefill
-  itself ("Where other parts set or read the field"). A load (by Open,
-  an entry of 3.14, "Open in vizi" or a pick of 3.13) starts as 3.1 sets
-  out and drops no opening-guide answer, since the opening guide shows
-  nothing of a project.
+  owner, or the owner and repo, it was asked for. An owner's list read
+  in full is kept whenever it arrives (unless its read was abandoned on
+  a token change, above), but an answer changes the datalist, the select
+  or `#guide-message` only if the field's text, read as above, is still
+  that owner (for a repo list) or that owner and repo (for a branch
+  list) when it arrives, and, for a branch list, only if its read is the
+  latest one. A kept list is used, with no request, when the field comes
+  back to its owner. The datalist follows the field while typing; the
+  select is shown only after a blur of the field or of the select, or an
+  Open with an owner alone, for the field's text at that moment, never
+  while the user types. Any input by the user in the field (an `input`
+  event) that changes the field's owner, or its repo, hides the select
+  at once. The opening guide's own write (a repo chosen in its select,
+  which sets the field's value and fires no `input` event) does not hide
+  it; it updates the Owner prefill itself ("Where other parts set or
+  read the field"). Every other load (an entry of 3.14, "Open in vizi"
+  or a pick of 3.13) also hides the select and `#guide-message`, as
+  Open does.
 - **The opening guide's message line** `#guide-message`
   (`role="status"`, 14 px, muted, under the row, taking no space while
   empty) says "Reading `<owner>`'s repos…" or "Reading the branches…"
-  while a read is due, and the opening guide's outcomes. Load messages
-  stay in `#message`.
+  while a read is running, and the opening guide's outcomes. Load
+  messages stay in `#message`.
 - **Edge cases** (Clead's design):
   - **404 on `/users/<owner>`:** "GitHub has no account named
     `<owner>`." in `#guide-message`. No list, no select.
   - **404 on `/repos/<owner>/<repo>`:** the 404 message of 3.1, or of
     3.8 with a token, which already says to add a token for the owner,
-    in `#guide-message`; no select. (A load waiting on that read shows
-    the same message in `#message`, as "A failure is shared only while
-    it runs" says.)
+    in `#guide-message`; no select.
   - **401 with a token:** 3.8's rule: the token is forgotten if it is
     still the one held for the owner, the results loaded with it are
-    hidden, the opening guide's cache for that owner is dropped, and
+    hidden, the opening guide's kept list for that owner is dropped, and
     3.8's message is shown in `#message`.
   - **403 (rate limit or other), any other status, a network failure,
-    an answer not understood:** "The repo list could not be read:
-    `<message>`" (or "The branch list could not be read: `<message>`"),
-    with 3.1's or 3.8's message (3.8's 403 text speaks of "this repo";
-    for a list it is shown as GitHub's refusal, as written, on purpose,
-    so one message names one cause wherever it appears).
-  - **A partly read list counts as a failure** for the opening guide
-    (Clead's call): an owner list or a branch list whose later page
-    failed, or that reached the 300 cap, is not kept in the cache, so no
-    load and no picker reuses it, and the next blur or Open reads it
-    again. The names read are still shown for that moment, with the
-    "… is incomplete: …" or past-cap message. A load waiting on such a
-    branch list goes on, and the picker on the loaded project makes its
-    own read with 3.13's messages, unchanged. When a page
-    after the first fails,
-    the names read are shown and the line says "… is incomplete: …", as
-    3.13. The field still opens any text as "The Repository field" sets
-    out.
+    an answer not understood:** for `/users/<owner>` or a page of the
+    owner's repos, "The repo list could not be read: `<message>`"; for
+    the opening guide's `/repos/<owner>/<repo>` or a page of its branch
+    list, "The branch list could not be read: `<message>`". `<message>`
+    is 3.1's or 3.8's (3.8's 403 text speaks of "this repo"; for a list
+    it is shown as GitHub's refusal, as written, on purpose, so one
+    message names one cause wherever it appears).
+  - **A partly read list:** when a page after the first fails, the
+    names read are shown and the line says "The repo list is
+    incomplete: `<message>`" (or "The branch list is incomplete: …"), as
+    3.13; at the cap, the past-cap message above (for branches, 3.13's).
+    Such an owner list is not kept, so the next `/`, blur or Open with
+    that owner reads it again. The field still opens any text as "The
+    Repository field" sets out.
   - **An owner with no repos vizi can see:** in `#guide-message`,
     "`<owner>` has no repos vizi can see." With a token held for the
     owner, the line adds "with its token. If the token belongs to
@@ -1094,13 +1056,12 @@ with one exception, an owner alone (below).
   `connect-src` already allows.
 - **What changes in `src/`** (no code here): `src/guide.ts` (new, pure):
   reading the field for the opening guide, the request kind for an
-  owner, one page's parsing and the merging and cap, the messages, the
-  cache's rules; `src/github.ts`: `getOwnerKind` and `listRepos` through
-  the existing request code, and `listBranches` of 3.13 reused; a load
-  that takes a known default branch and a known branch list;
-  `src/main.ts`: the datalist, the select, the message line, the cache,
-  the hooks on input, blur and Open; `src/style.css`: the row with the
-  select at both widths.
+  owner, one page's parsing and the merging and cap, the messages, and
+  which owner lists are kept; `src/github.ts`: `getOwnerKind` and
+  `listRepos` through the existing request code, and `listBranches` of
+  3.13 reused; `src/main.ts`: the datalist, the select, the message
+  line, the kept owner lists, the hooks on input, blur and Open;
+  `src/style.css`: the row with the select at both widths.
 - **Tests** (test first; GitHub stubbed; synthetic owners and tokens
   `github_pat_TEST…`):
   - unit (`src/guide.test.ts`): `acme`, `acme/` are an owner alone;
@@ -1113,19 +1074,20 @@ with one exception, an owner alone (below).
     `"type": "Bot"` gives the "not understood" message; a repo answer
     without `default_branch` gives the no-default message; Open with an
     owner alone gives the select and the "Choose one" message only for
-    a list with at least one repo, "Reading…" while due, and the edge
-    case's message otherwise; the repo key of `Acme/Widgets` and
-    `acme/widgets` is the same;
-    the request kind: organisation, user with a token, user without;
-    a read abandoned on a token change for its owner makes no further
-    request and its answer is not cached; a read for another owner goes
-    on;
-    a page parsed (an item without a valid `name` skipped, a repeat once,
-    `/user/repos` items of another owner dropped, the order by
-    character codes); the cap by items (100, 100, 100 with one skipped:
-    "more may exist"; 100 and 37: not); the messages; a cache entry
-    dropped on every kind of token change for its owner and kept on a
-    change for another owner;
+    a list with at least one repo, "Reading…" while running, and the
+    edge case's message otherwise; the request kind: organisation, user
+    with a token, user without; a read abandoned on a token change for
+    its owner makes no further request and its answer is not kept; a
+    read for another owner goes on; a page parsed (an item without a
+    valid `name` skipped, a repeat once, `/user/repos` items of another
+    owner dropped, the order by character codes); the cap by items (100,
+    100, 100 with one skipped: "more may exist"; 100 and 37: not); the
+    messages, with the repo-list wording for a failed `/users/<owner>`
+    and the branch-list wording for a failed `/repos/<owner>/<repo>`;
+    a list read in full is kept, an empty one included, and a failed,
+    partly read or capped one is not; a kept list dropped on every kind
+    of token change for its owner and kept on a change for another
+    owner;
   - unit (`src/github.test.ts`): the URLs of `/users/<owner>`,
     `/orgs/<owner>/repos?type=all&sort=full_name&per_page=100&page=<n>`,
     `/user/repos?affiliation=owner&sort=full_name&per_page=100&page=<n>`
@@ -1138,57 +1100,49 @@ with one exception, an owner alone (below).
       `acme/widg` makes none; the datalist's suggestions are shown under
       the field (asserted as shown, not only as a `list` attribute, in
       Chromium; item 30 for other browsers); the datalist holds
-      `acme/<repo>` for each
-      repo; a second `acme/` later in the same page visit makes none;
-      a reload makes them again;
+      `acme/<repo>` for each repo; a second `acme/` later in the same
+      page visit makes none; a reload makes them again;
+    - `acme/`, then leaving the field and Open while the owner's read
+      is still running: the owner's requests are made once;
     - leaving the field with `acme` shows "Repo of acme" with the repos;
       choosing one with the arrow keys makes no request; leaving the
       select reads the repo and its branches; the select then shows
       "Branch of acme/widgets" with `master` selected and marked
       " (default)" when the stubbed repo's default is `master`;
-    - Open then loads `acme/widgets` with no request 1 and the picker
-      of 3.13 makes no branch request; choosing another branch and Open
-      loads it by name;
+    - Open then loads `acme/widgets` with its own request 1, and the
+      picker of 3.13 makes its own branch request; choosing another
+      branch in the opening guide's select and Open loads it by name,
+      with no request 1;
+    - leaving the field twice with `acme/widgets` in it reads the repo
+      and its branches twice (nothing of a repo is kept), and the select
+      shows the second read's branches when the first answers last;
     - **Save after a guided open,** written in whichever of PBI-1.19 and
       PBI-1.12 is built second (their order is not fixed; both come
       after PBI-1.15): 3.14's "Save" stores `null` for a guided open of
       the default branch and the name for another branch. 3.14's tests
       gain this case if PBI-1.12 is built second;
-    - clicking Open straight from the field with `acme/widgets` in it
-      (the blur and Open in one step): the repo's request 1 and branch
-      list are made once each, the load waits for them, and the picker
-      makes no branch request; the same with Enter;
-    - `acme/`, then leaving the field and Open while the owner's read
-      is still running: the owner's requests are made once;
+    - Open with `acme/widgets` while the opening guide's branch read is
+      running: the load goes on, and no select is shown when that read
+      answers; the same with Enter;
     - a token for `acme` that belongs to another account: `/user/repos`
       keeps nothing, no further request is made, and the line shows the
       "with its token" message; typing `acme/<repo>` and Open still
       loads it;
-    - the opening guide's request 1 succeeds and its branch list fails,
-      then Open: the load makes no request 1, goes on, and the picker
-      reads its own list (one branch request set);
-    - the opening guide's branch list fails on page 2, then Open: the
-      picker makes its own read and shows 3.13's messages; a blur of the
-      same text later reads the branch list again (it was not kept);
-    - the opening guide's branch list reaches the cap (three pages of
-      100), then Open: the picker makes its own read and shows 3.13's
-      past-cap message;
     - an owner list that fails on page 2, or reaches the cap: its names
       are shown with the "incomplete" or past-cap message, and the next
-      blur reads it again;
+      `acme/`, blur or Open reads it again; a list that failed on page
+      1 is read again on the next blur, once;
     - a repo whose branch list is empty: no select; Open loads the
       default branch as 3.1 does;
     - Open with `acme` alone loads nothing, shows the select and the
-      "Choose one of acme's repos" message once the list is held, and
+      "Choose one of acme's repos" message once the list is read, and
       clears no results; with a load of another repo still running, that
       load goes on and is shown when it answers; while `acme`'s list is
       still reading, only "Reading acme's repos…" is shown; with `acme`
       answered 404, and with an empty list, there is no select,
       `#message` is unchanged, and `#guide-message` carries the outcome;
-    - `Acme/Widgets` after `acme/widgets` in the same page visit makes no
-      request (one repo read, shared by key);
-    - typing makes no select appear: with `acme/widgets` cached, typing
-      `acme/widgets` shows no select until the field loses focus;
+    - typing makes no select appear: typing `acme/widgets` shows no
+      select until the field loses focus;
     - typing `github.com/acme/widgets` character by character makes no
       opening-guide request, and leaving the field at `github.com` makes
       none;
@@ -1201,40 +1155,28 @@ with one exception, an owner alone (below).
       a user owner's list comes from `/user/repos` and keeps only
       `acme`'s repos; without a token, `/users/acme/repos`;
     - newest wins: `acme/` then `beta/` with `acme`'s answer last shows
-      `beta`'s repos only, and `acme`'s answer is used, with no
-      request, when the field comes back to `acme/`;
+      `beta`'s repos only, and `acme`'s list, kept, is used with no
+      request when the field comes back to `acme/`;
     - 404 on the user, 404 on the repo, 401 (the token forgotten), a
-      403 with `X-RateLimit-Remaining: 0`, and an owner with no repos,
-      each with its message; a failed list is read again on the next
-      blur, once;
-    - "Add" or "Forget" of `acme`'s token drops `acme`'s cache: the next
-      `acme/` reads again;
-    - Forget of `acme`'s token while `acme`'s repo read is due (page 1
-      answered with 100 items, page 2 held back): no page 2 request is
-      made, the late answer is not shown in the datalist and not cached
+      403 with `X-RateLimit-Remaining: 0` on `/users/acme` and on the
+      opening guide's `/repos/acme/widgets`, and an owner with no repos,
+      each with its message;
+    - "Add" or "Forget" of `acme`'s token drops `acme`'s kept list: the
+      next `acme/` reads again;
+    - Forget of `acme`'s token while `acme`'s repo read is running (page
+      1 answered with 100 items, page 2 held back): no page 2 request is
+      made, the late answer is not shown in the datalist and not kept
       (the next `acme/` reads again); the same while a repo's request 1
-      or branch list is due;
+      or branch list is running (no branch request after request 1, and
+      no select);
     - Forget of `acme`'s token while the datalist holds `acme`'s repos
       and the select shows a branch list of an `acme` repo: the datalist
       is emptied and the select hidden; the field's text stays;
-    - an opening-guide read made without a token, then a token added for
-      `acme`,
-      then Open: the load uses the token and makes its own requests;
-    - Open with `acme/widgets`, the load waiting on the opening guide's
-      request 1, then a token added for `acme`: the opening guide read
-      is abandoned, and the load makes its own request 1 without a token
-      (the token it started with);
     - the field keeps `autocomplete="off"`, and in Chromium the
       datalist's suggestions are still shown;
-    - choosing a repo in the opening guide's select, with nothing typed
-      in the Owner field: `#owner-input` then holds that owner;
-    - a pasted `https://github.com/acme/widgets` after the opening guide
-      read `acme/widgets`: the load makes request 1, and the picker
-      takes the cached branch list (no branch request);
-    - Open while the opening guide's request 1 is due, which then
-      answers 404: one request 1 in all, and the load shows the 404
-      message; a blur that got a 404, then Open later: the load makes
-      its own request 1 (the failure was not kept);
+    - choosing a repo in the opening guide's select, and, in Chromium,
+      choosing a datalist option, each with nothing typed in the Owner
+      field: `#owner-input` then holds that owner;
     - accessibility: the field's `list`, the select's label as it
       changes, the focus kept on the select, the tab order field,
       select, Open; the message line's role;
@@ -1723,7 +1665,7 @@ forgets the token held at that moment.
   status" panel of 3.9, when its status was read with it; from PBI-1.19
   also the opening guide's datalist, select and message for that owner
   (3.1, "Guided opening"), whose running reads are abandoned and whose
-  cache entries are dropped. Results loaded without it stay. It counts
+  kept repo list is dropped. Results loaded without it stay. It counts
   as a newer load (3.1, "Two loads at once"), so the answer of a load
   still running is dropped and cannot show private text again; the
   message is "The token for `<owner>` has been forgotten.". A token held
@@ -3334,16 +3276,13 @@ accept.
 - **The options.** One `<option>` per branch name, its text the name
   as GitHub gives it, set with `textContent` (3.7: a branch name is
   untrusted text), its value the same name. The order:
-  - the default branch first, with " (default)" after its name, when the
-    page knows it: from request 1 of 3.1, so when the project was opened
-    by an address without `/tree/<branch>`, or by a pick that followed
-    such a load of the same repo. A project opened with `/tree/<branch>`
-    makes no request 1, and the picker makes none to learn the default:
-    no option is then marked (Clead's choice, to add no request). From
-    PBI-1.19 a default learned by the opening guide's read of request 1
-    (3.1, "Guided opening") counts the same: `loadRepo` reports the
-    default branch it learned, from its own request 1 or from the
-    opening guide;
+  - the default branch first, with " (default)" after its name, when
+    the page knows it: from request 1 of 3.1, so when the project was
+    opened by an address without `/tree/<branch>`, or by a pick that
+    followed such a load of the same repo. A project opened with
+    `/tree/<branch>` makes no request 1, and the picker makes none to
+    learn the default: no option is then marked (Clead's choice, to add
+    no request);
   - then every other name, sorted by the names' character codes, as the
     documentation list of 3.4 is.
 - **The current branch is always an option.** When the loaded branch is
@@ -3440,26 +3379,14 @@ accept.
   list was not understood."
 - **When.** The list is read once, after a load opened from an address,
   by the umbrella view's "Open in vizi" (3.9) or by an entry of the
-  saved repos list (3.14) has succeeded and its results are shown. From
-  PBI-1.19, when the opening guide of 3.1 ("Guided opening") already
-  holds the list for that owner and repo, read with the token the load
-  used in this page visit, the picker takes it and makes no request,
-  after any load, guided or not. So a pasted address always makes a
-  fresh request 1 (it is not guided), while its picker may reuse a
-  branch list the opening guide cached for the same owner, repo and
-  token. That mix is intended (Clead's call): branch lists change
-  rarely, and it saves up to three requests; the current branch is
-  always an option even if the cached list lacks it (above). A load
-  started by the picker for the same owner and repo does not read it
-  again: the list the page holds stays (it is the same repo's), and the
-  select's selected option follows the branch loaded. So picking costs
-  the load's own requests only. From PBI-1.19 this is intended for the
-  opening guide's held lists too: a repo opened again later in the same
-  page visit reuses the opening guide's default branch and branch list,
-  so a default branch changed, or a branch made or deleted, since they
-  were read is not seen until the page is reloaded (Clead's call, for
-  the anonymous rate limit). An address with `/tree/<branch>`, which is
-  not guided, still opens any branch.
+  saved repos list (3.14) has succeeded and its
+  results are shown. A load started by the picker for the same owner and
+  repo does not read it again: the list the page holds stays (it is the
+  same repo's), and the select's selected option follows the branch
+  loaded. So picking costs the load's own requests only. From PBI-1.19
+  the opening guide of 3.1 ("Guided opening") lists branches with this
+  same request before a load; the picker does not take its answer and
+  reads its own list as here.
 - **Requests in all.** With the picker, opening a repo makes the two to
   five requests of 3.1 (or of 3.8 with a token), then one to three to
   `api.github.com` for the branches. A pick makes the requests of a load
@@ -3519,17 +3446,15 @@ these effects (Clead's design):
   refused the token for `<owner>`…", in the page's message line
   `#message`, not in `#branch-message`, which is hidden with the
   picker.
-- **403 with `X-RateLimit-Remaining: 0`, any other 403, a 404, any other
-  status, a network failure or an answer not understood:** the project
-  stays shown; the picker holds what it read before the failure (or the
-  current branch only) and its message line says "The branch list could
-  not be read: `<message>`", where `<message>` is the one 3.1 or 3.8
-  gives (for a 404: "GitHub answered HTTP 404 for `<URL>`.", as a
-  request that is not request 1 or 2). When at least one page was read,
-  it says "The branch list is incomplete: `<message>`" instead. Nothing
-  is retried; opening the repo again reads the list again (from
-  PBI-1.19, unless the opening guide holds a list for it read with the
-  same token: "When").
+- **403 with `X-RateLimit-Remaining: 0`, any other 403, a 404, any
+  other status, a network failure or an answer not understood:** the
+  project stays shown; the picker holds what it read before the failure
+  (or the current branch only) and its message line says "The branch
+  list could not be read: `<message>`", where `<message>` is the one
+  3.1 or 3.8 gives (for a 404: "GitHub answered HTTP 404 for `<URL>`.",
+  as a request that is not request 1 or 2). When at least one page was
+  read, it says "The branch list is incomplete: `<message>`" instead.
+  Nothing is retried; opening the repo again reads the list again.
 - An answer that arrives after a newer load has started, after a
   Forget of the token it carried, or after the results were hidden, is
   dropped, whether it succeeded or failed.
@@ -4025,9 +3950,10 @@ PBI-1.2's; their outcome after it (PR #9):
    it. One load makes one or two `api.github.com` requests (3.1,
    requests 1 and 2) and up to three to `raw.githubusercontent.com`, and
    each "Show status" of the umbrella view one more (3.9); from PBI-1.19
-   the opening guide's reads add two to four per owner and two to four
-   per repo, once per page visit (3.1, "Guided opening", which also
-   quotes GitHub's documented limit of 60 anonymous requests per hour).
+   the opening guide's reads add two to four per owner, once per page
+   visit when its list is read in full, and two to four each time a
+   repo's branches are shown (3.1, "Guided opening", which also quotes
+   GitHub's documented limit of 60 anonymous requests per hour).
    The checks in 3.1 ran through a proxy that appears to add
    credentials, so they do not show the anonymous limit.
 4. **Open; PBI-1.4.** What an anonymous request for a private repo gets

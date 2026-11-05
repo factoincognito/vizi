@@ -158,8 +158,10 @@ Build order: Clead's proposal, from the design the spec is taken from.
   an owner alone shows the repo list, and a repo shows its branches with
   the repo's own default branch preselected (fomo-f's is `master`). A
   pasted full address still opens directly. PBI-1.15's picker on a loaded
-  project stays, and its branch request is reused. A spec change first,
-  then the code. In the unattended run of 2026-11-04, after PBI-1.15.
+  project stays, and its branch request is reused. Simplified (product
+  owner, 2026-11-05 07:41): no list caching beyond the owner's repo list
+  for one page visit. A spec change first, then the code. In the
+  unattended run of 2026-11-04, after PBI-1.15.
 - **[NEXT] PBI-1.12** (product owner, 2026-11-04; intent approved 11:59) — A "Saved repos"
   quick-access list on the start page: "Save" adds the open address, an
   entry loads on click (with the right token if private), "×" removes it.
