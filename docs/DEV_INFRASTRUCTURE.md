@@ -71,6 +71,10 @@ after the first push of the pack's `ci.yml`):
 
 **Checking that it works:** product-office Process P-11 § 3 (2).
 
+**Deleting merged branches.** Settings, General, Pull Requests: tick
+"Automatically delete head branches", so GitHub deletes a PR's branch
+when it is merged (product-office Process P-4 § 5 (2)).
+
 ### 4. CI
 
 CI is GitHub Actions, `.github/workflows/ci.yml`; its rules are

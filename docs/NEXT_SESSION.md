@@ -70,7 +70,14 @@ reviewer still reads `CLAUDE.md`, not `RULES.md`, so it no longer sees
 the rules it checks a diff against, and `.github/reviewer/instructions.md`
 still tells it to check against `CLAUDE.md`. Clead's proposal, not
 decided: add `RULES.md` to the documents it reads (`REVIEW_DOCS` in
-`.github/reviewer/review.mjs`, `RULES.md` L § 3 (1)).
+`.github/reviewer/review.mjs`, `RULES.md` L § 3 (1)). That gives it the
+local rules only; the global Rules stay unreadable in CI. Under `RULES.md`
+L § 4 (2) and (7), a CI `APPROVE` currently counts as Crog's review of a
+rules or process change (product-office `RULES.md` § 28 (1)(b)), and the
+CI reviewer cannot check such a change against the global Rules that
+govern it. A question for the product owner: until there is a fix, does a
+CI verdict count as that review, or does a rules or process change get a
+manual Crog agent?
 **Impact on plan:** (b) and (c) widen the contract (a WHAT); the script
 and instructions change by a few lines.
 **Action:** Clead asks the product owner to accept, change or reject (b)
