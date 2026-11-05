@@ -829,8 +829,7 @@ function openPickedBranch(): void {
   const ref = loadedRef;
   const name = must<HTMLSelectElement>("branch-select").value;
   if (!ref || branchList?.reading || name === ref.branch || cannotOpen(name)) return;
-  loadsStarted += 1;
-  void openRef({ owner: ref.owner, repo: ref.repo, branch: name }, ++latestLoad, true);
+  void openRef({ owner: ref.owner, repo: ref.repo, branch: name }, nextLoad(), true);
 }
 
 /**
@@ -839,6 +838,13 @@ function openPickedBranch(): void {
  * newest request always wins (docs/SPEC.md 3.1).
  */
 let latestLoad = 0;
+
+/** A load starts (an address, the guide's Open, "Open in vizi", a pick): the newest load (3.1), and one more started (3.13). */
+function nextLoad(): number {
+  loadsStarted += 1;
+  latestLoad += 1;
+  return latestLoad;
+}
 
 /** The page's fetch. A request that carries the token is not made once its load has been replaced (3.8). */
 function guardedFetch(token: string | null, replaced: () => boolean): Fetcher {
@@ -851,8 +857,7 @@ function guardedFetch(token: string | null, replaced: () => boolean): Fetcher {
 async function openUrl(address: string): Promise<void> {
   // Every load hides the opening guide's select and message, and stops its branch read (3.1).
   hideGuide();
-  const load = ++latestLoad;
-  loadsStarted += 1;
+  const load = nextLoad();
   // A text the Repository field refuses makes no request, and counts as a load (3.1).
   const read = readRepository(address);
   if (!read.ok) {
@@ -1494,6 +1499,8 @@ function guideRefused(
 ): boolean {
   const refusal = tokenRefusal(read);
   if (refusal === null) return false;
+  // The refused read's line goes first, whether or not its token is still the one held, so it never stays on "Reading…".
+  if (guideMessageOwner === owner.toLowerCase()) setGuideMessage("", null);
   if (token !== null && tokens.forgetIfCurrent(owner.toLowerCase(), token)) {
     renderTokens();
     forgetResultsFor(owner.toLowerCase(), refusal.message);
@@ -1664,9 +1671,7 @@ function openFromField(): void {
       chosen !== shown.defaultBranch
         ? chosen
         : null;
-    const load = ++latestLoad;
-    loadsStarted += 1;
-    void openRef({ owner: text.owner, repo: text.repo, branch }, load, false);
+    void openRef({ owner: text.owner, repo: text.repo, branch }, nextLoad(), false);
     return;
   }
   void openUrl(urlField().value);

@@ -35,6 +35,9 @@ const project = join(__dirname, "fixtures", "project");
 const umbrella = join(__dirname, "fixtures", "umbrella");
 const read = (dir: string, p: string) => readFileSync(join(dir, p), "utf8");
 const TOKEN = "github_pat_TEST_guide_abcd1234";
+/** 3.8's message for a 401 with acme's token. */
+const REFUSED =
+  "GitHub refused the token for acme: it may have expired. It has been forgotten; enter a new one.";
 const API = "https://api.github.com";
 
 type Kind = "User" | "Organization" | "Bot";
@@ -58,6 +61,10 @@ interface StubOptions {
     url: string,
     n: number,
   ) => { status: number; headers?: Record<string, string> } | undefined;
+  /** Fails the n-th request of a URL as a network failure. */
+  abort?: (url: string, n: number) => boolean;
+  /** Overrides an answer's body (status 200) for the n-th request of a URL. */
+  body?: (url: string, n: number) => string | undefined;
 }
 type Seen = { url: string; authorization: string | undefined };
 interface Stub {
@@ -103,6 +110,10 @@ async function stubGithub(context: BrowserContext, options: StubOptions = {}): P
       count.set(url, n + 1);
       if (options.hold?.(url, n) && !allOpened && !opened.has(url))
         await new Promise<void>((open) => gates.push({ url, open }));
+      if (options.abort?.(url, n)) return route.abort("failed");
+      const overridden = options.body?.(url, n);
+      if (overridden !== undefined)
+        return route.fulfill({ status: 200, headers: cors, body: overridden });
       const forced = options.status?.(url, n);
       if (forced)
         return route.fulfill({
@@ -1144,6 +1155,135 @@ test.describe("messages for each outcome (3.1, Edge cases)", () => {
     await expect.poll(() => optionValues(page)).toHaveLength(3);
   });
 
+  test("a 401 on the guide's /repos/acme/widgets: the token is forgotten, 3.8's message is in #message, no select, and the line is not left on Reading…", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context, {
+      status: (u, n) => (u === repoUrl("acme", "widgets") && n === 0 ? { status: 401 } : undefined),
+    });
+    await page.goto("/");
+    await addToken(page, "acme");
+    await field(page).fill("acme/widgets");
+    await clickAway(page);
+    await expect(page.locator("#message")).toHaveText(REFUSED);
+    await expect(page.locator('[data-testid=token-line][data-owner="acme"]')).toHaveCount(0);
+    await expect(select(page)).toBeHidden();
+    await expect(guideMessage(page)).toHaveText("");
+  });
+
+  test("a 401 on the guide's first branch page: the same", async ({ page, context }) => {
+    await stubGithub(context, {
+      status: (u, n) =>
+        u === branchPage("acme", "widgets") && n === 0 ? { status: 401 } : undefined,
+    });
+    await page.goto("/");
+    await addToken(page, "acme");
+    await field(page).fill("acme/widgets");
+    await clickAway(page);
+    await expect(page.locator("#message")).toHaveText(REFUSED);
+    await expect(page.locator('[data-testid=token-line][data-owner="acme"]')).toHaveCount(0);
+    await expect(select(page)).toBeHidden();
+    await expect(guideMessage(page)).toHaveText("");
+  });
+
+  test("a load's 401 drops the owner's kept list: the next acme/ reads again", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context, {
+      status: (u, n) => (u === repoUrl("acme", "widgets") && n === 0 ? { status: 401 } : undefined),
+    });
+    await page.goto("/");
+    await addToken(page, "acme");
+    await typeIn(page, "acme/");
+    await expect.poll(() => optionValues(page)).toHaveLength(3);
+    expect(times(stub, orgPage("acme"))).toBe(1);
+    // A full address is not guided, so the 401 is the load's own request 1.
+    await field(page).fill("https://github.com/acme/widgets");
+    await field(page).press("Enter");
+    await expect(page.locator("#message")).toHaveText(REFUSED);
+    await field(page).fill("");
+    await field(page).pressSequentially("acme/");
+    await expect.poll(() => times(stub, orgPage("acme"))).toBe(2);
+  });
+
+  // Every other failure of each of the guide's requests: its message, no select, never left on "Reading…".
+  const escapeRe = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const notUnderstood: Record<string, string> = {
+    [ownerUrl("acme")]: "GitHub's answer for acme was not understood.",
+    [orgPage("acme")]: "GitHub's answer for the repo list was not understood.",
+    [repoUrl("acme", "widgets")]: "GitHub's answer for the repo had no default branch.",
+    [branchPage("acme", "widgets")]: "GitHub's answer for the branch list was not understood.",
+  };
+  const failures: {
+    name: string;
+    text: string;
+    url: string;
+    how: Pick<StubOptions, "status" | "abort" | "body">;
+    message: string | RegExp;
+  }[] = [];
+  for (const [reqs, text, frame] of [
+    [
+      [
+        ["/users/acme", ownerUrl("acme")],
+        ["the first repo page", orgPage("acme")],
+      ],
+      "acme",
+      "The repo list could not be read: ",
+    ],
+    [
+      [
+        ["the guide's /repos/acme/widgets", repoUrl("acme", "widgets")],
+        ["the guide's first branch page", branchPage("acme", "widgets")],
+      ],
+      "acme/widgets",
+      "The branch list could not be read: ",
+    ],
+  ] as const) {
+    for (const [where, url] of reqs) {
+      const once = (u: string, n: number) => u === url && n === 0;
+      for (const status of [403, 404, 429, 500]) {
+        // A 404 on /users/<owner> or on the repo has its own message, tested above.
+        if (status === 404 && (url === ownerUrl("acme") || url === repoUrl("acme", "widgets")))
+          continue;
+        failures.push({
+          name: `${status} on ${where}`,
+          text,
+          url,
+          how: { status: (u, n) => (once(u, n) ? { status } : undefined) },
+          message: `${frame}GitHub answered HTTP ${status} for ${url}.`,
+        });
+      }
+      failures.push({
+        name: `a network failure on ${where}`,
+        text,
+        url,
+        how: { abort: once },
+        message: new RegExp(`^${escapeRe(`${frame}The request to api.github.com failed: `)}.+\\.$`),
+      });
+      failures.push({
+        name: `an answer not understood on ${where}`,
+        text,
+        url,
+        how: { body: (u, n) => (once(u, n) ? "{}" : undefined) },
+        message: `${frame}${notUnderstood[url]}`,
+      });
+    }
+  }
+  for (const f of failures) {
+    test(`${f.name}: its message, no select, not left on Reading…`, async ({ page, context }) => {
+      const stub = await stubGithub(context, f.how);
+      await page.goto("/");
+      await field(page).fill(f.text);
+      await clickAway(page);
+      await expect(guideMessage(page)).toHaveText(f.message);
+      await expect(guideMessage(page)).not.toHaveText(/Reading/);
+      await expect(select(page)).toBeHidden();
+      expect(times(stub, f.url)).toBe(1);
+    });
+  }
+
   test("an owner list that fails on page 2 shows its names, incomplete, and is read again; a page 1 failure is read again on the next blur, once", async ({
     page,
     context,
@@ -1366,6 +1506,74 @@ test.describe("accessibility and layout (3.1)", () => {
     stub.release();
     await expect(label(page)).toHaveText("Branch of acme/widgets");
     await expect(select(page)).toBeFocused();
+  });
+
+  test("the select's label text overlaps neither the Repository label's text, the heading nor the field; label and select text 4.5:1, the select's border 3:1", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context);
+    await page.goto("/");
+    await field(page).fill("acme");
+    await clickAway(page);
+    await expect(label(page)).toHaveText("Repo of acme");
+    const problems = await page.evaluate(() => {
+      const rgba = (c: string): number[] => {
+        const m = /rgba?\(([^)]+)\)/.exec(c);
+        if (!m?.[1]) throw new Error(`cannot read the colour ${c}`);
+        const p = m[1]
+          .split(/[\s,/]+/)
+          .filter(Boolean)
+          .map(Number);
+        return [p[0] ?? 0, p[1] ?? 0, p[2] ?? 0, p[3] ?? 1];
+      };
+      const lum = (c: number[]) => {
+        const ch = c.slice(0, 3).map((v) => {
+          const s = v / 255;
+          return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * (ch[0] ?? 0) + 0.7152 * (ch[1] ?? 0) + 0.0722 * (ch[2] ?? 0);
+      };
+      const ratio = (a: number[], b: number[]) => {
+        const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m);
+        return ((x ?? 0) + 0.05) / ((y ?? 0) + 0.05);
+      };
+      const background = (el: Element | null): number[] => {
+        for (let e = el; e; e = e.parentElement) {
+          const c = rgba(getComputedStyle(e).backgroundColor);
+          if (c[3] === 1) return c;
+        }
+        return rgba(getComputedStyle(document.documentElement).backgroundColor);
+      };
+      /** Where an element's text is drawn (a block label's box spans the row; its text does not), or a field's own box. */
+      const box = (sel: string) => {
+        const el = document.querySelector(sel);
+        if (!el) throw new Error(`missing ${sel}`);
+        if (el instanceof HTMLInputElement) return el.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        return range.getBoundingClientRect();
+      };
+      const overlap = (a: DOMRect, b: DOMRect) =>
+        a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      const out: string[] = [];
+      const guideLabel = box("#guide-label");
+      for (const other of ['label[for="url-input"]', "#open-project-title", "#url-input"])
+        if (overlap(guideLabel, box(other))) out.push(`#guide-label overlaps ${other}`);
+      const labelEl = document.getElementById("guide-label");
+      const selectEl = document.getElementById("guide-select");
+      const l = ratio(rgba(getComputedStyle(labelEl as Element).color), background(labelEl));
+      if (l < 4.5) out.push(`label text ${l.toFixed(2)}`);
+      const t = ratio(rgba(getComputedStyle(selectEl as Element).color), background(selectEl));
+      if (t < 4.5) out.push(`select text ${t.toFixed(2)}`);
+      const b = ratio(
+        rgba(getComputedStyle(selectEl as Element).borderTopColor),
+        background(selectEl?.parentElement ?? null),
+      );
+      if (b < 3) out.push(`select border ${b.toFixed(2)}`);
+      return out;
+    });
+    expect(problems).toEqual([]);
   });
 
   test("on a phone: no sideways scroll with a 100-character repo name; the select and Open full width, at least 44 px high", async ({

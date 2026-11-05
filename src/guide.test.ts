@@ -15,12 +15,14 @@ import {
   type OwnerRead,
   ownerView,
   READING_BRANCHES,
+  type RepoBranchesRead,
   readGuideText,
   readingView,
   readOwnerRepos,
   readRepoBranches,
   readRepoPage,
   repoListKind,
+  tokenRefusal,
 } from "./guide";
 
 const TOKEN = "github_pat_TEST_guide_abcd1234";
@@ -645,5 +647,54 @@ describe("createOwnerLists: which owner lists are kept, and token changes (3.1)"
     await lists.read("acme");
     lists.tokenChanged(null);
     expect(lists.kept("acme")).toBeUndefined();
+  });
+});
+
+describe("tokenRefusal and the views of a 401 (3.1, Edge cases; 3.8)", () => {
+  const refused = { ok: false, kind: "token-refused", status: 401, message: "refused" } as const;
+  const other = { ok: false, kind: "http", status: 500, message: "HTTP 500" } as const;
+  const branches = (over: Partial<RepoBranchesRead>): RepoBranchesRead => ({
+    owner: "acme",
+    repo: "widgets",
+    failure: null,
+    defaultBranch: "main",
+    names: ["main"],
+    more: false,
+    pagesRead: 1,
+    listFailure: null,
+    ...over,
+  });
+  const owner = (over: Partial<OwnerRead>): OwnerRead => ({
+    owner: "acme",
+    token: TOKEN,
+    names: [],
+    failure: null,
+    pagesRead: 0,
+    more: false,
+    ...over,
+  });
+
+  it("finds a 401 on request 1 of a branch read, and the view shows nothing", () => {
+    const read = branches({ failure: refused, defaultBranch: null, names: [], pagesRead: 0 });
+    expect(tokenRefusal(read)).toBe(refused);
+    expect(branchView("acme", "widgets", read)).toEqual({ options: null, message: "" });
+  });
+
+  it("finds a 401 on a branch page, and the view shows nothing", () => {
+    const read = branches({ listFailure: refused, names: [], pagesRead: 0 });
+    expect(tokenRefusal(read)).toBe(refused);
+    expect(branchView("acme", "widgets", read)).toEqual({ options: null, message: "" });
+  });
+
+  it("finds a 401 on an owner read", () => {
+    expect(tokenRefusal(owner({ failure: refused }))).toBe(refused);
+  });
+
+  it("finds none for another failure, or none at all", () => {
+    expect(tokenRefusal(branches({ failure: other }))).toBeNull();
+    expect(tokenRefusal(branches({ listFailure: other }))).toBeNull();
+    expect(tokenRefusal(branches({}))).toBeNull();
+    expect(tokenRefusal(owner({ failure: other }))).toBeNull();
+    expect(tokenRefusal(owner({ names: ["x"], pagesRead: 1 }))).toBeNull();
   });
 });

@@ -407,6 +407,30 @@ test.describe("what a load with a token sends (3.8)", () => {
     }
   });
 
+  test("a real fill and click on Open with acme/widgets: the opening guide's request 1 from the blur, then the load's requests, all with the token", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context);
+    await page.goto("/");
+    await openPanel(page);
+    await useToken(page, TOKEN);
+    await page.locator("#url-input").fill(REPO);
+    await page.locator("#open-url").click();
+    await expect(page.getByTestId("column").first()).toBeVisible();
+    await branchListRead(page);
+    // The click blurs the field first: the guide's request 1 (3.1, "Guided opening"), stopped by Open.
+    expect(gets(stub).map((s) => s.url)).toEqual([
+      API,
+      API,
+      `${API}/git/trees/main?recursive=1`,
+      `${API}/contents/docs/BACKLOG.md?ref=main`,
+      `${API}/contents/STATUS.md?ref=main`,
+      branchesUrl("acme", "widgets"),
+    ]);
+    for (const s of gets(stub)) expect(s.headers.authorization).toBe(`Bearer ${TOKEN}`);
+  });
+
   test("without a token the requests are those of 3.1: raw.githubusercontent.com, no Authorization header", async ({
     page,
     context,
