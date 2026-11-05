@@ -1667,7 +1667,11 @@ the five steps and the closing link. The link is not a sixth step.
   4. **`PROJECTS.md` for an umbrella.** At the project's root; headings
      become the tree; a line `- owner/repo` is a repo pointer and
      `- projects/<name>/` a folder pointer; the pointer is alone on its
-     line at column 0 (P1 to P5). The example:
+     line at column 0 (P1 to P5). After the sentence on pointers, the
+     step says (from PBI-1.18, 3.9 "The help text (PBI-1.18)"): "A
+     `projects/<name>/` pointer is a pre-project: a project at an early
+     stage, with no repo of its own yet, that lives in this repo for
+     now." The example:
 
      ```markdown
      # Projects
