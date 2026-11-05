@@ -1435,23 +1435,28 @@ format of `PROJECTS.md`, and what counts as a pointer, is
     "An umbrella is a project that lists other projects in its
     `PROJECTS.md`, grouped under the file's headings where it has
     them. A project with a repo of its own is shown as `<owner>/<repo>`,
-    which you can open in vizi or on GitHub. A pre-project is a project at an early stage, with no repo
-    of its own yet, that lives in this umbrella's repo for now: it is
-    shown as `projects/<name>/`, and "Show status" reads its
-    `STATUS.md`."
+    which you can open in vizi or on GitHub. A pre-project is a project
+    at an early stage, with no repo of its own yet, that lives in this
+    umbrella's repo for now: it is shown as `projects/<name>/`, and
+    "Show status" reads its `STATUS.md`."
 
     The words follow 3.9 and `docs/BACKLOG-FORMAT.md` section 5: the
     tree is the file's headings with the pointers under them (P3), and
-    pointers above the first heading are listed under "(no heading)"
-    (P4), so "where it has them" covers a file with few headings or
-    none; a
-    repo pointer is `<owner>/<repo>`, a GitHub repo, with "Open in vizi"
-    and "On GitHub"; a folder pointer is `projects/<name>/`, a folder of
-    the same project (P4), with "Show status", which reads its
-    `STATUS.md`. A pre-project is the product owner's name for what a
-    folder pointer points at (22:24). The form is written with angle
-    brackets, as the Repository field's hint is ("What is decided",
-    item 14, 21:01; 3.1, "The Repository field").
+    pointers above the first heading are listed under "(no heading)".
+    That is rule P4 of `docs/BACKLOG-FORMAT.md` section 5, word for
+    word: "It belongs to the nearest heading above it; the pointers
+    above the first heading are at the top of the tree, under "(no
+    heading)"." The page shows it so as built: `src/main.ts` writes "(no
+    heading)" for the tree node of those pointers (the umbrella tree's
+    rendering, at `main` `28f9c87`), and 3.9's unit tests cover
+    "pointers above the first heading". So "where it has them" covers a
+    file with few headings or none. A repo pointer is `<owner>/<repo>`,
+    a GitHub repo, with "Open in vizi" and "On GitHub"; a folder pointer
+    is `projects/<name>/`, a folder of the same project (P4), with "Show
+    status", which reads its `STATUS.md`. A pre-project is the product
+    owner's name for what a folder pointer points at (22:24). The form
+    is written with angle brackets, as the Repository field's hint is
+    ("What is decided", item 14, 21:01; 3.1, "The Repository field").
   - **Static text in the page.** The paragraph is data in `src/help.ts`
     (as `UMBRELLA_HELP`, a list of parts, each plain text or code, as
     the help view's paragraphs are, 3.10), built into the one inline
