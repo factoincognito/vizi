@@ -744,6 +744,54 @@ footer {
   padding-left: 20px;
 }
 
+/* The branch picker (docs/SPEC.md 3.13): label, select and button on one row on desktop. */
+#branch-picker {
+  margin: 0 0 12px;
+}
+
+.branch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#branch-label {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+#branch-select {
+  flex: 0 1 420px;
+  min-width: 0;
+  max-width: 420px;
+  height: 40px;
+  padding: 0 10px;
+  font-size: 14px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--bg);
+  /* A long name is cut by the select itself, not wrapped. */
+  text-overflow: ellipsis;
+}
+
+#branch-open {
+  flex: none;
+  height: 40px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+#branch-message {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* The picker's message line takes no space while it is empty. */
+#branch-message:empty {
+  margin: 0;
+}
+
 /* The phone (docs/SPEC.md 3.12): below 800 px, the width at which the board turns into columns. */
 @media (max-width: 799px) {
   header {
@@ -851,5 +899,21 @@ footer {
 
   #token-guide-toggle {
     min-height: 44px;
+  }
+}
+
+/* The branch picker on a phone: the label above, then the select and the button across the width. */
+@media (max-width: 799px) {
+  .branch-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #branch-select,
+  #branch-open {
+    flex: none;
+    width: 100%;
+    max-width: none;
+    height: 44px;
   }
 }
