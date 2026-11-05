@@ -75,9 +75,11 @@ async function stubGithub(context: BrowserContext, options: StubOptions = {}): P
   const count = new Map<string, number>();
   const gates: { url: string; open: () => void }[] = [];
   const opened = new Set<string>();
+  let allOpened = false;
   const release = (url?: string) => {
     for (const g of gates) if (url === undefined || g.url === url) g.open();
-    if (url !== undefined) opened.add(url);
+    if (url === undefined) allOpened = true;
+    else opened.add(url);
   };
   const cors = {
     "access-control-allow-origin": "*",
@@ -98,7 +100,7 @@ async function stubGithub(context: BrowserContext, options: StubOptions = {}): P
       seen.push({ url, authorization: (await request.allHeaders()).authorization });
       const n = count.get(url) ?? 0;
       count.set(url, n + 1);
-      if (options.hold?.(url, n) && !opened.has(url))
+      if (options.hold?.(url, n) && !allOpened && !opened.has(url))
         await new Promise<void>((open) => gates.push({ url, open }));
       const forced = options.status?.(url, n);
       if (forced)
@@ -144,6 +146,12 @@ async function stubGithub(context: BrowserContext, options: StubOptions = {}): P
       m = /^\/repos\/([^/]+)\/([^/]+)$/.exec(path);
       if (m?.[1] && m[2]) {
         const key = `${m[1].toLowerCase()}/${m[2].toLowerCase()}`;
+        // A repo of no stubbed owner, with no stubbed default, is not there (the umbrella's hub excepted).
+        const known =
+          owners[m[1].toLowerCase()]?.repos.includes(m[2]) ||
+          options.defaults?.[key] !== undefined ||
+          m[2] === "hub";
+        if (!known) return route.fulfill({ status: 404, headers: cors, body: "" });
         const def = options.defaults?.[key];
         return json(route, def === null ? { name: m[2] } : { default_branch: def ?? "main" });
       }
@@ -818,10 +826,15 @@ test.describe("tokens and the guide's requests (3.1, 3.8)", () => {
     await page.goto("/");
     await typeIn(page, "acme/");
     await expect.poll(() => times(stub, orgPage("acme"))).toBe(1);
+    // Leave the field first: on a phone the select of a kept list appears above what follows (section 4, item 30).
+    await clickAway(page);
+    await expect(select(page)).toBeVisible();
     await addToken(page, "acme");
     await field(page).fill("");
     await field(page).pressSequentially("acme/");
     await expect.poll(() => times(stub, orgPage("acme"))).toBe(2);
+    await clickAway(page);
+    await expect(select(page)).toBeVisible();
     await page
       .locator('[data-testid=token-line][data-owner="acme"] [data-testid=token-forget]')
       .click();
@@ -1075,6 +1088,72 @@ test.describe("the field and the Owner prefill (3.1, 3.8)", () => {
     await expect.poll(() => optionValues(page)).toEqual(["beta/tools"]);
     await field(page).fill("beta/tools");
     await expect(page.locator("#owner-input")).toHaveValue("beta");
+  });
+});
+
+test.describe("leaving the field by a click below it: nothing moves (3.1, Clead, 2026-11-05, #85)", () => {
+  /**
+   * Records where `selector` is before, and again inside the field's own
+   * `blur` event, after the opening guide's handler (registered first) has
+   * written "Reading…". The owner's answer is held, so what is compared is
+   * the blur's effect alone.
+   */
+  async function watchPosition(page: Page, selector: string) {
+    await page.evaluate((sel) => {
+      const w = window as unknown as { __rects: { top: number; left: number }[] };
+      const at = () => {
+        const r = document.querySelector(sel)?.getBoundingClientRect();
+        return { top: r?.top ?? Number.NaN, left: r?.left ?? Number.NaN };
+      };
+      w.__rects = [at()];
+      document.getElementById("url-input")?.addEventListener("blur", () => w.__rects.push(at()), {
+        once: true,
+      });
+    }, selector);
+    return () =>
+      page.evaluate(
+        () => (window as unknown as { __rects: { top: number; left: number }[] }).__rects,
+      );
+  }
+
+  test("an owner typed, then one click on a token's Forget: the click registers, and Forget had not moved", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context, { hold: (u) => u === ownerUrl("acme") });
+    await page.goto("/");
+    await addToken(page, "acme");
+    await typeIn(page, "acme");
+    const forget = '[data-testid=token-line][data-owner="acme"] [data-testid=token-forget]';
+    const rects = await watchPosition(page, forget);
+    await page.locator(forget).click();
+    await expect(page.locator('[data-testid=token-line][data-owner="acme"]')).toHaveCount(0);
+    const [before, atBlur] = await rects();
+    expect(atBlur).toEqual(before);
+    stub.release();
+  });
+
+  test("an owner typed, then one click on the Private repos toggle: the click registers, and the toggle had not moved", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context, { hold: (u) => u === ownerUrl("acme") });
+    await page.goto("/");
+    await typeIn(page, "acme");
+    const rects = await watchPosition(page, "#private-repos-toggle");
+    await page.locator("#private-repos-toggle").click();
+    await expect(page.locator("#private-repos-toggle")).toHaveAttribute("aria-expanded", "true");
+    await expect(guideMessage(page)).toHaveText("Reading acme's repos…");
+    const [before, atBlur] = await rects();
+    expect(atBlur).toEqual(before);
+    stub.release();
+  });
+
+  test("the message line takes one line's height while empty", async ({ page }) => {
+    await page.goto("/");
+    await expect(guideMessage(page)).toHaveText("");
+    const box = await guideMessage(page).boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(20);
   });
 });
 

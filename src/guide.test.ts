@@ -519,13 +519,13 @@ describe("createOwnerLists: which owner lists are kept, and token changes (3.1)"
       readOwnerRepos(owner, null, guardFetcher(fetcherFor(owner), abandoned)),
     );
 
-  it("a list read in full is kept, an empty one included; a second read makes no request", async () => {
+  it("a list read in full is kept, an empty one included, by the owner in lower case", async () => {
     const { fetcher, calls } = fake({
       [`${USERS}/acme`]: isOrg,
       [orgPage(1)]: { status: 200, body: "[]" },
     });
     const lists = listsWith(() => fetcher);
-    const first = await lists.read("Acme");
+    const first = await lists.read("acme");
     expect(first.abandoned).toBe(false);
     expect(lists.kept("acme")?.names).toEqual([]);
     expect(calls).toHaveLength(2);

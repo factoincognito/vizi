@@ -29,6 +29,22 @@ import {
   readRepository,
 } from "./github";
 import {
+  branchView,
+  createOwnerLists,
+  type GuideText,
+  guardFetcher,
+  guideOwner,
+  type OwnerOutcome,
+  type OwnerRead,
+  ownerView,
+  READING_BRANCHES as READING_GUIDE_BRANCHES,
+  readGuideText,
+  readingRepos,
+  readOwnerRepos,
+  readRepoBranches,
+  tokenRefusal,
+} from "./guide";
+import {
   CLOSING_LINK,
   HELP_STEPS,
   HELP_TITLE,
@@ -64,7 +80,7 @@ import {
   tokenSummary,
 } from "./start";
 import { parse as parseStatus, type StatusResult } from "./status";
-import { createTokenStore, maskToken } from "./token";
+import { createTokenStore, maskToken, parseOwner } from "./token";
 import "./style.css";
 
 /** The browser's local storage, or null where it cannot be used at all (docs/SPEC.md 3.8). */
@@ -471,6 +487,7 @@ function renderReport(p: Project): number {
 function openInVizi(repository: string): void {
   must<HTMLInputElement>("url-input").value = repository;
   fillOwnerFromAddress();
+  guideFieldWritten();
   void openUrl(repository);
 }
 
@@ -832,6 +849,8 @@ function guardedFetch(token: string | null, replaced: () => boolean): Fetcher {
 }
 
 async function openUrl(address: string): Promise<void> {
+  // Every load hides the opening guide's select and message, and stops its branch read (3.1).
+  hideGuide();
   const load = ++latestLoad;
   loadsStarted += 1;
   // A text the Repository field refuses makes no request, and counts as a load (3.1).
@@ -851,6 +870,7 @@ async function openUrl(address: string): Promise<void> {
  * holds for the same repo.
  */
 async function openRef(ref: RepoRef, load: number, picked: boolean): Promise<void> {
+  hideGuide();
   say("Loading…");
   const owner = ref.owner.toLowerCase();
   const token = tokens.tokenFor(owner);
@@ -864,6 +884,7 @@ async function openRef(ref: RepoRef, load: number, picked: boolean): Promise<voi
     // GitHub refused the token: it is dead, so it is forgotten (if still the one held) and cannot break later public loads.
     if (result.kind === "token-refused" && token !== null && tokens.forgetIfCurrent(owner, token)) {
       renderTokens();
+      guideTokenChanged(owner);
     }
     // A failed pick whose button had the focus moves it to the message, not onto a hidden button (3.13).
     const focusMessage =
@@ -1044,6 +1065,7 @@ const NOT_SAVED_MESSAGE = "The browser would not save the token; it is kept for 
  * 3.8). `owner` is the owner forgotten, or null for all of them.
  */
 function forgetResultsFor(owner: string | null, message: string): void {
+  guideTokenChanged(owner);
   latestLoad += 1;
   if (owner === null) forgetsOfAll += 1;
   else forgetsOf.set(owner, (forgetsOf.get(owner) ?? 0) + 1);
@@ -1058,8 +1080,12 @@ function forgetResultsFor(owner: string | null, message: string): void {
 function useToken(): void {
   const input = must<HTMLInputElement>("token-input");
   const remember = must<HTMLInputElement>("token-remember").checked;
-  const result = tokens.use(must<HTMLInputElement>("owner-input").value, input.value, remember);
+  const ownerText = must<HTMLInputElement>("owner-input").value;
+  const result = tokens.use(ownerText, input.value, remember);
   input.value = "";
+  // An Add is a token change for the owner: the opening guide reads its lists again (3.1, 3.8).
+  const added = parseOwner(ownerText);
+  if (result.ok && added !== null) guideTokenChanged(added);
   const message = must("token-message");
   if (!result.ok) message.textContent = result.message;
   else if (remember && !result.saved) message.textContent = NOT_SAVED_MESSAGE;
@@ -1164,6 +1190,8 @@ function mountPanel(): HTMLElement {
   const keep = h("button", { id: "migrate-keep", type: "button", class: "primary" }, "Keep");
   keep.addEventListener("click", () => {
     const result = tokens.keepMigrated(migrateOwner.value);
+    const kept = parseOwner(migrateOwner.value);
+    if (result.ok && kept !== null) guideTokenChanged(kept);
     must("token-message").textContent = result.ok
       ? result.saved
         ? ""
@@ -1350,6 +1378,297 @@ function mountPicker(): HTMLElement {
   );
 }
 
+// ------------------------------------------------------------ opening guide
+
+/**
+ * The opening guide of docs/SPEC.md 3.1, "Guided opening" (PBI-1.19): the
+ * datalist of an owner's repos while typing, one select on leaving the field
+ * (an owner's repos, or a repo's branches with its default selected), and
+ * Open. src/guide.ts holds the reading and the messages; this draws them.
+ */
+
+/** The browser's fetch, as a Fetcher. */
+const browserFetch: Fetcher = (url, init) => fetch(url, init);
+
+/** The owner lists of this page visit: kept in memory only, dropped on a token change for their owner. */
+const ownerLists = createOwnerLists((owner, abandoned) =>
+  // The token held for the owner when the read starts (3.8, "Which token a load uses").
+  readOwnerRepos(
+    owner,
+    tokens.tokenFor(owner.toLowerCase()),
+    guardFetcher(browserFetch, abandoned),
+  ),
+);
+
+/** What the select shows, or null while it is hidden. */
+let guideShown:
+  | { mode: "owner"; owner: string }
+  | { mode: "branches"; owner: string; repo: string; defaultBranch: string }
+  | null = null;
+/** The owner (in lower case) that #guide-message speaks of, or null when it is empty. */
+let guideMessageOwner: string | null = null;
+/** The owner, as typed, whose repos the datalist holds, or null when it is empty. */
+let datalistOwner: string | null = null;
+/** The field's text as the guide read it at the last input. */
+let lastGuideText: GuideText = { kind: "none" };
+/** The owner (in lower case) for whom a blur or Open asked for the select. */
+let ownerSelectWanted: string | null = null;
+/** Counts the guide's branch reads: a newer one, Open, or any load replaces the one before (3.1). */
+let guideBranchRead = 0;
+
+const urlField = () => must<HTMLInputElement>("url-input");
+const guideText = () => readGuideText(urlField().value);
+const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+function setGuideMessage(text: string, owner: string | null): void {
+  must("guide-message").textContent = text;
+  guideMessageOwner = text === "" || owner === null ? null : owner.toLowerCase();
+}
+
+/** Hides the select; returns whether it had the focus. */
+function hideGuideSelect(): boolean {
+  const select = must<HTMLSelectElement>("guide-select");
+  const focused = document.activeElement === select;
+  guideShown = null;
+  must("guide").hidden = true;
+  select.replaceChildren();
+  return focused;
+}
+
+/** Every load (Open, Enter, an address, "Open in vizi", a pick of 3.13) hides the select and the message, and stops a branch read. */
+function hideGuide(): void {
+  hideGuideSelect();
+  setGuideMessage("", null);
+  ownerSelectWanted = null;
+  guideBranchRead += 1;
+}
+
+function fillDatalist(owner: string | null, names: readonly string[]): void {
+  datalistOwner = owner;
+  must("repo-list").replaceChildren(
+    ...(owner === null ? [] : names).map((name) => {
+      const option = document.createElement("option");
+      option.value = `${owner}/${name}`;
+      option.textContent = `${owner}/${name}`;
+      return option;
+    }),
+  );
+}
+
+/** The datalist holds the field's owner's repos only: emptied when the owner changes, filled from a kept list. */
+function syncDatalist(text: GuideText): void {
+  const owner = text.kind === "none" ? null : text.owner;
+  if (owner === datalistOwner) return;
+  fillDatalist(owner, owner === null ? [] : (ownerLists.kept(owner)?.names ?? []));
+}
+
+function showGuideSelect(labelText: string, options: HTMLOptionElement[]): void {
+  must("guide-label").textContent = labelText;
+  must<HTMLSelectElement>("guide-select").replaceChildren(...options);
+  must("guide").hidden = false;
+}
+
+function showOwnerSelect(owner: string, names: readonly string[]): void {
+  const first = h("option", { value: "" }, "Choose a repo");
+  showGuideSelect(`Repo of ${owner}`, [
+    first,
+    ...names.map((name) => h("option", { value: name }, name)),
+  ]);
+  must<HTMLSelectElement>("guide-select").value = "";
+  guideShown = { mode: "owner", owner };
+}
+
+/** Whether the select shows the field's text: that owner's repos for an owner alone, or that repo's branches. */
+function selectShowsField(text: GuideText): boolean {
+  const shown = guideShown;
+  if (!shown) return false;
+  if (shown.mode === "owner") return text.kind === "owner" && same(text.owner, shown.owner);
+  return text.kind === "repo" && same(text.owner, shown.owner) && same(text.repo, shown.repo);
+}
+
+/** A 401 for a read: 3.8's rule, if the refused token is still the one held. Returns whether it was one. */
+function guideRefused(
+  read: Parameters<typeof tokenRefusal>[0],
+  owner: string,
+  token: string | null,
+): boolean {
+  const refusal = tokenRefusal(read);
+  if (refusal === null) return false;
+  if (token !== null && tokens.forgetIfCurrent(owner.toLowerCase(), token)) {
+    renderTokens();
+    forgetResultsFor(owner.toLowerCase(), refusal.message);
+  }
+  return true;
+}
+
+/** Shows an owner's list, if the field still names that owner (alone or with a repo). */
+function applyOwnerRead(read: OwnerRead): void {
+  const text = guideText();
+  const owner = read.owner.toLowerCase();
+  if (guideOwner(text) !== owner || text.kind === "none") return;
+  fillDatalist(text.owner, read.names);
+  const wanted = ownerSelectWanted === owner && text.kind === "owner";
+  const view = ownerView(read, wanted);
+  if (view.options) showOwnerSelect(text.owner, view.options);
+  else if (wanted) hideGuideSelect();
+  setGuideMessage(view.message, owner);
+}
+
+function onOwnerOutcome(outcome: OwnerOutcome): void {
+  // A read abandoned on a token change is neither kept nor shown.
+  if (outcome.abandoned) return;
+  if (guideRefused(outcome.read, outcome.read.owner, outcome.read.token)) return;
+  applyOwnerRead(outcome.read);
+}
+
+/**
+ * The owner's list, on `acme/` typed (`afterBlur` false), or on a blur or
+ * Open with an owner alone (true): from the kept list with no request, or
+ * from the read already running, or read now.
+ */
+function askOwnerList(owner: string, afterBlur: boolean): void {
+  if (afterBlur) ownerSelectWanted = owner.toLowerCase();
+  const kept = ownerLists.kept(owner);
+  if (kept) {
+    applyOwnerRead({ ...kept, owner });
+    return;
+  }
+  setGuideMessage(readingRepos(owner), owner);
+  if (ownerLists.reading(owner)) return;
+  void ownerLists.read(owner).then(onOwnerOutcome);
+}
+
+/** Reads a repo's default branch and its branches, fresh; a newer read replaces this one (3.1). */
+function startGuideBranchRead(owner: string, repo: string): void {
+  const id = ++guideBranchRead;
+  const lower = owner.toLowerCase();
+  const token = tokens.tokenFor(lower);
+  const changes = ownerLists.changeCount(lower);
+  const abandoned = () => id !== guideBranchRead || ownerLists.changeCount(lower) !== changes;
+  setGuideMessage(READING_GUIDE_BRANCHES, owner);
+  void readRepoBranches({ owner, repo }, token, guardFetcher(browserFetch, abandoned)).then(
+    (read) => {
+      if (abandoned()) return;
+      if (guideRefused(read, owner, token)) return;
+      const text = guideText();
+      if (text.kind !== "repo" || !same(text.owner, owner) || !same(text.repo, repo)) return;
+      const view = branchView(owner, repo, read);
+      if (view.options && read.defaultBranch !== null) {
+        showGuideSelect(
+          `Branch of ${text.owner}/${text.repo}`,
+          view.options.map((o) => {
+            const option = h("option", { value: o.name }, o.label);
+            option.disabled = o.disabled;
+            return option;
+          }),
+        );
+        must<HTMLSelectElement>("guide-select").value = read.defaultBranch;
+        guideShown = {
+          mode: "branches",
+          owner: text.owner,
+          repo: text.repo,
+          defaultBranch: read.defaultBranch,
+        };
+      } else {
+        hideGuideSelect();
+      }
+      setGuideMessage(view.message, owner);
+    },
+  );
+}
+
+/** The user typed: hide the select when the owner or the repo changed, follow with the datalist, read on `acme/`. */
+function onGuideInput(): void {
+  const text = guideText();
+  const before = lastGuideText;
+  lastGuideText = text;
+  const repoOf = (t: GuideText) => (t.kind === "repo" ? t.repo.toLowerCase() : null);
+  if (guideOwner(text) !== guideOwner(before) || repoOf(text) !== repoOf(before)) {
+    hideGuideSelect();
+    setGuideMessage("", null);
+    ownerSelectWanted = null;
+    // A read of the owner's list still running says so (3.1, the message line).
+    if (text.kind !== "none" && ownerLists.reading(text.owner))
+      setGuideMessage(readingRepos(text.owner), text.owner);
+  }
+  syncDatalist(text);
+  const becameOwnerSlash =
+    text.kind === "owner" &&
+    text.slash &&
+    !(before.kind === "owner" && before.slash && same(before.owner, text.owner));
+  if (becameOwnerSlash) askOwnerList(text.owner, false);
+}
+
+/** The page wrote the field (a repo chosen in the select, "Open in vizi"): no `input` event, so the guide follows it here. */
+function guideFieldWritten(): void {
+  lastGuideText = guideText();
+  syncDatalist(lastGuideText);
+}
+
+function onGuideFieldBlur(event: FocusEvent): void {
+  const text = guideText();
+  // Into the select while it shows the field's text: nothing changes under the user arriving on it.
+  if (event.relatedTarget === must("guide-select") && selectShowsField(text)) return;
+  if (text.kind === "owner") askOwnerList(text.owner, true);
+  else if (text.kind === "repo") startGuideBranchRead(text.owner, text.repo);
+}
+
+/** A repo chosen in the owner's select is written into the field; no request (3.1). */
+function onGuideSelectChange(): void {
+  const shown = guideShown;
+  const value = must<HTMLSelectElement>("guide-select").value;
+  if (shown?.mode !== "owner" || value === "") return;
+  urlField().value = `${shown.owner}/${value}`;
+  fillOwnerFromAddress();
+  guideFieldWritten();
+}
+
+/** Leaving the owner's select with a repo chosen reads that repo's branches. */
+function onGuideSelectBlur(): void {
+  const shown = guideShown;
+  const value = must<HTMLSelectElement>("guide-select").value;
+  if (shown?.mode === "owner" && value !== "") startGuideBranchRead(shown.owner, value);
+}
+
+/** Open and Enter: an owner alone shows its repos and loads nothing; an owner and a repo load with the branch chosen; anything else loads as before. */
+function openFromField(): void {
+  const text = guideText();
+  if (text.kind === "owner") {
+    askOwnerList(text.owner, true);
+    return;
+  }
+  if (text.kind === "repo") {
+    const shown = guideShown;
+    const chosen = must<HTMLSelectElement>("guide-select").value;
+    const branch =
+      shown?.mode === "branches" &&
+      same(shown.owner, text.owner) &&
+      same(shown.repo, text.repo) &&
+      chosen !== "" &&
+      chosen !== shown.defaultBranch
+        ? chosen
+        : null;
+    const load = ++latestLoad;
+    loadsStarted += 1;
+    void openRef({ owner: text.owner, repo: text.repo, branch }, load, false);
+    return;
+  }
+  void openUrl(urlField().value);
+}
+
+/** A token change for the owner (null: all): its kept list and running reads go, and so does what the guide shows of it. */
+function guideTokenChanged(owner: string | null): void {
+  ownerLists.tokenChanged(owner);
+  const hit = (o: string | null | undefined) =>
+    o !== null && o !== undefined && (owner === null || o.toLowerCase() === owner.toLowerCase());
+  if (hit(datalistOwner)) fillDatalist(null, []);
+  if (guideShown && hit(guideShown.owner)) {
+    if (hideGuideSelect()) urlField().focus();
+  }
+  if (hit(guideMessageOwner)) setGuideMessage("", null);
+  if (hit(ownerSelectWanted)) ownerSelectWanted = null;
+}
+
 // --------------------------------------------------------------------- page
 
 function mount(): void {
@@ -1374,6 +1693,9 @@ function mount(): void {
     // A phone would capitalise the owner.
     autocapitalize: "none",
   });
+  // The opening guide (3.1): the datalist while typing, one select between the field and "Open", its message line.
+  urlInput.setAttribute("list", "repo-list");
+  const guideSelect = h("select", { id: "guide-select" });
   const form = h(
     "form",
     { id: "url-form" },
@@ -1382,13 +1704,27 @@ function mount(): void {
       "div",
       { class: "url-row" },
       urlInput,
+      h(
+        "div",
+        { id: "guide", hidden: "" },
+        h("label", { id: "guide-label", for: "guide-select" }),
+        guideSelect,
+      ),
       h("button", { id: "open-url", type: "submit", class: "primary" }, "Open"),
     ),
+    h("datalist", { id: "repo-list" }),
+    h("p", { id: "guide-message", role: "status" }),
   );
-  urlInput.addEventListener("input", fillOwnerFromAddress);
+  urlInput.addEventListener("input", () => {
+    fillOwnerFromAddress();
+    onGuideInput();
+  });
+  urlInput.addEventListener("blur", onGuideFieldBlur);
+  guideSelect.addEventListener("change", onGuideSelectChange);
+  guideSelect.addEventListener("blur", onGuideSelectBlur);
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    void openUrl(urlInput.value);
+    openFromField();
   });
 
   const search = h("input", { id: "search", type: "search", placeholder: "Search" });
@@ -1494,4 +1830,6 @@ window.addEventListener("storage", (event) => {
   for (const owner of outcome.forgotten) {
     forgetResultsFor(owner, `The token for ${owner} has been forgotten.`);
   }
+  // A token another tab saved is a token change for its owner (3.1, 3.8).
+  for (const owner of outcome.adopted) guideTokenChanged(owner);
 });

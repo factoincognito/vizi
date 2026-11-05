@@ -122,9 +122,21 @@ async function stubGithub(context: BrowserContext, options: StubOptions = {}): P
 
 const gets = (stub: Stub) => stub.seen.filter((s) => s.method === "GET");
 
+/**
+ * Opens a repo by writing the field, with the `input` event typing fires,
+ * and submitting the form, as Enter does, without ever focusing the field.
+ * A focused field is blurred by the test's next click, and for
+ * `owner/repo` that blur starts the opening guide's own read with the token
+ * held (3.1, "Guided opening"); these tests count a load's requests, so the
+ * field never has the focus. e2e/guide.e2e.ts tests the blur and the click.
+ */
 async function openUrl(page: Page, url = REPO) {
-  await page.locator("#url-input").fill(url);
-  await page.locator("#open-url").click();
+  await page.evaluate((text) => {
+    const field = document.getElementById("url-input") as HTMLInputElement;
+    field.value = text;
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    (document.getElementById("url-form") as HTMLFormElement).requestSubmit();
+  }, url);
 }
 
 /** An owner's row: its owner, its masked token, and its box ticked exactly when the token is saved (3.12). */
