@@ -803,10 +803,10 @@ alone (below).
          `owner,collaborator,organization_member` by default. Only the
          items whose `owner.login` equals the owner (without regard to
          case) are kept, since a token named for an owner may belong to
-         another account (3.8). When no item is kept (the token belongs
-         to another account), the guide reads
-         `/users/<owner>/repos?type=owner&sort=full_name` with the same
-         token instead, so the owner's public repos are still listed;
+         another account (3.8). There is no second request when none
+         is kept (Clead's call, so an owner costs at most four
+         requests): the line then says the owner has no repos vizi can
+         see with its token, with the hint below;
        - a **user, without a token for that owner:**
          `GET /users/<owner>/repos?type=owner&sort=full_name`, "List
          repositories for a user": "Lists public repositories for the
@@ -958,7 +958,10 @@ alone (below).
     running for the load's token, so the load never depends on a blur:
     clicking Open blurs the field first, and that blur may have started
     them already (they are then shared); Enter in the field does not
-    blur, and starts them. Open starts the load at once, as a
+    blur, and starts them. While the browser's datalist suggestions are
+    open with one highlighted, Enter chooses that suggestion (the
+    browser's own behaviour, in Chromium) and does not submit; the next
+    Enter submits. Open starts the load at once, as a
     newer load (3.1); the load makes no request 1 of its own but waits
     for the guide's running reads (shared, above), takes the default
     branch from them, and the picker takes their branch list. A load
@@ -1019,9 +1022,10 @@ alone (below).
     out.
   - **An owner with no repos vizi can see:** "`<owner>` has no repos
     vizi can see." With a token held for the owner, the line adds "with
-    its token"; for an organisation that requires approval of
-    fine-grained tokens, a pending token reads only public repos (the
-    token page, as in 3.12).
+    its token. If the token belongs to another account, add one made
+    by `<owner>`, or type `<owner>/<repo>`."; for an organisation that
+    requires approval of fine-grained tokens, a pending token reads
+    only public repos (the token page, as in 3.12).
   - **A repo with no branches,** or a branch list that cannot be read:
     no select; Open loads the repo's default branch as 3.1 does.
 - **Accessibility.** The datalist is the platform's own: the field keeps
@@ -1078,7 +1082,10 @@ alone (below).
     network messages;
   - browser (light and dark, 375 px and 1280 px):
     - typing `acme/` makes the owner's requests once; typing on to
-      `acme/widg` makes none; the datalist holds `acme/<repo>` for each
+      `acme/widg` makes none; the datalist's suggestions are shown under
+      the field (asserted as shown, not only as a `list` attribute, in
+      Chromium; item 30 for other browsers); the datalist holds
+      `acme/<repo>` for each
       repo; a second `acme/` later in the same page visit makes none;
       a reload makes them again;
     - leaving the field with `acme` shows "Repo of acme" with the repos;
@@ -1101,8 +1108,9 @@ alone (below).
     - `acme/`, then leaving the field and Open while the owner's read
       is still running: the owner's requests are made once;
     - a token for `acme` that belongs to another account: `/user/repos`
-      keeps nothing, and the guide lists `acme`'s public repos from
-      `/users/acme/repos`;
+      keeps nothing, no further request is made, and the line shows the
+      "with its token" message; typing `acme/<repo>` and Open still
+      loads it;
     - the guide's request 1 succeeds and its branch list fails, then
       Open: the load makes no request 1, goes on, and the picker reads
       its own list (one branch request set);
@@ -3352,7 +3360,13 @@ accept.
   load started by the picker for the same owner and repo does not read
   it again: the list the page holds stays (it is the same repo's), and
   the select's selected option follows the branch loaded. So picking
-  costs the load's own requests only.
+  costs the load's own requests only. From PBI-1.19 this is intended
+  for the guide's held lists too: a repo opened again later in the same
+  page visit reuses the guide's default branch and branch list, so a
+  default branch changed, or a branch made or deleted, since they were
+  read is not seen until the page is reloaded (Clead's call, for the
+  anonymous rate limit). An address with `/tree/<branch>`, which is not
+  guided, still opens any branch.
 - **Requests in all.** With the picker, opening a repo makes the two to
   five requests of 3.1 (or of 3.8 with a token), then one to three to
   `api.github.com` for the branches. A pick makes the requests of a load
@@ -3420,7 +3434,9 @@ these effects (Clead's design):
   3.1 or 3.8 gives (for a 404: "GitHub answered HTTP 404 for `<URL>`.",
   as a request that is not request 1 or 2). When at least one page was
   read, it says "The branch list is incomplete: `<message>`" instead.
-  Nothing is retried; opening the repo again reads the list again.
+  Nothing is retried; opening the repo again reads the list again
+  (from PBI-1.19, unless the guide holds a list for it read with the
+  same token: "When").
 - An answer that arrives after a newer load has started, after a
   Forget of the token it carried, or after the results were hidden, is
   dropped, whether it succeeded or failed.
@@ -4101,8 +4117,12 @@ Items 29 to 31 are PBI-1.19's (3.1, "Guided opening"):
     but not the set. Settled when the product owner first tries it
     against real GitHub.
 30. **Open; PBI-1.19.** How each target browser shows a `<datalist>`
-    on a text field, and with which keys, iOS Safari included. Not
-    checked.
+    on a text field, and with which keys, iOS Safari included; and
+    whether a browser shows no suggestions on a field with
+    `autocomplete="off"`, which "The Repository field" keeps (Crog's
+    review of #82 recalls Firefox doing so; not verified). If one does,
+    the build drops `autocomplete="off"` from the field for PBI-1.19.
+    Not checked.
 31. **Open; PBI-1.19.** Whether `api.github.com` answers
     `/users/<owner>` for an organisation with `"type": "Organization"`
     as the documentation's schema suggests; the documentation's example
