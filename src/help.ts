@@ -181,7 +181,14 @@ export const HELP_STEPS: readonly HelpStep[] = [
         c("- owner/repo"),
         t(" points to a repo on GitHub, and "),
         c("- projects/<name>/"),
-        t(" to a folder of the same project. Each pointer is alone on its line, at column 0."),
+        t(" to a folder of the same project. "),
+        // The pre-project sentence of 3.9, "The help text (PBI-1.18)", after the sentence on pointers.
+        t("A "),
+        c("projects/<name>/"),
+        t(
+          " pointer is a pre-project: a project at an early stage, with no repo of its own yet, that lives in this repo for now.",
+        ),
+        t(" Each pointer is alone on its line, at column 0."),
       ],
     ],
     example: PROJECTS_EXAMPLE,
@@ -208,6 +215,27 @@ export const HELP_STEPS: readonly HelpStep[] = [
     ],
     example: TOKEN_EXAMPLE,
   },
+];
+
+/**
+ * The paragraph at the top of the Umbrella tab (docs/SPEC.md 3.9, "The help
+ * text (PBI-1.18)"), word for word. The same for every umbrella: nothing in
+ * it comes from the project.
+ */
+export const UMBRELLA_HELP: Paragraph = [
+  t("An umbrella is a project that lists other projects in its "),
+  c("PROJECTS.md"),
+  t(
+    ", grouped under the file's headings where it has them. A project with a repo of its own is shown as ",
+  ),
+  c("<owner>/<repo>"),
+  t(
+    ", which you can open in vizi or on GitHub. A pre-project is a project at an early stage, with no repo of its own yet, that lives in this umbrella's repo for now: it is shown as ",
+  ),
+  c("projects/<name>/"),
+  t(', and "Show status" reads its '),
+  c("STATUS.md"),
+  t("."),
 ];
 
 /** After the steps, outside them: the format spec on GitHub (docs/SPEC.md 3.10). */

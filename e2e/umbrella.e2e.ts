@@ -309,6 +309,112 @@ test.describe("the Umbrella tab (3.9)", () => {
   });
 });
 
+test.describe("the help text (3.9, PBI-1.18)", () => {
+  const HELP_TEXT =
+    "An umbrella is a project that lists other projects in its PROJECTS.md, grouped under the file's headings where it has them. A project with a repo of its own is shown as <owner>/<repo>, which you can open in vizi or on GitHub. A pre-project is a project at an early stage, with no repo of its own yet, that lives in this umbrella's repo for now: it is shown as projects/<name>/, and \"Show status\" reads its STATUS.md.";
+  const help = (page: Page) => page.locator("#umbrella-help");
+
+  test("the tab's panel starts with the paragraph, before the tree: the exact text, four code parts, no aria-describedby", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context);
+    await page.goto("/");
+    await openPanel(page);
+    await openUrl(page, HUB);
+    await expect(umbrellaTab(page)).toHaveAttribute("aria-selected", "true");
+    await expect(help(page)).toBeVisible();
+    await expect(help(page)).toHaveText(HELP_TEXT);
+    await expect(help(page).locator("code")).toHaveText([
+      "PROJECTS.md",
+      "<owner>/<repo>",
+      "projects/<name>/",
+      "STATUS.md",
+    ]);
+    const first = await page.evaluate(() => {
+      const panel = document.getElementById("panel-umbrella");
+      return [
+        panel?.firstElementChild?.id,
+        panel?.children[1]?.id,
+        panel?.firstElementChild?.tagName,
+      ];
+    });
+    expect(first).toEqual(["umbrella-help", "umbrella-tree", "P"]);
+    await expect(page.locator("#panel-umbrella")).not.toHaveAttribute("aria-describedby");
+    // Not a heading, and takes no focus.
+    await expect(help(page)).not.toHaveAttribute("tabindex");
+  });
+
+  test("opening the tab makes no request beyond those of 3.9", async ({ page, context }) => {
+    const stub = await stubGithub(context, { hubBacklog: true });
+    await page.goto("/");
+    await openPanel(page);
+    await openUrl(page, HUB);
+    await expect(page.getByRole("tab", { name: "Board" })).toHaveAttribute("aria-selected", "true");
+    await branchListRead(page);
+    const before = stub.seen.length;
+    await umbrellaTab(page).click();
+    await expect(help(page)).toHaveText(HELP_TEXT);
+    await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 200)));
+    expect(stub.seen.length).toBe(before);
+  });
+
+  test("its colour against its nearest opaque background is at least 4.5:1, and no sideways scroll", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context);
+    await page.goto("/");
+    await openPanel(page);
+    await openUrl(page, HUB);
+    await expect(help(page)).toBeVisible();
+    const ratio = await help(page).evaluate((el) => {
+      const rgba = (c: string) => {
+        const p = (/rgba?\(([^)]+)\)/.exec(c)?.[1] ?? "")
+          .split(/[\s,/]+/)
+          .filter(Boolean)
+          .map(Number);
+        return [p[0] ?? 0, p[1] ?? 0, p[2] ?? 0, p[3] ?? 1];
+      };
+      const lum = (c: number[]) => {
+        const ch = c.slice(0, 3).map((v) => {
+          const s = v / 255;
+          return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * (ch[0] ?? 0) + 0.7152 * (ch[1] ?? 0) + 0.0722 * (ch[2] ?? 0);
+      };
+      let bg = rgba(getComputedStyle(document.documentElement).backgroundColor);
+      for (let e: Element | null = el; e; e = e.parentElement) {
+        const c = rgba(getComputedStyle(e).backgroundColor);
+        if (c[3] === 1) {
+          bg = c;
+          break;
+        }
+      }
+      const [x, y] = [lum(rgba(getComputedStyle(el).color)), lum(bg)].sort((a, b) => b - a);
+      return ((x ?? 0) + 0.05) / ((y ?? 0) + 0.05);
+    });
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+    const sideways = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(sideways).toBeLessThanOrEqual(0);
+  });
+
+  test("without a PROJECTS.md there is no Umbrella tab and no paragraph", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context);
+    await page.goto("/");
+    await openPanel(page);
+    await openUrl(page, "https://github.com/acme/plain");
+    await expect(page.getByTestId("column").first()).toBeVisible();
+    await expect(umbrellaTab(page)).toHaveCount(0);
+    await expect(help(page)).toBeHidden();
+  });
+});
+
 test.describe("URL mode (3.9)", () => {
   test("reads PROJECTS.md with one more request 3, opens on the tab without a backlog, and asks for no project's status", async ({
     page,
