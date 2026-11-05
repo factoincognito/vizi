@@ -32,6 +32,8 @@ export function buildPolicy(script: string, style: string): string {
     `style-src ${style}`,
     `connect-src ${CONNECT_HOSTS.join(" ")}`,
     "img-src data:",
+    // The page's own fonts, inlined by the build (3.12); a font from any host is refused.
+    "font-src data:",
     "base-uri 'none'",
     "form-action 'none'",
   ].join("; ");

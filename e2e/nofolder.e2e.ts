@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { type BrowserContext, test as base, expect, type Page, type Route } from "@playwright/test";
 import { isAllowedRequest } from "./guard";
+import { openPanel } from "./panel";
 
 /** Every test: a request other than the page's own document and GitHub's two hosts fails it. */
 const test = base.extend<{ guard: undefined }>({
@@ -75,6 +76,7 @@ function expectNoFolderWords(text: string | null, where: string) {
 test.describe("no local folder (3.11)", () => {
   test("the start page has no file input and none of 3.11's folder strings", async ({ page }) => {
     await page.goto("/");
+    await openPanel(page);
     await expect(page.locator("#url-input")).toBeVisible();
     await expect(page.locator("input[type=file]")).toHaveCount(0);
     await expect(page.locator("[webkitdirectory]")).toHaveCount(0);
@@ -86,6 +88,7 @@ test.describe("no local folder (3.11)", () => {
     page,
   }) => {
     await page.goto("/");
+    await openPanel(page);
     await page.locator("#help-open").click();
     const help = page.locator("#help");
     await expect(help).toBeVisible();
@@ -99,6 +102,7 @@ test.describe("no local folder (3.11)", () => {
   test("a 404 with no token held is 3.1's message, word for word", async ({ page, context }) => {
     await stubNotFound(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page, SECRET);
     await expect(page.locator("#message p")).toHaveText([NOT_FOUND]);
     expectNoFolderWords(await page.locator("#message").textContent(), "the 404 message");
@@ -111,6 +115,7 @@ test.describe("no local folder (3.11)", () => {
   }) => {
     await stubNotFound(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, "other");
     await openUrl(page, SECRET);
     await expect(page.locator("#message p")).toHaveText([NOT_FOUND]);
@@ -124,6 +129,7 @@ test.describe("no local folder (3.11)", () => {
   }) => {
     await stubNotFound(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, "acme");
     await openUrl(page, SECRET);
     await expect(page.locator("#message p")).toHaveText([NOT_FOUND_WITH_TOKEN]);

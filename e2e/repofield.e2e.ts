@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { type BrowserContext, test as base, expect, type Page, type Route } from "@playwright/test";
 import { isAllowedRequest } from "./guard";
+import { openPanel } from "./panel";
 
 /** Every test: a request other than the page's own document and GitHub's two hosts fails it. */
 const test = base.extend<{ guard: undefined }>({
@@ -92,6 +93,7 @@ test.describe("the Repository field (3.1)", () => {
     page,
   }) => {
     await page.goto("/");
+    await openPanel(page);
     const field = page.getByLabel("Repository", { exact: true });
     await expect(field).toHaveAttribute("id", "url-input");
     await expect(page.locator("label[for=url-input]")).toHaveText("Repository");
@@ -118,6 +120,7 @@ test.describe("the Repository field (3.1)", () => {
     ]) {
       // A fresh page each time, so the wait below is for this load's results.
       await page.goto("/");
+      await openPanel(page);
       await expect(page.locator("#results")).toBeHidden();
       const mark = seen.length;
       await open(page, text);
@@ -138,6 +141,7 @@ test.describe("the Repository field (3.1)", () => {
   test("the short form with /tree/<branch> makes no request 1", async ({ page, context }) => {
     const seen = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await open(page, "acme/widgets/tree/dev");
     await expect(page.locator("#project-name")).toHaveText("acme/widgets (dev)");
     expect(seen.map((s) => s.url)).toEqual([
@@ -153,6 +157,7 @@ test.describe("the Repository field (3.1)", () => {
   }) => {
     const seen = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await open(page, "acme/widgets/tree/fix-%C3%A5");
     await expect(page.locator("#project-name")).toHaveText("acme/widgets (fix-å)");
     expect(seen[0]?.url).toBe(
@@ -171,6 +176,7 @@ test.describe("the Repository field (3.1)", () => {
     test(`${JSON.stringify(text)} makes no request and says so`, async ({ page, context }) => {
       const seen = await stubGithub(context);
       await page.goto("/");
+      await openPanel(page);
       await open(page, text);
       await expect(page.locator("#message p")).toHaveText([message]);
       await settle(page);
@@ -185,6 +191,7 @@ test.describe("the Repository field (3.1)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await open(page, "acme/widgets");
     await expect(page.locator("#results")).toBeVisible();
     await open(page, "acme/widgets/tree/50%");
@@ -195,6 +202,7 @@ test.describe("the Repository field (3.1)", () => {
   test("with a token held for acme, ACME/widgets uses it", async ({ page, context }) => {
     const seen = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await page.locator("#owner-input").fill("acme");
     await page.locator("#token-input").fill(TOKEN);
     await page.locator("#token-use").click();
@@ -212,6 +220,7 @@ test.describe("the Repository field (3.1)", () => {
     page,
   }) => {
     await page.goto("/");
+    await openPanel(page);
     const owner = page.locator("#owner-input");
     const field = page.locator("#url-input");
     await field.fill("acme/widgets");

@@ -191,12 +191,12 @@ export const HELP_STEPS: readonly HelpStep[] = [
     paragraphs: [
       [
         t(
-          'On GitHub, make a fine-grained token for the repos\' owner, limited to the repos you choose, with an expiry, and with the repository permission "Contents" set to read-only.',
+          'On GitHub, make a fine-grained token for the repos\' owner, limited to the repos you choose, with an expiry, and with the repository permission "Contents" with read access.',
         ),
       ],
       [
         t(
-          'Under the address, type the owner in "Owner" and paste the token into "GitHub token (for private repos)", then press "Use". To keep the token in this browser, tick "Remember the token" before "Use". The token is sent only to GitHub.',
+          'Under the address, open "Private repos". Under "Add a token", type the owner in "Owner" and paste the token into "Fine-grained token, read-only". To keep the token in this browser, tick "Remember in this browser", then press "Add". The token is sent only to GitHub.',
         ),
       ],
       [

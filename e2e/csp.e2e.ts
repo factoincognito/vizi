@@ -39,6 +39,8 @@ test.describe("the built page's Content-Security-Policy (2.3)", () => {
 
   test("allows no inline code, no eval and no host but GitHub's two", () => {
     expect(policy).toMatch(/^default-src 'none'; /);
+    // Fonts from data: only: the page's own, inlined by the build (3.12).
+    expect(policy).toContain("; font-src data:; ");
     expect(policy).not.toContain("unsafe-");
     expect(policy).toContain(
       "connect-src https://api.github.com https://raw.githubusercontent.com;",
@@ -97,8 +99,69 @@ test.describe("the browser enforces it", () => {
     await expect(page.locator("#message")).toContainText(
       "Type the repository as <owner>/<repo>, for example fomo-t/fomo-f",
     );
+    // The redesigned start page with its panel and token guide opened (3.12).
+    await page.locator("#private-repos-toggle").click();
+    await page.locator("#token-guide-toggle").click();
+    await expect(page.locator("#token-guide-body")).toBeVisible();
     expect(await violations()).toEqual([]);
     expect(problems).toEqual([]);
+  });
+
+  test("the page's own fonts load under it, with no violation (3.12)", async ({ page }) => {
+    const violations = await watchViolations(page);
+    await page.goto("/");
+    const faces = await page.evaluate(async () => {
+      await document.fonts.ready;
+      for (const w of [400, 600, 700]) await document.fonts.load(`${w} 16px Inter`);
+      return [...document.fonts]
+        .filter((f) => f.family.replace(/["']/g, "") === "Inter")
+        .map((f) => [f.weight, f.status])
+        .sort();
+    });
+    expect(faces).toEqual([
+      ["400", "loaded"],
+      ["600", "loaded"],
+      ["700", "loaded"],
+    ]);
+    expect(await violations()).toEqual([]);
+  });
+
+  test("a font from another host, added at run time, is blocked", async ({ page }) => {
+    const evil = watchEvil(page);
+    const violations = await watchViolations(page);
+    await page.goto("/");
+    const status = await page.evaluate(async () => {
+      const face = new FontFace("Evil", "url(https://evil.example/evil.woff2)");
+      document.fonts.add(face);
+      try {
+        await face.load();
+      } catch {
+        // A blocked font fails to load.
+      }
+      return face.status;
+    });
+    expect(status).toBe("error");
+    await expect.poll(violations).toContain("font-src");
+    expect(evil.finished).toEqual([]);
+  });
+
+  test("a stylesheet added at run time is blocked", async ({ page }) => {
+    const evil = watchEvil(page);
+    const violations = await watchViolations(page);
+    await page.goto("/");
+    await page.evaluate(() => {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "https://evil.example/evil.css";
+      document.head.append(link);
+      const style = document.createElement("style");
+      style.textContent =
+        "@font-face { font-family: Evil2; src: url(https://evil.example/x.woff2); } body { display: none; }";
+      document.head.append(style);
+    });
+    await expect.poll(violations).toContain("style-src-elem");
+    expect(await page.evaluate(() => getComputedStyle(document.body).display)).not.toBe("none");
+    expect(evil.finished).toEqual([]);
   });
 
   test("the page also loads and works under it when opened from disk (file://)", async ({

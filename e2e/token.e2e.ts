@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { type BrowserContext, test as base, expect, type Page, type Route } from "@playwright/test";
 import { isAllowedRequest } from "./guard";
+import { openPanel } from "./panel";
 
 /** Every test: a request other than the page's own document and GitHub's two hosts fails it. */
 const test = base.extend<{ guard: undefined }>({
@@ -122,14 +123,23 @@ async function openUrl(page: Page, url = REPO) {
   await page.locator("#open-url").click();
 }
 
-/** The line of an owner under "Tokens in use". */
+/** An owner's row: its owner, its masked token, and its box ticked exactly when the token is saved (3.12). */
+async function expectLine(page: Page, owner: string, masked: string, isSaved: boolean) {
+  await expect(line(page, owner).getByTestId("token-owner")).toHaveText(owner);
+  await expect(line(page, owner).getByTestId("token-text")).toHaveText(masked);
+  if (isSaved) await expect(rememberBox(page, owner)).toBeChecked();
+  else await expect(rememberBox(page, owner)).not.toBeChecked();
+}
+
+/** The row of an owner in the "Private repos" panel. */
 const line = (page: Page, owner = "acme") =>
   page.locator(`[data-testid="token-line"][data-owner="${owner}"]`);
 const lineText = (page: Page, owner = "acme") => line(page, owner).getByTestId("token-text");
 const forgetButton = (page: Page, owner = "acme") => line(page, owner).getByTestId("token-forget");
 const rememberBox = (page: Page, owner = "acme") =>
   line(page, owner).getByTestId("token-remember-owner");
-const forgetAll = (page: Page) => page.getByRole("button", { name: "Forget all", exact: true });
+const forgetAll = (page: Page) =>
+  page.getByRole("button", { name: "Forget all tokens", exact: true });
 const anyLine = (page: Page) => page.getByTestId("token-line");
 
 /** The saved value of vizi.githubTokens, parsed, or null. */
@@ -174,6 +184,7 @@ test.describe("entering the token (3.8)", () => {
     page,
   }) => {
     await page.goto("/");
+    await openPanel(page);
     const field = page.locator("#token-input");
     await expect(field).toHaveAttribute("type", "password");
     await expect(field).toHaveAttribute("autocomplete", "off");
@@ -185,7 +196,7 @@ test.describe("entering the token (3.8)", () => {
     ).toBe(false);
     // The field's own label: the help view quotes the same text (3.10, step 5).
     await expect(page.locator("label[for=token-input]")).toHaveText(
-      "GitHub token (for private repos)",
+      "Fine-grained token, read-only",
     );
     await expect(page.locator("label[for=token-input]")).toBeVisible();
     await expect(page.locator("label[for=owner-input]")).toHaveText("Owner");
@@ -200,9 +211,10 @@ test.describe("entering the token (3.8)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, `  ${TOKEN} `);
     await expect(page.locator("#token-input")).toHaveValue("");
-    await expect(lineText(page)).toHaveText("acme: github_pat_…1234, for this page only");
+    await expectLine(page, "acme", "github_pat_…1234", false);
     await expect(forgetButton(page)).toBeVisible();
     await expect(forgetAll(page)).toBeVisible();
     const everything = await pageContents(page);
@@ -219,6 +231,7 @@ test.describe("entering the token (3.8)", () => {
     test(`refuses ${name}: a message, nothing kept, nothing sent`, async ({ page, context }) => {
       const stub = await stubGithub(context);
       await page.goto("/");
+      await openPanel(page);
       await useToken(page, text, true);
       await expect(page.getByTestId("token-message")).toContainText("github_pat_");
       await expect(anyLine(page)).toBeHidden();
@@ -240,10 +253,12 @@ test.describe("where the token is kept (3.8)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN);
     expect(await page.evaluate((k) => localStorage.getItem(k), KEY)).toBeNull();
     expect(await page.evaluate(() => localStorage.length)).toBe(0);
     await page.reload();
+    await openPanel(page);
     await expect(anyLine(page)).toBeHidden();
   });
 
@@ -253,13 +268,16 @@ test.describe("where the token is kept (3.8)", () => {
   }) => {
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
-    await expect(lineText(page)).toHaveText("acme: github_pat_…1234, saved in this browser");
+    await expectLine(page, "acme", "github_pat_…1234", true);
     expect(await saved(page)).toEqual({ tokens: { acme: TOKEN }, forgot: [] });
     expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([KEY]);
 
     await page.reload();
-    await expect(lineText(page)).toHaveText("acme: github_pat_…1234, saved in this browser");
+
+    await openPanel(page);
+    await expectLine(page, "acme", "github_pat_…1234", true);
     await expect(rememberBox(page)).toBeChecked();
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
@@ -273,10 +291,11 @@ test.describe("where the token is kept (3.8)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
     await rememberBox(page).uncheck();
     expect(await saved(page)).toEqual({ tokens: {}, forgot: [] });
-    await expect(lineText(page)).toHaveText("acme: github_pat_…1234, for this page only");
+    await expectLine(page, "acme", "github_pat_…1234", false);
     await rememberBox(page).check();
     expect((await saved(page))?.tokens).toEqual({ acme: TOKEN });
   });
@@ -285,8 +304,10 @@ test.describe("where the token is kept (3.8)", () => {
     page,
   }) => {
     await page.goto("/");
+    await openPanel(page);
     await page.evaluate((k) => localStorage.setItem(k, "ghp_TEST_classic"), KEY);
     await page.reload();
+    await openPanel(page);
     expect(await page.evaluate((k) => localStorage.getItem(k), KEY)).toBeNull();
     await expect(anyLine(page)).toBeHidden();
   });
@@ -295,13 +316,15 @@ test.describe("where the token is kept (3.8)", () => {
     page,
   }) => {
     await page.goto("/");
+    await openPanel(page);
     await page.evaluate(
       ([k, v]) => localStorage.setItem(k as string, v as string),
       [KEY, value({ acme: TOKEN, "a/b": TOKEN2, fomo: "ghp_TEST_classic" })],
     );
     await page.reload();
+    await openPanel(page);
     await expect(anyLine(page)).toHaveCount(1);
-    await expect(lineText(page)).toHaveText("acme: github_pat_…1234, saved in this browser");
+    await expectLine(page, "acme", "github_pat_…1234", true);
     expect(await saved(page)).toEqual({ tokens: { acme: TOKEN }, forgot: [] });
   });
 });
@@ -313,6 +336,7 @@ test.describe("what a load with a token sends (3.8)", () => {
   }) => {
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
@@ -347,6 +371,7 @@ test.describe("what a load with a token sends (3.8)", () => {
       },
     ]);
     await page.goto("/");
+    await openPanel(page);
     // Control: a request that does include credentials carries the cookie, so the check below can fail.
     await page.evaluate(() =>
       fetch("https://api.github.com/repos/acme/control", { credentials: "include" }).catch(
@@ -369,6 +394,7 @@ test.describe("what a load with a token sends (3.8)", () => {
   }) => {
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
     expect(gets(stub).map((s) => s.url)).toEqual([
@@ -391,6 +417,7 @@ test.describe("the token is never shown or logged (3.8)", () => {
     page.on("request", (r) => urls.push(r.url()));
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
@@ -422,6 +449,7 @@ test.describe("the token is never shown or logged (3.8)", () => {
   }) => {
     await context.route("https://api.github.com/**", (route) => route.abort("failed"));
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN);
     await openUrl(page);
     await expect(page.locator("#message")).toHaveText("The request to api.github.com failed.");
@@ -453,6 +481,7 @@ test.describe("answers to a token (3.8)", () => {
       },
     });
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
     await openUrl(page);
     await expect(page.locator("#message")).toHaveText(
@@ -486,6 +515,7 @@ test.describe("answers to a token (3.8)", () => {
           : undefined,
     });
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
     await openUrl(page);
     await expect(page.locator("#message")).toHaveText(
@@ -501,6 +531,7 @@ test.describe("answers to a token (3.8)", () => {
   }) => {
     await stubGithub(context, { answer: (url) => (url === API ? { status: 403 } : undefined) });
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN);
     await openUrl(page);
     await expect(page.locator("#message")).toContainText("the token may not read this repo");
@@ -513,6 +544,7 @@ test.describe("answers to a token (3.8)", () => {
   }) => {
     await stubGithub(context, { answer: (url) => (url === API ? { status: 404 } : undefined) });
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN);
     await openUrl(page);
     await expect(page.locator("#message")).toHaveText(
@@ -529,6 +561,7 @@ test.describe("Forget, per owner (3.8)", () => {
   }) => {
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
@@ -554,6 +587,7 @@ test.describe("Forget, per owner (3.8)", () => {
   test("results loaded without a token stay", async ({ page, context }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
     await useToken(page, TOKEN);
@@ -567,6 +601,7 @@ test.describe("Forget, per owner (3.8)", () => {
   }) => {
     const stub = await stubGithub(context, { hold: API });
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN);
     await openUrl(page);
     await expect(page.locator("#message")).toHaveText("Loading…");
@@ -593,12 +628,14 @@ test.describe("a second tab (3.8)", () => {
   }) => {
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
 
     const other = await context.newPage();
     await other.goto("/");
+    await openPanel(other);
     await expect(line(other)).toBeVisible();
     await other.evaluate((k) => localStorage.removeItem(k), KEY);
 
@@ -619,9 +656,11 @@ test.describe("a second tab (3.8)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, false);
     const other = await context.newPage();
     await other.goto("/");
+    await openPanel(other);
     await other.evaluate(
       ([k, v]) => localStorage.setItem(k as string, v as string),
       [KEY, value({ fomo: TOKEN3 })],
@@ -636,12 +675,14 @@ test.describe("a second tab (3.8)", () => {
   test("clearing all of storage there counts as the key removed", async ({ page, context }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, false);
     await useToken(page, TOKEN2, true, "fomo-t");
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
     const other = await context.newPage();
     await other.goto("/");
+    await openPanel(other);
     await other.evaluate(() => localStorage.clear());
     // Two lines until the event arrives: toHaveCount waits, toBeHidden would fail on two matches.
     await expect(anyLine(page)).toHaveCount(0);
@@ -654,10 +695,12 @@ test.describe("a second tab (3.8)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
     await useToken(page, TOKEN2, true, "fomo-t");
     const other = await context.newPage();
     await other.goto("/");
+    await openPanel(other);
     await expect(line(other, "fomo-t")).toBeVisible();
     await forgetButton(other, "fomo-t").click();
     await expect(line(page, "fomo-t")).toBeHidden();
@@ -672,10 +715,12 @@ test.describe("a second tab (3.8)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
     await useToken(page, TOKEN2, false, "fomo-t");
     const other = await context.newPage();
     await other.goto("/");
+    await openPanel(other);
     await other.evaluate(
       ([k, v]) => localStorage.setItem(k as string, v as string),
       [KEY, value({ acme: TOKEN }, ["fomo-t"])],
@@ -690,11 +735,13 @@ test.describe("a second tab (3.8)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
     const other = await context.newPage();
     await other.goto("/");
+    await openPanel(other);
     await forgetButton(other).click();
     await expect(page.locator("#results")).toBeHidden();
     await expect(anyLine(page)).toBeHidden();
@@ -706,18 +753,20 @@ test.describe("a second tab (3.8)", () => {
   }) => {
     const stub = await stubGithub(context, { lag: 400 });
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
 
     const other = await context.newPage();
     await other.goto("/");
+    await openPanel(other);
     await other.evaluate(
       ([k, v]) => localStorage.setItem(k as string, v as string),
       [KEY, value({ acme: TOKEN2 })],
     );
 
-    await expect(lineText(page)).toHaveText("acme: github_pat_…9876, saved in this browser");
+    await expectLine(page, "acme", "github_pat_…9876", true);
     await expect(page.getByTestId("column").first()).toBeVisible();
     const before = gets(stub).length;
     await openUrl(page);
@@ -736,13 +785,13 @@ test.describe("a second tab (3.8)", () => {
   }) => {
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
     const other = await context.newPage();
     await other.goto("/");
+    await openPanel(other);
     await useToken(other, TOKEN2, true, "fomo-t");
-    await expect(lineText(page, "fomo-t")).toHaveText(
-      "fomo-t: github_pat_…9876, saved in this browser",
-    );
+    await expectLine(page, "fomo-t", "github_pat_…9876", true);
     await openUrl(page, "https://github.com/fomo-t/app");
     await expect(page.getByTestId("column").first()).toBeVisible();
     for (const s of gets(stub)) expect(s.headers.authorization).toBe(`Bearer ${TOKEN2}`);
@@ -754,13 +803,15 @@ test.describe("a second tab (3.8)", () => {
   }) => {
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
     const other = await context.newPage();
     await other.goto("/");
+    await openPanel(other);
     await rememberBox(other).uncheck();
-    await expect(lineText(page)).toHaveText("acme: github_pat_…1234, for this page only");
+    await expectLine(page, "acme", "github_pat_…1234", false);
     await expect(rememberBox(page)).not.toBeChecked();
     // No full Forget: the results stay and the next load carries the token.
     await expect(page.getByTestId("column").first()).toBeVisible();
@@ -777,6 +828,7 @@ test.describe("a second tab (3.8)", () => {
   }) => {
     const stub = await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, false);
     // What the browser delivers when another tab, whose X entry differs from this tab's page-only token,
     // saves owner Y: the old and new values both hold the stored X entry.
@@ -793,7 +845,7 @@ test.describe("a second tab (3.8)", () => {
       [KEY, value({ acme: TOKEN3 }), value({ acme: TOKEN3, "fomo-t": TOKEN2 })],
     );
     await expect(line(page, "fomo-t")).toBeVisible();
-    await expect(lineText(page)).toHaveText("acme: github_pat_…1234, for this page only");
+    await expectLine(page, "acme", "github_pat_…1234", false);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
     for (const s of gets(stub)) expect(s.headers.authorization).toBe(`Bearer ${TOKEN}`);
@@ -805,6 +857,7 @@ test.describe("a second tab (3.8)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     // A stored value that needs cleaning (an upper-case owner) and whose forgot names fomo-t.
     await page.evaluate(
       ([k, v]) => localStorage.setItem(k as string, v as string),
@@ -813,17 +866,17 @@ test.describe("a second tab (3.8)", () => {
     await useToken(page, TOKEN2, false, "fomo-t");
     const other = await context.newPage();
     await other.goto("/");
+    await openPanel(other);
     await expect(line(other, "acme")).toBeVisible();
     expect(await saved(other)).toEqual({ tokens: { acme: TOKEN3 }, forgot: [] });
     await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 300)));
-    await expect(lineText(page, "fomo-t")).toHaveText(
-      "fomo-t: github_pat_…9876, for this page only",
-    );
+    await expectLine(page, "fomo-t", "github_pat_…9876", false);
   });
 
   test("following an event writes nothing to storage", async ({ page, context }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, false);
     const before = await page.evaluate(() => JSON.stringify(Object.entries(localStorage)));
     await page.evaluate(
@@ -848,11 +901,13 @@ test.describe("a second tab (3.8)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
     const other = await context.newPage();
     await other.goto("/");
+    await openPanel(other);
     await other.evaluate((k) => localStorage.setItem(k, "ghp_TEST_classic"), KEY);
-    await expect(lineText(page)).toHaveText("acme: github_pat_…1234, for this page only");
+    await expectLine(page, "acme", "github_pat_…1234", false);
   });
 });
 
@@ -861,6 +916,7 @@ test.describe("the Owner field (3.8)", () => {
     page,
   }) => {
     await page.goto("/");
+    await openPanel(page);
     const owner = page.locator("#owner-input");
     const address = page.locator("#url-input");
     await expect(owner).toHaveValue("");
@@ -885,6 +941,7 @@ test.describe("the Owner field (3.8)", () => {
   test("Use takes the owner trimmed and without regard to case", async ({ page, context }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true, "  ACME ");
     await expect(line(page, "acme")).toBeVisible();
     expect((await saved(page))?.tokens).toEqual({ acme: TOKEN });
@@ -899,6 +956,7 @@ test.describe("the Owner field (3.8)", () => {
   ] as const) {
     test(`refuses ${name}: a message, nothing kept`, async ({ page }) => {
       await page.goto("/");
+      await openPanel(page);
       await useToken(page, TOKEN, true, owner);
       await expect(page.getByTestId("token-message")).toContainText("owner");
       await expect(anyLine(page)).toBeHidden();
@@ -910,10 +968,11 @@ test.describe("the Owner field (3.8)", () => {
   test("a token used for an owner that has one replaces it", async ({ page, context }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
     await useToken(page, TOKEN2, true);
     await expect(anyLine(page)).toHaveCount(1);
-    await expect(lineText(page)).toHaveText("acme: github_pat_…9876, saved in this browser");
+    await expectLine(page, "acme", "github_pat_…9876", true);
     expect((await saved(page))?.tokens).toEqual({ acme: TOKEN2 });
   });
 });
@@ -928,12 +987,11 @@ test.describe("one token per owner (3.8)", () => {
         url === "https://api.github.com/repos/other/thing" ? { status: 404 } : undefined,
     });
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, false, "acme");
     await useToken(page, TOKEN2, false, "fomo-t");
-    await expect(lineText(page, "acme")).toHaveText("acme: github_pat_…1234, for this page only");
-    await expect(lineText(page, "fomo-t")).toHaveText(
-      "fomo-t: github_pat_…9876, for this page only",
-    );
+    await expectLine(page, "acme", "github_pat_…1234", false);
+    await expectLine(page, "fomo-t", "github_pat_…9876", false);
 
     await openUrl(page, "https://github.com/ACME/widgets");
     await expect(page.getByTestId("column").first()).toBeVisible();
@@ -960,6 +1018,7 @@ test.describe("one token per owner (3.8)", () => {
   test("with no token held for any owner, a 404 is 3.1's message", async ({ page, context }) => {
     await stubGithub(context, { answer: (url) => (url === API ? { status: 404 } : undefined) });
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page);
     await expect(page.locator("#message")).toHaveText(
       "Not found or not public. If the repo is private, add a token for its owner.",
@@ -972,6 +1031,7 @@ test.describe("one token per owner (3.8)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true, "acme");
     await useToken(page, TOKEN2, false, "fomo-t");
     await expect(rememberBox(page, "acme")).toBeChecked();
@@ -980,10 +1040,8 @@ test.describe("one token per owner (3.8)", () => {
     expect((await saved(page))?.tokens).toEqual({ acme: TOKEN, "fomo-t": TOKEN2 });
     await rememberBox(page, "acme").uncheck();
     expect((await saved(page))?.tokens).toEqual({ "fomo-t": TOKEN2 });
-    await expect(lineText(page, "acme")).toHaveText("acme: github_pat_…1234, for this page only");
-    await expect(lineText(page, "fomo-t")).toHaveText(
-      "fomo-t: github_pat_…9876, saved in this browser",
-    );
+    await expectLine(page, "acme", "github_pat_…1234", false);
+    await expectLine(page, "fomo-t", "github_pat_…9876", true);
     const everything = await pageContents(page);
     for (const t of [TOKEN, TOKEN2]) expect(everything).not.toContain(t);
   });
@@ -994,6 +1052,7 @@ test.describe("one token per owner (3.8)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     for (const name of ["constructor", "__proto__", "toString", "hasOwnProperty"]) {
       await expect(line(page, name)).toBeHidden();
     }
@@ -1003,10 +1062,9 @@ test.describe("one token per owner (3.8)", () => {
     await expect(line(page, "__proto__")).toBeVisible();
     await expect(line(page, "tostring")).toBeHidden();
     await page.reload();
+    await openPanel(page);
     await expect(anyLine(page)).toHaveCount(2);
-    await expect(lineText(page, "__proto__")).toHaveText(
-      "__proto__: github_pat_…9876, saved in this browser",
-    );
+    await expectLine(page, "__proto__", "github_pat_…9876", true);
   });
 });
 
@@ -1017,6 +1075,7 @@ test.describe("Forget all, and Forget with several owners (3.8)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true, "acme");
     await useToken(page, TOKEN2, true, "fomo-t");
     await openUrl(page);
@@ -1036,6 +1095,7 @@ test.describe("Forget all, and Forget with several owners (3.8)", () => {
   test("Forget for any owner drops a load that is running", async ({ page, context }) => {
     const stub = await stubGithub(context, { hold: API });
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, false, "acme");
     await useToken(page, TOKEN2, false, "fomo-t");
     await openUrl(page);
@@ -1056,6 +1116,7 @@ test.describe("Forget all, and Forget with several owners (3.8)", () => {
   }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true, "acme");
     await useToken(page, TOKEN2, false, "fomo-t");
     await openUrl(page);
@@ -1071,6 +1132,7 @@ test.describe("Forget all, and Forget with several owners (3.8)", () => {
   test("Forget all leaves results loaded without a token", async ({ page, context }) => {
     await stubGithub(context);
     await page.goto("/");
+    await openPanel(page);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
     await useToken(page, TOKEN, true);
@@ -1083,6 +1145,7 @@ test.describe("a 401 forgets only the refused token (3.8)", () => {
   test("the other owners' tokens stay", async ({ page, context }) => {
     await stubGithub(context, { answer: (url) => (url === API ? { status: 401 } : undefined) });
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true, "acme");
     await useToken(page, TOKEN2, true, "fomo-t");
     await openUrl(page);
@@ -1103,13 +1166,14 @@ test.describe("a 401 forgets only the refused token (3.8)", () => {
       answer: (url) => (url === API ? { status: 401 } : undefined),
     });
     await page.goto("/");
+    await openPanel(page);
     await useToken(page, TOKEN, true);
     await openUrl(page);
     await expect.poll(() => gets(stub).length).toBe(1);
     await useToken(page, TOKEN2, true);
     stub.release();
     await expect(page.locator("#message")).toContainText("GitHub refused the token for acme");
-    await expect(lineText(page)).toHaveText("acme: github_pat_…9876, saved in this browser");
+    await expectLine(page, "acme", "github_pat_…9876", true);
     expect((await saved(page))?.tokens).toEqual({ acme: TOKEN2 });
     expect(gets(stub)).toHaveLength(1);
   });
@@ -1120,11 +1184,13 @@ test.describe("a token saved by an earlier vizi (3.8, migration)", () => {
 
   async function withOldKey(page: Page, value_: string) {
     await page.goto("/");
+    await openPanel(page);
     await page.evaluate(
       ([k, v]) => localStorage.setItem(k as string, v as string),
       [OLD_KEY, value_],
     );
     await page.reload();
+    await openPanel(page);
   }
 
   test("is listed with its masked form, an Owner field and two buttons, and is used for no load until it has an owner", async ({
@@ -1134,11 +1200,11 @@ test.describe("a token saved by an earlier vizi (3.8, migration)", () => {
     const stub = await stubGithub(context);
     await withOldKey(page, TOKEN);
     await expect(migrateLine(page)).toHaveText(
-      "A token saved by an earlier vizi: github_pat_…1234",
+      "A token saved by an earlier vizi (github_pat_…1234) has no owner yet. Whose repos is it for?",
     );
     await expect(page.locator("#migrate-owner")).toBeVisible();
-    await expect(page.locator("#migrate-keep")).toHaveText("Keep for this owner");
-    await expect(page.locator("#migrate-forget")).toHaveText("Forget");
+    await expect(page.locator("#migrate-keep")).toHaveText("Keep");
+    await expect(page.locator("#migrate-forget")).toHaveText("Forget it");
     await expect(anyLine(page)).toBeHidden();
     expect(await pageContents(page)).not.toContain(TOKEN);
     await openUrl(page);
@@ -1146,7 +1212,7 @@ test.describe("a token saved by an earlier vizi (3.8, migration)", () => {
     expect(gets(stub).every((s) => !("authorization" in s.headers))).toBe(true);
   });
 
-  test("Keep for this owner moves it into vizi.githubTokens, saved, removes the old key, and the owner's loads then use it", async ({
+  test("Keep moves it into vizi.githubTokens, saved, removes the old key, and the owner's loads then use it", async ({
     page,
     context,
   }) => {
@@ -1155,7 +1221,7 @@ test.describe("a token saved by an earlier vizi (3.8, migration)", () => {
     await page.locator("#migrate-owner").fill("Acme");
     await page.locator("#migrate-keep").click();
     await expect(migrateLine(page)).toBeHidden();
-    await expect(lineText(page)).toHaveText("acme: github_pat_…1234, saved in this browser");
+    await expectLine(page, "acme", "github_pat_…1234", true);
     expect(await saved(page)).toEqual({ tokens: { acme: TOKEN }, forgot: [] });
     expect(await page.evaluate((k) => localStorage.getItem(k), OLD_KEY)).toBeNull();
     await openUrl(page);
@@ -1188,7 +1254,7 @@ test.describe("a token saved by an earlier vizi (3.8, migration)", () => {
     expect(await page.evaluate((k) => localStorage.getItem(k), OLD_KEY)).toBeNull();
   });
 
-  for (const action of ["Keep for this owner", "Forget"] as const) {
+  for (const action of ["Keep", "Forget it"] as const) {
     test(`a second tab's line is hidden when this tab chooses "${action}"`, async ({
       page,
       context,
@@ -1197,14 +1263,15 @@ test.describe("a token saved by an earlier vizi (3.8, migration)", () => {
       await withOldKey(page, TOKEN);
       const other = await context.newPage();
       await other.goto("/");
+      await openPanel(other);
       await expect(migrateLine(other)).toBeVisible();
-      if (action === "Forget") await page.locator("#migrate-forget").click();
+      if (action === "Forget it") await page.locator("#migrate-forget").click();
       else {
         await page.locator("#migrate-owner").fill("acme");
         await page.locator("#migrate-keep").click();
       }
       await expect(migrateLine(other)).toBeHidden();
-      if (action !== "Forget") await expect(lineText(other)).toBeVisible();
+      if (action !== "Forget it") await expect(lineText(other)).toBeVisible();
     });
   }
 
@@ -1212,14 +1279,16 @@ test.describe("a token saved by an earlier vizi (3.8, migration)", () => {
     page,
   }) => {
     await page.goto("/");
+    await openPanel(page);
     const other = await page.context().newPage();
     await other.goto("/");
+    await openPanel(other);
     await other.evaluate(
       ([k, v]) => localStorage.setItem(k as string, v as string),
       [OLD_KEY, TOKEN],
     );
     await expect(migrateLine(page)).toHaveText(
-      "A token saved by an earlier vizi: github_pat_…1234",
+      "A token saved by an earlier vizi (github_pat_…1234) has no owner yet. Whose repos is it for?",
     );
     await other.evaluate((k) => localStorage.removeItem(k), OLD_KEY);
     await expect(migrateLine(page)).toBeHidden();

@@ -297,16 +297,18 @@ describe("step 5: a private repo, with a token", () => {
 
   test("its text names the controls of the start page by their labels, the permission, and that the token goes only to GitHub", () => {
     const text = (HELP_STEPS[4]?.paragraphs ?? []).map(plainText).join(" ");
-    for (const label of [
-      "Owner",
-      "GitHub token (for private repos)",
-      "Use",
-      "Remember the token",
-    ]) {
+    // The controls of the redesigned start page (3.12, "Changes to the help view", items 3 and 6).
+    for (const label of ["Private repos", "Owner", "Remember in this browser", "Add"]) {
       expect(text).toContain(`"${label}"`);
     }
-    expect(text).toContain('"Contents"');
-    expect(text).toContain("read-only");
+    for (const gone of ["GitHub token (for private repos)", "Use", "Remember the token"]) {
+      expect(text).not.toContain(`"${gone}"`);
+    }
+    // The box comes before "Add", as on the page.
+    expect(text.indexOf('"Remember in this browser"')).toBeLessThan(text.indexOf('"Add"'));
+    // The permission in the token guide's words (item 4).
+    expect(text).toContain('the repository permission "Contents" with read access');
+    expect(text).not.toContain("set to read-only");
     expect(text).toContain("fine-grained");
     expect(text).toContain("only to GitHub");
   });
