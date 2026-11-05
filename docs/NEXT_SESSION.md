@@ -72,16 +72,18 @@ still tells it to check against `CLAUDE.md`. Clead's proposal, not
 decided: add `RULES.md` to the documents it reads (`REVIEW_DOCS` in
 `.github/reviewer/review.mjs`, `RULES.md` L § 3 (1)). That gives it the
 local rules only; the global Rules stay unreadable in CI. Under `RULES.md`
-L § 4 (2) and (7), a CI `APPROVE` currently counts as Crog's review of a
+L § 4 (2) and (7), a CI `APPROVE` counted as Crog's review of a
 rules or process change (product-office `RULES.md` § 28 (1)(b)), and the
 CI reviewer cannot check such a change against the global Rules that
-govern it. A question for the product owner: until there is a fix, does a
-CI verdict count as that review, or does a rules or process change get a
-manual Crog agent?
+govern it. Decided by the product owner, 2026-11-05 18:34 (product-office
+DECISIONS.md): until the template ships its public copy of the product
+office's `RULES.md`, a CI verdict counts as Crog's review for vizi code and
+config only, and a rules or process change gets a manual Opus Crog review
+(`RULES.md` L § 4 (11)). Adding `RULES.md` to `REVIEW_DOCS` is still open.
 **Impact on plan:** (b) and (c) widen the contract (a WHAT); the script
 and instructions change by a few lines.
 **Action:** Clead asks the product owner to accept, change or reject (b)
-and (c); until he decides the contract stays as it is.
+and the open part of (c); until he decides the contract stays as it is.
 
 ### 4. Follow-ups of the CI reviewer pilot — new, small, none blocks the pilot
 
