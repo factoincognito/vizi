@@ -7,13 +7,21 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { BOUNDARY_MARKER, REVIEW_FREE_FILES, readDocFromGit, realDeps, run } from "../review.mjs";
+import {
+  BOUNDARY_MARKER,
+  REVIEW_DOCS,
+  REVIEW_FREE_FILES,
+  readDocFromGit,
+  realDeps,
+  run,
+} from "../review.mjs";
 
 const SHA = "a".repeat(40);
 const BASE = "b".repeat(40);
 const DIFF = "diff --git a/x.txt b/x.txt\n+hello\n";
 const DOCS = {
   "CLAUDE.md": "CLAUDE-MD-TEXT",
+  "RULES.md": "RULES-MD-TEXT",
   "memory/standards.md": "STANDARDS-TEXT",
   "docs/SPEC.md": "SPEC-TEXT",
 };
@@ -189,7 +197,7 @@ test("the SDK process gets the API key but not the GitHub token", async () => {
   assert.equal(env.PATH, "/usr/bin");
 });
 
-test("cache order: instructions, then CLAUDE.md, standards, SPEC, boundary; diff only in the user prompt", async () => {
+test("cache order: instructions, then CLAUDE.md, RULES.md, standards, SPEC, boundary; diff only in the user prompt", async () => {
   const { deps, query } = setup();
   await run(deps);
   const { prompt, options } = query.seen.params[0];
@@ -200,9 +208,13 @@ test("cache order: instructions, then CLAUDE.md, standards, SPEC, boundary; diff
   const boundaryAt = blocks.indexOf(BOUNDARY_MARKER);
   assert.ok(boundaryAt > 0, "boundary marker present after the fixed block");
   const fixed = blocks.slice(0, boundaryAt).join("\n");
-  const order = ["INSTRUCTIONS-TEXT", "CLAUDE-MD-TEXT", "STANDARDS-TEXT", "SPEC-TEXT"].map((s) =>
-    fixed.indexOf(s),
-  );
+  const order = [
+    "INSTRUCTIONS-TEXT",
+    "CLAUDE-MD-TEXT",
+    "RULES-MD-TEXT",
+    "STANDARDS-TEXT",
+    "SPEC-TEXT",
+  ].map((s) => fixed.indexOf(s));
   assert.ok(
     order.every((i) => i >= 0),
     "all fixed parts are in the fixed block",
@@ -231,6 +243,18 @@ test("the fixed block is identical for two different heads and diffs (so the cac
     return blocks.slice(0, blocks.indexOf(BOUNDARY_MARKER)).join("\n");
   };
   assert.equal(fixed(a.query), fixed(b.query));
+});
+
+test("the instructions name every review document, RULES.md included, as an input", () => {
+  assert.ok(REVIEW_DOCS.includes("RULES.md"), "RULES.md is a review document");
+  const instructions = readFileSync(new URL("../instructions.md", import.meta.url), "utf8");
+  const start = instructions.indexOf("You have exactly these inputs:");
+  const end = instructions.indexOf("You have no tools.");
+  assert.ok(start >= 0 && end > start, "the instructions have their list of inputs");
+  const inputs = instructions.slice(start, end);
+  for (const path of REVIEW_DOCS) {
+    assert.ok(inputs.includes(`\`${path}\``), `the list of inputs names ${path}`);
+  }
 });
 
 test("the documents are read from the base commit, not from the PR head", async () => {
@@ -702,6 +726,7 @@ test("the real dependencies main() uses: base-commit documents and the real inst
   mkdirSync(join(dir, "docs"));
   const write = (suffix) => {
     writeFileSync(join(dir, "CLAUDE.md"), `claude ${suffix}`);
+    writeFileSync(join(dir, "RULES.md"), `rules ${suffix}`);
     writeFileSync(join(dir, "memory/standards.md"), `standards ${suffix}`);
     writeFileSync(join(dir, "docs/SPEC.md"), `spec ${suffix}`);
   };
@@ -718,7 +743,7 @@ test("the real dependencies main() uses: base-commit documents and the real inst
   await run({ ...real, fetch: fetchImpl, query, appendSummary: () => {}, log: () => {} });
 
   const fixed = query.seen.params[0].options.systemPrompt[0];
-  for (const name of ["claude", "standards", "spec"]) {
+  for (const name of ["claude", "rules", "standards", "spec"]) {
     assert.ok(fixed.includes(`${name} BASE-VERSION`), `${name} comes from the base commit`);
     assert.ok(!fixed.includes(`${name} HEAD-VERSION`), `${name} is not the head's copy`);
   }

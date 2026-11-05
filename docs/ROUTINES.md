@@ -25,9 +25,10 @@ SDK (`.github/reviewer/`), not `anthropics/claude-code-action`, run with the
 repository secret `ANTHROPIC_API_KEY` on Opus 5.5 and paid by the Console
 organization's monthly API credits (product-office PO-68).
 
-- Input: the diff of base...head, and `CLAUDE.md`, `memory/standards.md` and
-  `docs/SPEC.md` as they are on the base commit. Nothing else: not the PR
-  description, comments or commit messages, and no tools.
+- Input: the diff of base...head, and `CLAUDE.md`, `RULES.md`,
+  `memory/standards.md` and `docs/SPEC.md` as they are on the base commit.
+  Nothing else: not the PR description, comments or commit messages, and no
+  tools.
 - Output: one comment that starts `Crog review: APPROVE` or
   `Crog review: CHANGES NEEDED` and ends `Head reviewed: <SHA>`. A head that
   already has such a comment from the Actions bot is not reviewed again.
@@ -55,7 +56,7 @@ organization's monthly API credits (product-office PO-68).
 - Whether this verdict counts as Crog's required review is set in
   `RULES.md` L § 4, not here.
 - Known limit: the script and `instructions.md` come from the PR's own
-  checkout (only the three documents come from the base commit), so a PR
+  checkout (only the four documents come from the base commit), so a PR
   that changes `.github/reviewer/**` or the workflow is reviewed by its own
   changed reviewer. Such a PR needs a review outside CI.
 - A verdict is keyed on the head only: an `edited` event that moves the PR to

@@ -70,9 +70,11 @@ anything.)
 ## 7. Reviewer independence — hard constraint
 The review must run as a separate invocation from the implementation
 conversation. Inputs: {diff, docs/SPEC.md, memory/standards.md,
-CLAUDE.md} only, the three documents as they are on the base commit
-(CLAUDE.md added 2026-11-04, by the product owner, for the CI reviewer of
-the PO-68 pilot). The reviewer's own fixed instructions are not context.
+CLAUDE.md, RULES.md} only, the four documents as they are on the base
+commit (CLAUDE.md added 2026-11-04, by the product owner, for the CI
+reviewer of the PO-68 pilot; RULES.md added 2026-11-05 18:49, by the
+product owner, product-office DECISIONS.md). The reviewer's own fixed
+instructions are not context.
 Do not load design-time memory or implementation conversation history
 into the review context. This is structural, not conventional.
 
