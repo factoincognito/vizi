@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { test as base, expect, type Page, type Route } from "@playwright/test";
 import { isAllowedRequest } from "./guard";
+import { branchesUrl, branchListRead } from "./picker";
 
 /**
  * Every test: any request other than the page's own document (served, or
@@ -59,6 +60,9 @@ async function stubGithub(page: Page, stub: Stub = {}): Promise<string[]> {
       const url = route.request().url();
       requested.push(url);
       if (stub.apiStatus) return route.fulfill({ status: stub.apiStatus, headers: cors, body: "" });
+      // The branch list the picker reads after a load (3.13): one branch.
+      if (url.includes("/branches?per_page=100&page="))
+        return route.fulfill({ status: 200, headers: cors, body: '[{"name":"main"}]' });
       if (url === "https://api.github.com/repos/acme/widgets") {
         return route.fulfill({
           status: 200,
@@ -107,7 +111,10 @@ async function openUrl(page: Page, url = REPO) {
 }
 
 test.describe("GitHub URL input (3.1)", () => {
-  test("makes the requests of 3.1 in order, and nothing else", async ({ page, baseURL }) => {
+  test("makes the requests of 3.1 in order, then the branch list of 3.13, and nothing else", async ({
+    page,
+    baseURL,
+  }) => {
     const requested = await stubGithub(page);
     const stray = watchRequests(
       page,
@@ -124,11 +131,13 @@ test.describe("GitHub URL input (3.1)", () => {
     expect(requested, "no request before the user enters a URL").toEqual([]);
     await openUrl(page);
     await expect(page.getByTestId("column").first()).toBeVisible();
+    await branchListRead(page);
     expect(requested).toEqual([
       "https://api.github.com/repos/acme/widgets",
       "https://api.github.com/repos/acme/widgets/git/trees/main?recursive=1",
       "https://raw.githubusercontent.com/acme/widgets/main/docs/BACKLOG.md",
       "https://raw.githubusercontent.com/acme/widgets/main/STATUS.md",
+      branchesUrl("acme", "widgets"),
     ]);
     expect(stray).toEqual([]);
     expect(problems).toEqual([]);

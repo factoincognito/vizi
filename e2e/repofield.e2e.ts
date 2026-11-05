@@ -11,6 +11,7 @@ import { pathToFileURL } from "node:url";
 import { type BrowserContext, test as base, expect, type Page, type Route } from "@playwright/test";
 import { isAllowedRequest } from "./guard";
 import { openPanel } from "./panel";
+import { branchesUrl, branchListRead } from "./picker";
 
 /** Every test: a request other than the page's own document and GitHub's two hosts fails it. */
 const test = base.extend<{ guard: undefined }>({
@@ -62,6 +63,9 @@ async function stubGithub(context: BrowserContext): Promise<Seen[]> {
           body: JSON.stringify({ default_branch: "main" }),
         });
       }
+      // The branch list the picker reads after a load (3.13): one branch.
+      if (url.includes("/branches?per_page=100&page="))
+        return route.fulfill({ status: 200, headers: cors, body: '[{"name":"main"}]' });
       if (/\/git\/trees\/[^/]+\?recursive=1$/.test(url)) {
         const tree = ["STATUS.md", "docs/BACKLOG.md"].map((path) => ({ path, type: "blob" }));
         return route.fulfill({
@@ -126,6 +130,7 @@ test.describe("the Repository field (3.1)", () => {
       await open(page, text);
       await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
       await expect(page.getByTestId("column").first()).toBeVisible();
+      await branchListRead(page);
       lists.push(seen.slice(mark).map((s) => s.url));
     }
     expect(lists[0]).toEqual([
@@ -133,6 +138,7 @@ test.describe("the Repository field (3.1)", () => {
       "https://api.github.com/repos/acme/widgets/git/trees/main?recursive=1",
       "https://raw.githubusercontent.com/acme/widgets/main/docs/BACKLOG.md",
       "https://raw.githubusercontent.com/acme/widgets/main/STATUS.md",
+      branchesUrl("acme", "widgets"),
     ]);
     expect(lists[1]).toEqual(lists[0]);
     expect(lists[2]).toEqual(lists[0]);
@@ -144,10 +150,12 @@ test.describe("the Repository field (3.1)", () => {
     await openPanel(page);
     await open(page, "acme/widgets/tree/dev");
     await expect(page.locator("#project-name")).toHaveText("acme/widgets (dev)");
+    await branchListRead(page);
     expect(seen.map((s) => s.url)).toEqual([
       "https://api.github.com/repos/acme/widgets/git/trees/dev?recursive=1",
       "https://raw.githubusercontent.com/acme/widgets/dev/docs/BACKLOG.md",
       "https://raw.githubusercontent.com/acme/widgets/dev/STATUS.md",
+      branchesUrl("acme", "widgets"),
     ]);
   });
 

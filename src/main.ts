@@ -11,8 +11,23 @@ import {
   type ReportItem,
 } from "./backlog";
 import { boardColumns, descriptionForDisplay, listSections } from "./board";
+import {
+  branchOptions,
+  cannotOpen,
+  capMessage,
+  listFailureMessage,
+  READING_BRANCHES,
+} from "./branches";
 import { documentationList, projectFilePath } from "./docs";
-import { blobUrl, type Fetcher, loadRepo, readRepoFile, readRepository } from "./github";
+import {
+  blobUrl,
+  type Fetcher,
+  listBranches,
+  loadRepo,
+  type RepoRef,
+  readRepoFile,
+  readRepository,
+} from "./github";
 import {
   CLOSING_LINK,
   HELP_STEPS,
@@ -684,6 +699,120 @@ function hideResults(): void {
     must(id).replaceChildren();
   }
   clearProjectStatus();
+  // The branch list lives with the results, and goes with them (3.13).
+  loadedRef = null;
+  branchList = null;
+  must("branch-select").replaceChildren();
+  must("branch-message").textContent = "";
+}
+
+// ------------------------------------------------------------ branch picker
+
+/** The reference of the project on the page: owner and repo as written, and the branch loaded (3.13). */
+let loadedRef: { owner: string; repo: string; branch: string } | null = null;
+
+/** The branch list the page holds for the project on the page (3.13): it stays across picks of the same repo. */
+let branchList: {
+  owner: string;
+  repo: string;
+  /** Known from request 1 of an address load of this repo; null otherwise. */
+  defaultBranch: string | null;
+  names: string[];
+  reading: boolean;
+  message: string;
+} | null = null;
+
+/** Draws the picker for the branch loaded: its options, whether it is busy, and its message line. */
+function renderPicker(): void {
+  const row = must("branch-picker");
+  const select = must<HTMLSelectElement>("branch-select");
+  const list = branchList;
+  const current = loadedRef?.branch;
+  if (!list || current === undefined) return;
+  // While the list is read, the select holds the current branch only (3.13).
+  const options = list.reading
+    ? branchOptions([], current, null)
+    : branchOptions(list.names, current, list.defaultBranch);
+  select.replaceChildren(
+    ...options.map((o) => {
+      const option = h("option", { value: o.name }, o.label);
+      option.disabled = o.disabled;
+      option.selected = o.selected;
+      return option;
+    }),
+  );
+  select.value = current;
+  if (list.reading) row.setAttribute("aria-busy", "true");
+  else row.removeAttribute("aria-busy");
+  must<HTMLButtonElement>("branch-open").disabled = list.reading;
+  must("branch-message").textContent = list.reading ? READING_BRANCHES : list.message;
+}
+
+/**
+ * Counts the loads that start (an address submitted, a refused one
+ * included, "Open in vizi", a pick), and nothing else. Unlike latestLoad,
+ * which a Forget also raises (3.8), it tells the branch list whether a
+ * newer load has started (3.13).
+ */
+let loadsStarted = 0;
+
+/** Counts the Forgets per owner (in lower case), and of all tokens, so a branch list read can tell whether its token was forgotten (3.13). */
+const forgetsOf = new Map<string, number>();
+let forgetsOfAll = 0;
+
+/**
+ * Reads the branch list of the project a load just showed, with the token
+ * that load used (3.13). Its answer is dropped in 3.13's three cases only:
+ * a newer load has started, the token the read carried has been
+ * forgotten, or the results have been hidden (or replaced). A Forget of
+ * another owner's token, or of all tokens when the read carried none,
+ * leaves it alone, so the list still finishes.
+ */
+async function readBranches(token: string | null): Promise<void> {
+  const p = project;
+  const list = branchList;
+  if (!p || !list) return;
+  const owner = list.owner.toLowerCase();
+  const started = loadsStarted;
+  const forgets = forgetsOf.get(owner) ?? 0;
+  const forgetsAll = forgetsOfAll;
+  const tokenForgotten = () =>
+    token !== null && ((forgetsOf.get(owner) ?? 0) !== forgets || forgetsOfAll !== forgetsAll);
+  const stale = () =>
+    loadsStarted !== started || tokenForgotten() || project !== p || branchList !== list;
+  const answer = await listBranches(
+    { owner: list.owner, repo: list.repo },
+    guardedFetch(token, stale),
+    token,
+  );
+  if (stale()) return;
+  const failure = answer.failure;
+  if (failure?.kind === "token-refused" && token !== null) {
+    // 3.8's 401 rule: forget the token if it is still the one held; the results loaded with it go, the picker with them.
+    if (tokens.forgetIfCurrent(owner, token)) {
+      renderTokens();
+      forgetResultsFor(owner, failure.message);
+      return;
+    }
+    // The refused token was replaced meanwhile: the new one is kept, and the message is 3.8's as the spec reads (PBI-1.10).
+  }
+  list.names = answer.names;
+  list.reading = false;
+  list.message = failure
+    ? listFailureMessage(failure.message, answer.pagesRead)
+    : answer.more
+      ? capMessage(list.owner, list.repo)
+      : "";
+  renderPicker();
+}
+
+/** "Open branch": opens the chosen branch of the project on the page, unless it is the one loaded (3.13). */
+function openPickedBranch(): void {
+  const ref = loadedRef;
+  const name = must<HTMLSelectElement>("branch-select").value;
+  if (!ref || branchList?.reading || name === ref.branch || cannotOpen(name)) return;
+  loadsStarted += 1;
+  void openRef({ owner: ref.owner, repo: ref.repo, branch: name }, ++latestLoad, true);
 }
 
 /**
@@ -703,6 +832,7 @@ function guardedFetch(token: string | null, replaced: () => boolean): Fetcher {
 
 async function openUrl(address: string): Promise<void> {
   const load = ++latestLoad;
+  loadsStarted += 1;
   // A text the Repository field refuses makes no request, and counts as a load (3.1).
   const read = readRepository(address);
   if (!read.ok) {
@@ -710,7 +840,16 @@ async function openUrl(address: string): Promise<void> {
     hideResults();
     return;
   }
-  const ref = read.ref;
+  await openRef(read.ref, load, false);
+}
+
+/**
+ * The load of 3.1 from a reference: an address, the umbrella view's "Open
+ * in vizi", or a branch picked (3.13), all through this code. A load from
+ * an address reads the branch list after it; a pick keeps the list the page
+ * holds for the same repo.
+ */
+async function openRef(ref: RepoRef, load: number, picked: boolean): Promise<void> {
   say("Loading…");
   const owner = ref.owner.toLowerCase();
   const token = tokens.tokenFor(owner);
@@ -725,8 +864,12 @@ async function openUrl(address: string): Promise<void> {
     if (result.kind === "token-refused" && token !== null && tokens.forgetIfCurrent(owner, token)) {
       renderTokens();
     }
+    // A failed pick whose button had the focus moves it to the message, not onto a hidden button (3.13).
+    const focusMessage =
+      picked && document.activeElement === document.getElementById("branch-open");
     say(result.message);
     hideResults();
+    if (focusMessage) must("message").focus();
     return;
   }
   const withBranch = { owner: ref.owner, repo: ref.repo, branch: result.branch };
@@ -758,6 +901,21 @@ async function openUrl(address: string): Promise<void> {
   show(p);
   projectUsedToken = token !== null;
   projectOwner = owner;
+  const same =
+    picked && branchList !== null && branchList.owner === ref.owner && branchList.repo === ref.repo;
+  loadedRef = withBranch;
+  if (!same) {
+    branchList = {
+      owner: ref.owner,
+      repo: ref.repo,
+      defaultBranch: result.defaultBranch,
+      names: [],
+      reading: true,
+      message: "",
+    };
+  }
+  renderPicker();
+  if (!same) void readBranches(token);
   say(
     p.backlog
       ? ""
@@ -886,6 +1044,8 @@ const NOT_SAVED_MESSAGE = "The browser would not save the token; it is kept for 
  */
 function forgetResultsFor(owner: string | null, message: string): void {
   latestLoad += 1;
+  if (owner === null) forgetsOfAll += 1;
+  else forgetsOf.set(owner, (forgetsOf.get(owner) ?? 0) + 1);
   const mine = owner === null || projectOwner === owner;
   if (projectUsedToken && mine) hideResults();
   // A status read with the token goes too, also in a project that was loaded without it.
@@ -1165,6 +1325,30 @@ function mountHelp(
   return { control, view };
 }
 
+/** The picker's row under the project's heading (3.13): "Branch", the select, "Open branch", its message line. */
+function mountPicker(): HTMLElement {
+  const select = h("select", { id: "branch-select" });
+  const button = h(
+    "button",
+    { id: "branch-open", type: "button", class: "secondary" },
+    "Open branch",
+  );
+  // The select itself starts nothing when its value changes: only the button opens a branch.
+  button.addEventListener("click", openPickedBranch);
+  return h(
+    "div",
+    { id: "branch-picker", role: "group", "aria-labelledby": "branch-label" },
+    h(
+      "div",
+      { class: "branch-row" },
+      h("label", { id: "branch-label", for: "branch-select" }, "Branch"),
+      select,
+      button,
+    ),
+    h("p", { id: "branch-message", role: "status" }),
+  );
+}
+
 // --------------------------------------------------------------------- page
 
 function mount(): void {
@@ -1246,13 +1430,15 @@ function mount(): void {
         form,
         h("p", { id: "access-line" }, ACCESS_LINE),
       ),
-      h("div", { id: "message", role: "status" }),
+      // tabindex -1: a failed pick may move the focus here (3.13).
+      h("div", { id: "message", role: "status", tabindex: "-1" }),
       mountPanel(),
     ),
     h(
       "div",
       { id: "results", hidden: "" },
       h("h2", { id: "project-name" }),
+      mountPicker(),
       h("section", { id: "status", "aria-label": "Status" }),
       h(
         "div",

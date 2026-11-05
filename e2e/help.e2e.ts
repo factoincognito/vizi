@@ -11,6 +11,7 @@ import { pathToFileURL } from "node:url";
 import { test as base, expect, type Page, type Route } from "@playwright/test";
 import { CLOSING_LINK, HELP_STEPS, HELP_TITLE, plainText, READ_ONLY_SENTENCE } from "../src/help";
 import { isAllowedRequest } from "./guard";
+import { branchesUrl, branchListRead } from "./picker";
 
 /** Every test: any request other than the page's own document and GitHub's two hosts fails it (2.3). */
 const test = base.extend<{ guard: undefined }>({
@@ -51,6 +52,9 @@ async function stubGithub(
       requested.push(url);
       if (opts.gate) await opts.gate;
       if (opts.failWith) return route.fulfill({ status: opts.failWith, headers: cors, body: "" });
+      // The branch list the picker reads after a load (3.13): one branch.
+      if (url.includes("/branches?per_page=100&page="))
+        return route.fulfill({ status: 200, headers: cors, body: '[{"name":"main"}]' });
       if (url === "https://api.github.com/repos/acme/widgets")
         return route.fulfill({
           status: 200,
@@ -486,8 +490,10 @@ test.describe("loads while the help view is open (3.10)", () => {
     await openView(page);
     g.open();
     await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
-    // The load's own requests only (3.1): repo, file list, backlog, STATUS.md.
-    expect(requested).toHaveLength(4);
+    await branchListRead(page);
+    // The load's own requests only (3.1): repo, file list, backlog, STATUS.md; then its branch list (3.13).
+    expect(requested).toHaveLength(5);
+    expect(requested[4]).toBe(branchesUrl("acme", "widgets"));
   });
 });
 
