@@ -10,6 +10,7 @@ import { pathToFileURL } from "node:url";
 import { type BrowserContext, test as base, expect, type Page, type Route } from "@playwright/test";
 import { isAllowedRequest } from "./guard";
 import { openPanel } from "./panel";
+import { branchesUrl, branchListRead } from "./picker";
 
 /** Every test: a request other than the page's own document and GitHub's two hosts fails it. */
 const test = base.extend<{ guard: undefined }>({
@@ -117,6 +118,9 @@ async function stubGithub(context: BrowserContext, options: StubOptions = {}): P
       if (options.hold?.(url, n)) await gate;
       const forced = options.status?.(url);
       if (forced) return route.fulfill({ status: forced, headers: cors, body: "" });
+      // The branch list the picker reads after a load (3.13): one branch.
+      if (url.includes("/branches?per_page=100&page="))
+        return route.fulfill({ status: 200, headers: cors, body: '[{"name":"main"}]' });
 
       const repoMatch = /^https:\/\/api\.github\.com\/repos\/(?:acme|other)\/([a-z0-9-]+)$/.exec(
         url,
@@ -316,11 +320,13 @@ test.describe("URL mode (3.9)", () => {
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toHaveAttribute("aria-selected", "true");
     expect(await treeOutline(page)).toEqual(EXPECTED_TREE);
+    await branchListRead(page);
     expect(gets(stub).map((s) => s.url)).toEqual([
       `${API}/hub`,
       `${API}/hub/git/trees/main?recursive=1`,
       `${RAW_HUB}/STATUS.md`,
       `${RAW_HUB}/PROJECTS.md`,
+      branchesUrl("acme", "hub"),
     ]);
     await expect(panel(page)).toBeHidden();
     expect(await page.evaluate(() => localStorage.length)).toBe(0);
@@ -379,6 +385,7 @@ test.describe("the links of a repo pointer (3.9)", () => {
     await openPanel(page);
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toBeVisible();
+    await branchListRead(page);
     const before = gets(stub).length;
     await pointer(page, "acme/widgets").getByRole("link", { name: "Open in vizi" }).click();
     // The field's own form, owner/repo (3.1, "The Repository field"; 3.9).
@@ -386,6 +393,7 @@ test.describe("the links of a repo pointer (3.9)", () => {
     await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
     await expect(page.getByTestId("column").first()).toBeVisible();
     await expect(umbrellaTab(page)).toHaveCount(0);
+    await branchListRead(page);
     expect(
       gets(stub)
         .slice(before)
@@ -395,6 +403,8 @@ test.describe("the links of a repo pointer (3.9)", () => {
       `${API}/widgets/git/trees/main?recursive=1`,
       "https://raw.githubusercontent.com/acme/widgets/main/docs/BACKLOG.md",
       "https://raw.githubusercontent.com/acme/widgets/main/STATUS.md",
+      // "Open in vizi" is a load from an address: it reads the branch list (3.13).
+      branchesUrl("acme", "widgets"),
     ]);
     expect(page.url()).not.toContain("widgets");
   });
@@ -677,16 +687,19 @@ test.describe("with a token held (3.8, 3.9)", () => {
     await useToken(page);
     await openUrl(page, HUB);
     await expect(umbrellaTab(page)).toBeVisible();
+    await branchListRead(page);
     expect(gets(stub).map((s) => s.url)).toEqual([
       `${API}/hub`,
       `${API}/hub/git/trees/main?recursive=1`,
       `${API}/hub/contents/STATUS.md?ref=main`,
       `${API}/hub/contents/PROJECTS.md?ref=main`,
+      branchesUrl("acme", "hub"),
     ]);
     await showStatus(page, "projects/notes/").click();
     await expect(panel(page).getByTestId("pstatus-phase")).toHaveText("Notes phase.");
     await pointer(page, "acme/widgets").getByRole("link", { name: "Open in vizi" }).click();
     await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
+    await branchListRead(page);
     for (const s of gets(stub)) {
       expect(s.headers.authorization, s.url).toBe(`Bearer ${TOKEN}`);
       expect(new URL(s.url).host).toBe("api.github.com");

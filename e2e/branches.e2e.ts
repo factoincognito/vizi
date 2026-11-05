@@ -471,7 +471,11 @@ test.describe("accessibility (3.13)", () => {
     await page.goto("/");
     await open(page, WIDGETS);
     await expect(page.getByRole("group", { name: "Branch", exact: true })).toBeVisible();
-    await expect(page.getByLabel("Branch", { exact: true })).toHaveId("branch-select");
+    // The group and the select are both named "Branch": the group by aria-labelledby, the select by its label.
+    await expect(page.getByRole("combobox", { name: "Branch", exact: true })).toHaveId(
+      "branch-select",
+    );
+    await expect(page.locator("label[for=branch-select]")).toHaveText("Branch");
     await expect(page.getByRole("button", { name: "Open branch", exact: true })).toBeVisible();
     await expect(page.locator("#branch-message")).toHaveAttribute("role", "status");
     await expect(page.locator("#branch-picker")).toHaveAttribute("aria-busy", "true");
