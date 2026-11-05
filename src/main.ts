@@ -787,7 +787,6 @@ async function readBranches(token: string | null): Promise<void> {
   );
   if (stale()) return;
   const failure = answer.failure;
-  let failureMessage = failure?.message ?? "";
   if (failure?.kind === "token-refused" && token !== null) {
     // 3.8's 401 rule: forget the token if it is still the one held; the results loaded with it go, the picker with them.
     if (tokens.forgetIfCurrent(owner, token)) {
@@ -795,13 +794,12 @@ async function readBranches(token: string | null): Promise<void> {
       forgetResultsFor(owner, failure.message);
       return;
     }
-    // The refused token was replaced meanwhile: nothing was forgotten, so the message does not say so.
-    failureMessage = `GitHub refused the token for ${owner}: it may have expired.`;
+    // The refused token was replaced meanwhile: the new one is kept, and the message is 3.8's as the spec reads (PBI-1.10).
   }
   list.names = answer.names;
   list.reading = false;
   list.message = failure
-    ? listFailureMessage(failureMessage, answer.pagesRead)
+    ? listFailureMessage(failure.message, answer.pagesRead)
     : answer.more
       ? capMessage(list.owner, list.repo)
       : "";
