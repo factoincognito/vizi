@@ -212,6 +212,41 @@ test.describe("the browser enforces it", () => {
     expect(problems).toEqual([]);
   });
 
+  test("the Umbrella tab open with its help text: no violation and no console error (3.9, PBI-1.18)", async ({
+    page,
+  }) => {
+    const problems: string[] = [];
+    page.on("console", (m) => m.type() === "error" && problems.push(m.text()));
+    page.on("pageerror", (e) => problems.push(e.message));
+    const violations = await watchViolations(page);
+    const cors = { "access-control-allow-origin": "*" };
+    await page.route(/^https:\/\/(api\.github\.com|raw\.githubusercontent\.com)\//, (route) => {
+      const url = route.request().url();
+      if (url === "https://api.github.com/repos/acme/hub")
+        return route.fulfill({ status: 200, headers: cors, body: '{"default_branch":"main"}' });
+      if (url.includes("/branches?"))
+        return route.fulfill({ status: 200, headers: cors, body: '[{"name":"main"}]' });
+      if (url.includes("/git/trees/"))
+        return route.fulfill({
+          status: 200,
+          headers: cors,
+          body: '{"truncated":false,"tree":[{"path":"PROJECTS.md","type":"blob"}]}',
+        });
+      return route.fulfill({
+        status: 200,
+        headers: cors,
+        body: "# Projects\n\n- acme/widgets\n- projects/notes/\n",
+      });
+    });
+    await page.goto("/");
+    await page.locator("#url-input").fill("https://github.com/acme/hub");
+    await page.locator("#open-url").click();
+    await expect(page.locator("#umbrella-help")).toBeVisible();
+    await expect(page.locator("#umbrella-help code")).toHaveCount(4);
+    expect(await violations()).toEqual([]);
+    expect(problems).toEqual([]);
+  });
+
   test("a script added to the page at run time does not run", async ({ page }) => {
     const violations = await watchViolations(page);
     await page.goto("/");

@@ -22,6 +22,7 @@ import {
   READ_ONLY_SENTENCE,
   STATUS_EXAMPLE,
   TOKEN_EXAMPLE,
+  UMBRELLA_HELP,
 } from "./help";
 import { type ProjectNode, parse as parseProjects } from "./projects";
 import { parse as parseStatus } from "./status";
@@ -275,6 +276,42 @@ describe("step 4: PROJECTS.md for an umbrella", () => {
     const code = codeParts(HELP_STEPS[3]?.paragraphs ?? []);
     expect(code).toContain("- owner/repo");
     expect(code).toContain("- projects/<name>/");
+  });
+
+  test("its text holds the pre-project sentence of 3.9, word for word, after the sentence on pointers (PBI-1.18)", () => {
+    const pre =
+      "A projects/<name>/ pointer is a pre-project: a project at an early stage, with no repo of its own yet, that lives in this repo for now.";
+    const text = (HELP_STEPS[3]?.paragraphs ?? []).map(plainText).join(" ");
+    expect(text).toContain(pre);
+    expect(text.indexOf(pre)).toBeGreaterThan(text.indexOf("to a folder of the same project."));
+    // The form is code, as in the rest of the step.
+    expect(codeParts(HELP_STEPS[3]?.paragraphs ?? [])).toContain("projects/<name>/");
+  });
+});
+
+describe("the umbrella help text (3.9, PBI-1.18)", () => {
+  test("UMBRELLA_HELP, joined, is the three sentences of 3.9 word for word", () => {
+    expect(plainText(UMBRELLA_HELP)).toBe(
+      "An umbrella is a project that lists other projects in its PROJECTS.md, grouped under the file's headings where it has them. A project with a repo of its own is shown as <owner>/<repo>, which you can open in vizi or on GitHub. A pre-project is a project at an early stage, with no repo of its own yet, that lives in this umbrella's repo for now: it is shown as projects/<name>/, and \"Show status\" reads its STATUS.md.",
+    );
+  });
+
+  test("its code parts are exactly PROJECTS.md, <owner>/<repo>, projects/<name>/ and STATUS.md", () => {
+    expect(UMBRELLA_HELP.filter((p) => p.kind === "code").map((p) => p.text)).toEqual([
+      "PROJECTS.md",
+      "<owner>/<repo>",
+      "projects/<name>/",
+      "STATUS.md",
+    ]);
+  });
+
+  test("the forms it names agree with P4: a projects/<name>/ line is a folder pointer, an owner/repo line a repo pointer", () => {
+    const read = parseProjects(["# Hub", "", "- projects/notes/", "- acme/widgets"].join("\n"));
+    expect(read.report).toEqual([]);
+    expect(read.tree[0]?.pointers.map((p) => [p.text, p.kind])).toEqual([
+      ["projects/notes/", "folder"],
+      ["acme/widgets", "repo"],
+    ]);
   });
 });
 
