@@ -1107,8 +1107,10 @@ changes none of its reading rules, with one exception, an owner alone
   native, with a `<label for="guide-select">` whose text changes with
   its use; changing a label does not move the focus. The opening guide
   never moves the focus, with one exception: when the select is hidden
-  while it has the focus (a token change, also from another tab), the
-  focus moves to the Repository field. `#guide-message` is a
+  while it has the focus, for any reason (a token change, also from
+  another tab; a branch read or an owner's list that ends with no
+  select; a load), the focus moves to the Repository field (Clead,
+  2026-11-05, #85). `#guide-message` is a
   `role="status"` line, so its outcomes are announced, the select's
   "Choose one" line included. Sizes, colours, the focus ring and
   contrast are 3.12's (the select 48 px high on desktop, as the field,
