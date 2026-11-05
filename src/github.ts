@@ -6,7 +6,6 @@
 
 import {
   BRANCH_LIST_NOT_UNDERSTOOD,
-  BRANCH_PAGES,
   BRANCHES_PER_PAGE,
   mergeBranchPages,
   morePagesMayExist,
@@ -392,9 +391,9 @@ export interface BranchListResult {
 /**
  * Reads a repo's branch list with GitHub's "List branches" (3.13): page 1,
  * then the next page only after a page of 100 items, up to page 3, one
- * request after another. It needs only the owner and the repo, so another
- * part of the page can ask for a repo's branches before any load. The
- * requests go through the same code as a load, with the token given (3.8).
+ * request after another. It needs only the owner and the repo, not a load:
+ * the guided opening of PBI-1.19 is to ask for a repo's branches that way.
+ * The requests go through the same code as a load, with the token given (3.8).
  */
 export async function listBranches(
   ref: { owner: string; repo: string },
@@ -405,7 +404,8 @@ export async function listBranches(
   const pages: string[][] = [];
   const counts: number[] = [];
   let failure: LoadFailure | null = null;
-  for (let n = 1; n <= BRANCH_PAGES; n++) {
+  // The cap lives in nextPageWanted alone: the loop ends when it wants no next page.
+  for (let n = 1; ; n++) {
     // A 404 here is read as any request that is not request 1 or 2 (3.13, "Errors").
     const answer = await get(`${api}/branches?per_page=${BRANCHES_PER_PAGE}&page=${n}`, false);
     if ("ok" in answer) {

@@ -749,15 +749,37 @@ function renderPicker(): void {
 }
 
 /**
- * Reads the branch list of the project a load just showed, with the token
- * that load used (3.13). An answer that arrives after a newer load, a
- * Forget, or the results being hidden is dropped.
+ * Counts the loads that start (an address submitted, a refused one
+ * included, "Open in vizi", a pick), and nothing else. Unlike latestLoad,
+ * which a Forget also raises (3.8), it tells the branch list whether a
+ * newer load has started (3.13).
  */
-async function readBranches(load: number, token: string | null): Promise<void> {
+let loadsStarted = 0;
+
+/** Counts the Forgets per owner (in lower case), and of all tokens, so a branch list read can tell whether its token was forgotten (3.13). */
+const forgetsOf = new Map<string, number>();
+let forgetsOfAll = 0;
+
+/**
+ * Reads the branch list of the project a load just showed, with the token
+ * that load used (3.13). Its answer is dropped in 3.13's three cases only:
+ * a newer load has started, the token the read carried has been
+ * forgotten, or the results have been hidden (or replaced). A Forget of
+ * another owner's token, or of all tokens when the read carried none,
+ * leaves it alone, so the list still finishes.
+ */
+async function readBranches(token: string | null): Promise<void> {
   const p = project;
   const list = branchList;
   if (!p || !list) return;
-  const stale = () => load !== latestLoad || project !== p || branchList !== list;
+  const owner = list.owner.toLowerCase();
+  const started = loadsStarted;
+  const forgets = forgetsOf.get(owner) ?? 0;
+  const forgetsAll = forgetsOfAll;
+  const tokenForgotten = () =>
+    token !== null && ((forgetsOf.get(owner) ?? 0) !== forgets || forgetsOfAll !== forgetsAll);
+  const stale = () =>
+    loadsStarted !== started || tokenForgotten() || project !== p || branchList !== list;
   const answer = await listBranches(
     { owner: list.owner, repo: list.repo },
     guardedFetch(token, stale),
@@ -765,19 +787,21 @@ async function readBranches(load: number, token: string | null): Promise<void> {
   );
   if (stale()) return;
   const failure = answer.failure;
+  let failureMessage = failure?.message ?? "";
   if (failure?.kind === "token-refused" && token !== null) {
     // 3.8's 401 rule: forget the token if it is still the one held; the results loaded with it go, the picker with them.
-    const owner = list.owner.toLowerCase();
     if (tokens.forgetIfCurrent(owner, token)) {
       renderTokens();
       forgetResultsFor(owner, failure.message);
       return;
     }
+    // The refused token was replaced meanwhile: nothing was forgotten, so the message does not say so.
+    failureMessage = `GitHub refused the token for ${owner}: it may have expired.`;
   }
   list.names = answer.names;
   list.reading = false;
   list.message = failure
-    ? listFailureMessage(failure.message, answer.pagesRead)
+    ? listFailureMessage(failureMessage, answer.pagesRead)
     : answer.more
       ? capMessage(list.owner, list.repo)
       : "";
@@ -789,6 +813,7 @@ function openPickedBranch(): void {
   const ref = loadedRef;
   const name = must<HTMLSelectElement>("branch-select").value;
   if (!ref || branchList?.reading || name === ref.branch || cannotOpen(name)) return;
+  loadsStarted += 1;
   void openRef({ owner: ref.owner, repo: ref.repo, branch: name }, ++latestLoad, true);
 }
 
@@ -809,6 +834,7 @@ function guardedFetch(token: string | null, replaced: () => boolean): Fetcher {
 
 async function openUrl(address: string): Promise<void> {
   const load = ++latestLoad;
+  loadsStarted += 1;
   // A text the Repository field refuses makes no request, and counts as a load (3.1).
   const read = readRepository(address);
   if (!read.ok) {
@@ -891,7 +917,7 @@ async function openRef(ref: RepoRef, load: number, picked: boolean): Promise<voi
     };
   }
   renderPicker();
-  if (!same) void readBranches(load, token);
+  if (!same) void readBranches(token);
   say(
     p.backlog
       ? ""
@@ -1020,6 +1046,8 @@ const NOT_SAVED_MESSAGE = "The browser would not save the token; it is kept for 
  */
 function forgetResultsFor(owner: string | null, message: string): void {
   latestLoad += 1;
+  if (owner === null) forgetsOfAll += 1;
+  else forgetsOf.set(owner, (forgetsOf.get(owner) ?? 0) + 1);
   const mine = owner === null || projectOwner === owner;
   if (projectUsedToken && mine) hideResults();
   // A status read with the token goes too, also in a project that was loaded without it.
