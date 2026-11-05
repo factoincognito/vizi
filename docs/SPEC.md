@@ -162,6 +162,17 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
     field's hint reads `<owner>/<repo>`, not `owner/repo`, so it shows
     two parts to fill in, and so do the field's messages that show the
     form.
+15. His decisions of 2026-11-04 (22:21, in chat, "add help text in the
+    umbrella view to expalin what an umbrella is"; and 22:24, "also
+    explain \"pre-projects\", i.e those projects that are in an early
+    stage and therefore does not have a repo of their own but lives in
+    the umbrella repo for now"; recorded in the product office's
+    `DECISIONS.md`, PRs #430 and #432, and as PBI-1.18 in
+    `docs/BACKLOG.md`): the umbrella view gets a help text that explains
+    what an umbrella is, and what pre-projects are: projects at an early
+    stage with no repo of their own yet, living in the umbrella repo for
+    now (the `projects/<name>/` pointers). The wording is Clead's. How
+    vizi does it is 3.9, "The help text (PBI-1.18)".
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -227,6 +238,8 @@ project's documentation.
   PBI-1.15).
 - Added on 2026-11-04: a "Saved repos" quick-access list on the start
   page (3.14; PBI-1.12).
+- Added on 2026-11-04: a help text in the umbrella view on what an
+  umbrella and a pre-project are (3.9; PBI-1.18).
 
 Not decided: a lint mode beyond the page's report (Clead's suggestion,
 which the product owner found worth considering). The parser is
@@ -1408,6 +1421,91 @@ format of `PROJECTS.md`, and what counts as a pointer, is
   - P7, a repeat: "The same pointer is on line `<n>`; it is shown
     again." (warning);
   - P7, no pointer: "The file holds no project pointer." (info).
+- **The help text (PBI-1.18).** The product owner's decisions of
+  2026-11-04 (22:21 and 22:24; "What is decided", item 15): a help text
+  in the umbrella view that explains what an umbrella is, and what
+  pre-projects are. The wording, the place and the form are Clead's.
+  - **Where:** a short paragraph, `<p id="umbrella-help">`, the first
+    thing in the Umbrella tab's panel `#panel-umbrella`, above the tree
+    `#umbrella-tree`, always shown while the tab is open. Not folded
+    (Clead's call): it is three sentences, and a fold would hide them
+    behind a control that says less than they do.
+  - **Its words,** exactly, with the parts in code shown as code:
+
+    "An umbrella is a project that lists other projects in its
+    `PROJECTS.md`, grouped under the file's headings where it has
+    them. A project with a repo of its own is shown as `<owner>/<repo>`,
+    which you can open in vizi or on GitHub. A pre-project is a project
+    at an early stage, with no repo of its own yet, that lives in this
+    umbrella's repo for now: it is shown as `projects/<name>/`, and
+    "Show status" reads its `STATUS.md`."
+
+    The words follow 3.9 and `docs/BACKLOG-FORMAT.md` section 5: the
+    tree is the file's headings with the pointers under them (P3), and
+    pointers above the first heading are listed under "(no heading)".
+    That is rule P4 of `docs/BACKLOG-FORMAT.md` section 5, word for
+    word: "It belongs to the nearest heading above it; the pointers
+    above the first heading are at the top of the tree, under "(no
+    heading)"." The page shows it so as built: `src/main.ts` writes "(no
+    heading)" for the tree node of those pointers (the umbrella tree's
+    rendering, at `main` `28f9c87`), and 3.9's unit tests cover
+    "pointers above the first heading". So "where it has them" covers a
+    file with few headings or none. A repo pointer is `<owner>/<repo>`,
+    a GitHub repo, with "Open in vizi" and "On GitHub"; a folder pointer
+    is `projects/<name>/`, a folder of the same project (P4), with "Show
+    status", which reads its `STATUS.md`. A pre-project is the product
+    owner's name for what a folder pointer points at (22:24). The form
+    is written with angle brackets, as the Repository field's hint is
+    ("What is decided", item 14, 21:01; 3.1, "The Repository field").
+  - **Static text in the page.** The paragraph is data in `src/help.ts`
+    (as `UMBRELLA_HELP`, a list of parts, each plain text or code, as
+    the help view's paragraphs are, 3.10), built into the one inline
+    script. It is the same for every umbrella: nothing in it comes from
+    the project or its `PROJECTS.md`. Showing it makes no request, and
+    the policy of 2.3 does not change (only the script's hash changes
+    with the build).
+  - **Rendering:** the page's `h()` helper and `textContent`, `<code>`
+    for the code parts; no `innerHTML` (3.7, 3.10 "Rendering path").
+  - **Look:** 14 px, `--muted`, line height 1.45, 12 px below it before
+    the tree, at most 70 characters per line on desktop
+    (`max-width: 70ch`). Light and dark follow `prefers-color-scheme`
+    through the page's variables (3.12): `--muted` on `--bg` is 7.46:1
+    light and 7.94:1 dark. Code parts use the page's code style. On a
+    phone it wraps at the column's width, with no sideways scroll.
+  - **Accessibility:** it is real text in the tab panel, before the
+    tree, so a screen reader reads it first on entering the tab. The
+    panel has no `aria-describedby` for it (Clead's call): its place
+    already makes it read first, and naming it as the panel's
+    description too would have some screen readers read it twice. It
+    is not a heading and takes no focus. Its meaning is in words, not
+    in colour.
+  - **Not changed:** the tree, the links, "Show status", the report
+    and the requests of 3.9.
+  - **Tests** (test first):
+    - unit (`src/help.test.ts`): `UMBRELLA_HELP`, joined, equals the
+      three sentences above word for word; its code parts are exactly
+      `PROJECTS.md`, `<owner>/<repo>`, `projects/<name>/` and
+      `STATUS.md`; the folder form it names, `projects/<name>/`, read
+      as a pointer line `- projects/notes/` by `src/projects.ts` is a
+      folder pointer, and `- acme/widgets` a repo pointer, so the text
+      and P4 agree;
+    - browser (GitHub stubbed, light and dark, 375 px and 1280 px): with
+      a `PROJECTS.md`, the Umbrella tab's panel starts with
+      `#umbrella-help`, before `#umbrella-tree`, with the exact text
+      and four `code` elements; the panel has no `aria-describedby`;
+      opening the tab makes no request beyond those of 3.9; the
+      paragraph's colour against its nearest opaque background is at
+      least 4.5:1; no sideways scroll at 375 px; without a
+      `PROJECTS.md` there is no Umbrella tab and no paragraph; the CSP
+      test of `e2e/csp.e2e.ts` passes with the tab open.
+  - **The help view, at the PBI-1.18 build.** 3.10 is not changed by
+    this spec (PR #73 changes it now). At the build, step 4 of the help
+    view (`PROJECTS.md` for an umbrella) gains one sentence after the
+    one on pointers: "A `projects/<name>/` pointer is a pre-project: a
+    project at an early stage, with no repo of its own yet, that lives
+    in this repo for now." The text of 3.10's step 4, `src/help.ts`
+    and `src/help.test.ts` change in the same PR; the example and its
+    stated reading do not.
 - **Tests,** all on synthetic `PROJECTS.md` fixtures written for the
   test; the product office's own file is never copied into this repo:
   - unit (a pure `src/projects.ts`): every rule P1 to P7 and the
