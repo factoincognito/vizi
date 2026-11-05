@@ -636,7 +636,7 @@ describe("createOwnerLists: which owner lists are kept, and token changes (3.1)"
     expect(lists.kept("acme")).toBeUndefined();
   });
 
-  it("every kind of token change: one owner's (Add, Forget, a 401, another tab), and all tokens", async () => {
+  it("a token change for all owners drops every kept list (the call sites: e2e/guide.e2e.ts)", async () => {
     const { fetcher } = fake({
       [`${USERS}/acme`]: isOrg,
       [orgPage(1)]: { status: 200, body: repos(0, 1) },

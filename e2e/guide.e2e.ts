@@ -937,6 +937,89 @@ test.describe("tokens and the guide's requests (3.1, 3.8)", () => {
   });
 });
 
+test.describe("every kind of token change reaches the guide (3.1, 3.8)", () => {
+  const forgetAll = (page: Page) => page.locator("#token-forget-all");
+
+  /** acme's list typed and read, the field left: datalist, select and message hold acme's repos. */
+  async function acmeShown(page: Page, stub: Stub) {
+    await typeIn(page, "acme/");
+    await expect.poll(() => optionValues(page)).toHaveLength(3);
+    await clickAway(page);
+    await expect(label(page)).toHaveText("Repo of acme");
+    await expect(guideMessage(page)).toHaveText("Choose one of acme's repos, or type acme/<repo>.");
+    expect(times(stub, orgPage("acme"))).toBe(1);
+  }
+
+  /** After the change: acme's datalist, select and message are gone, and the next acme/ reads again. */
+  async function acmeDropped(page: Page, stub: Stub) {
+    await expect(select(page)).toBeHidden();
+    await expect.poll(() => optionValues(page)).toEqual([]);
+    await expect(guideMessage(page)).toHaveText("");
+    await field(page).fill("");
+    await field(page).pressSequentially("acme/");
+    await expect.poll(() => times(stub, orgPage("acme"))).toBe(2);
+  }
+
+  test("another tab saves a token for acme", async ({ page, context }) => {
+    const stub = await stubGithub(context);
+    await page.goto("/");
+    await acmeShown(page, stub);
+    const other = await context.newPage();
+    await other.goto("/");
+    await addToken(other, "acme", true);
+    await acmeDropped(page, stub);
+  });
+
+  test("Keep of a token an earlier vizi saved, for acme", async ({ page, context }) => {
+    const stub = await stubGithub(context);
+    await page.goto("/");
+    await page.evaluate(() =>
+      localStorage.setItem("vizi.githubToken", "github_pat_TEST_guide_old1234"),
+    );
+    await page.reload();
+    await acmeShown(page, stub);
+    await openPanel(page);
+    await page.locator("#migrate-owner").fill("acme");
+    await page.locator("#migrate-keep").click();
+    await expect(page.locator('[data-testid=token-line][data-owner="acme"]')).toBeVisible();
+    await acmeDropped(page, stub);
+  });
+
+  test("Forget all tokens", async ({ page, context }) => {
+    const stub = await stubGithub(context);
+    await page.goto("/");
+    await addToken(page, "acme");
+    await acmeShown(page, stub);
+    await forgetAll(page).click();
+    await expect(page.locator("[data-testid=token-line]")).toHaveCount(0);
+    await acmeDropped(page, stub);
+  });
+
+  test("with a token for acme, a click on Open with acme/widgets: the guide's request 1 carries it and is stopped, the load uses it", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context, {
+      hold: (u, n) => u === repoUrl("acme", "widgets") && n === 0,
+    });
+    await page.goto("/");
+    await addToken(page, "acme");
+    await typeIn(page, "acme/widgets");
+    await openButton(page).click();
+    await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
+    await branchListRead(page);
+    stub.release(repoUrl("acme", "widgets"));
+    await settle(page);
+    const ones = stub.seen.filter((x) => x.url === repoUrl("acme", "widgets"));
+    // The guide's (from the click's blur) and the load's own.
+    expect(ones).toHaveLength(2);
+    for (const s of stub.seen) expect(s.authorization).toBe(`Bearer ${TOKEN}`);
+    // The picker's list only: the guide made no branch request.
+    expect(times(stub, branchPage("acme", "widgets"))).toBe(1);
+    await expect(select(page)).toBeHidden();
+  });
+});
+
 test.describe("messages for each outcome (3.1, Edge cases)", () => {
   test("404 on the user, and /users/acme with type Bot", async ({ page, context }) => {
     await stubGithub(context, { owners: { bot: { type: "Bot", repos: [] } } });

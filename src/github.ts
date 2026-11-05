@@ -469,6 +469,8 @@ export type RepoListKind = "org" | "user-token" | "user";
  * named <owner>.", with a token or without; an answer that is not an
  * object, or whose `type` is neither "User" nor "Organization", is not
  * understood. Through the same request code as a load, with the token given.
+ * `owner` goes into the URL as written: callers pass only a name that passes
+ * `isName` (3.1's name rule), as src/guide.ts's reading of the field does.
  */
 export async function getOwnerKind(
   owner: string,
@@ -499,7 +501,7 @@ export async function getOwnerKind(
  * `/user/repos?affiliation=owner`, or a user's public
  * `/users/<owner>/repos?type=owner`, each sorted by full name. Returns the
  * answer's text; src/guide.ts reads it. A 404 is read as a request that is
- * not request 1 or 2.
+ * not request 1 or 2. As for getOwnerKind, `owner` must pass `isName`.
  */
 export async function listRepos(
   owner: string,
