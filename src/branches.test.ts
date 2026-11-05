@@ -12,6 +12,7 @@ import {
   listFailureMessage,
   mergeBranchPages,
   morePagesMayExist,
+  nextPageWanted,
   READING_BRANCHES,
   readBranchPage,
 } from "./branches";
@@ -81,6 +82,14 @@ describe("the pages and the cap (3.13)", () => {
   test("pages of 100, at most 3", () => {
     expect(BRANCHES_PER_PAGE).toBe(100);
     expect(BRANCH_PAGES).toBe(3);
+  });
+
+  test("the next page is wanted only after a page of 100, and never after the third", () => {
+    expect(nextPageWanted(100, 1)).toBe(true);
+    expect(nextPageWanted(100, 2)).toBe(true);
+    expect(nextPageWanted(100, 3)).toBe(false);
+    expect(nextPageWanted(99, 1)).toBe(false);
+    expect(nextPageWanted(0, 1)).toBe(false);
   });
 
   test("more may exist only when the third page held 100 items", () => {

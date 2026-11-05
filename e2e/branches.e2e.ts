@@ -196,10 +196,9 @@ test.describe("where the picker sits (3.13)", () => {
     await openWidgets(page);
     await settle(page);
     expect(branchRequests(stub)).toEqual([branchesUrl("widgets", 1)]);
+    // No branch list goes to any host but api.github.com.
     expect(
-      urls(stub).filter(
-        (u) => u.startsWith("https://raw.githubusercontent.com/") && u.includes("branches"),
-      ),
+      urls(stub).filter((u) => u.includes("/branches") && new URL(u).host !== "api.github.com"),
     ).toEqual([]);
   });
 
@@ -458,6 +457,105 @@ test.describe("tokens and failures (3.13, 3.8)", () => {
       .click();
     await expect(page.locator("#results")).toBeHidden();
     await expect(page.locator("#branch-picker")).toBeHidden();
+  });
+});
+
+test.describe("late answers of the list (3.13, Errors)", () => {
+  const due = branchesUrl("widgets", 1);
+  const TOKEN_OTHER = "github_pat_TEST_branches_wxyz9876";
+
+  async function tokenFor(page: Page, owner: string, token: string) {
+    await openPanel(page);
+    await page.locator("#owner-input").fill(owner);
+    await page.locator("#token-input").fill(token);
+    await page.locator("#token-use").click();
+    await expect(page.locator(`[data-testid="token-line"][data-owner="${owner}"]`)).toBeVisible();
+  }
+
+  async function expectListRead(page: Page) {
+    await expect(page.locator("#branch-picker")).not.toHaveAttribute("aria-busy", "true");
+    await expect(openBranch(page)).toBeEnabled();
+    await expect(page.locator("#branch-message")).toHaveText("");
+    expect(await optionTexts(page)).toEqual(["main (default)", "dev", "feat/x"]);
+  }
+
+  test("a Forget of another owner's token while the list is due: the list still finishes, and Open branch is enabled", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context, { hold: (u) => u === due });
+    await page.goto("/");
+    await tokenFor(page, "other", TOKEN_OTHER);
+    await open(page, WIDGETS);
+    await expect(page.locator("#branch-picker")).toHaveAttribute("aria-busy", "true");
+    await expect.poll(() => urls(stub).includes(due)).toBe(true);
+    await page
+      .locator('[data-testid="token-line"][data-owner="other"] [data-testid="token-forget"]')
+      .click();
+    await expect(page.locator("#message")).toHaveText("The token for other has been forgotten.");
+    await expect(page.locator("#results")).toBeVisible();
+    stub.release(due);
+    await expectListRead(page);
+  });
+
+  test("Forget all tokens while the list of a project loaded without a token is due: the list still finishes", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context, { hold: (u) => u === due });
+    await page.goto("/");
+    await tokenFor(page, "other", TOKEN_OTHER);
+    await open(page, WIDGETS);
+    await expect.poll(() => urls(stub).includes(due)).toBe(true);
+    await page.locator("#token-forget-all").click();
+    await expect(page.locator("#message")).toHaveText("All tokens have been forgotten.");
+    await expect(page.locator("#results")).toBeVisible();
+    stub.release(due);
+    await expectListRead(page);
+  });
+
+  test("a Forget of the token the list's read carried drops its answer, with the results", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context, { hold: (u) => u === due });
+    await page.goto("/");
+    await useToken(page);
+    await open(page, WIDGETS);
+    await expect.poll(() => urls(stub).includes(due)).toBe(true);
+    await page
+      .locator('[data-testid="token-line"][data-owner="acme"] [data-testid="token-forget"]')
+      .click();
+    await expect(page.locator("#results")).toBeHidden();
+    stub.release(due);
+    await settle(page);
+    await expect(page.locator("#results")).toBeHidden();
+    await expect(page.locator("#branch-select option")).toHaveCount(0);
+  });
+
+  test("a 401 on the list whose token was replaced meanwhile keeps the new token and does not say it was forgotten", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context, {
+      hold: (u) => u === due,
+      status: (u) => (u === due ? { status: 401 } : undefined),
+    });
+    await page.goto("/");
+    await useToken(page);
+    await open(page, WIDGETS);
+    await expect.poll(() => urls(stub).includes(due)).toBe(true);
+    // A new token for the same owner replaces the one the list's read carries; that is not a Forget.
+    await tokenFor(page, "acme", TOKEN_OTHER);
+    stub.release(due);
+    await expect(page.locator("#branch-message")).toHaveText(
+      "The branch list could not be read: GitHub refused the token for acme: it may have expired.",
+    );
+    await expect(page.locator("#results")).toBeVisible();
+    await expect(openBranch(page)).toBeEnabled();
+    await expect(
+      page.locator('[data-testid="token-line"][data-owner="acme"] [data-testid="token-text"]'),
+    ).toHaveText("github_pat_…9876");
   });
 });
 
