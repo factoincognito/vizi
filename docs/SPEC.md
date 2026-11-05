@@ -186,9 +186,11 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
     branch preselected; a pasted full address still opens directly. The
     picker of PBI-1.15 on a loaded project stays and its branch request
     is reused. Open to change after he tries it. Simplified by his
-    decision of 2026-11-05 (07:41): no caching of repo or branch lists
-    beyond the owner's repo list for one page visit. How vizi does it is
-    3.1, "Guided opening".
+    decision of 2026-11-05 (07:41, in chat, "apyr" to Clead's
+    recommendation of 07:35; recorded in the product office's
+    `DECISIONS.md`, PR #444, and in PBI-1.19 in `docs/BACKLOG.md`): no
+    caching of repo or branch lists beyond the owner's repo list for one
+    page visit. How vizi does it is 3.1, "Guided opening".
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -734,7 +736,8 @@ When the field loses focus, an owner alone shows the repo list, and a
 repo shows its branches with the repo's own default branch preselected
 (fomo-f's is `master`). A pasted full address still opens directly.
 The branch picker of 3.13 on a loaded project stays, and its branch
-request is reused. Simplified by his decision of 2026-11-05 (07:41): no
+request is reused. Simplified by his decision of 2026-11-05 (07:41;
+"What is decided", item 16): no
 caching of repo or branch lists beyond the owner's repo list for one
 page visit. So "reused" is read as the request, not its answer (Clead's
 reading): the opening guide lists a repo's branches with 3.13's own
@@ -863,7 +866,7 @@ changes none of its reading rules, with one exception, an owner alone
   - **Kept:** an owner's repo list read in full, that is every page
     answered and the 300 cap not reached, an empty list included. It is
     held in page memory only, in a `Map` from the lower-cased owner to
-    the names and the token they were read with, until the page is
+    the names, until the page is
     reloaded or closed. Nothing is written to the browser's storage.
   - **Not kept:** a failed read; a partly read list (a later page
     failed, or the cap was reached); a repo's default branch; any branch
@@ -1043,8 +1046,10 @@ changes none of its reading rules, with one exception, an owner alone
   its `<label>` and the browser exposes the suggestions. The select is
   native, with a `<label for="guide-select">` whose text changes with
   its use; changing a label does not move the focus. The opening guide
-  never moves the focus. `#guide-message` is a `role="status"` line, so
-  its outcomes are announced. Sizes, colours, the focus ring and
+  never moves the focus, with one exception: when the select is hidden
+  while it has the focus (a token change, also from another tab), the
+  focus moves to the Repository field. `#guide-message` is a
+  `role="status"` line, so its outcomes are announced. Sizes, colours, the focus ring and
   contrast are 3.12's (the select 48 px high on desktop, as the field,
   and 44 px on a phone; `--control-border`).
 - **Phone layout** (below 800 px, 3.12): the field, then the select at
@@ -1067,7 +1072,8 @@ changes none of its reading rules, with one exception, an owner alone
   - unit (`src/guide.test.ts`): `acme`, `acme/` are an owner alone;
     `acme/widgets`, `acme/widgets/` an owner and a repo;
     `github.com/acme/widgets`, `https://github.com/acme`,
-    `acme/widgets/tree/main`, `ac me` and the empty text are not guided,
+    `acme/widgets/tree/main`, `ac me`, `.`, `..`, `./`, `../` and the
+    empty text are not guided,
     and neither are `github.com`, `github.com/`, `GitHub.com/`,
     `www.github.com`, `www.github.com/`, `https://` and `http://gi`;
     `/users/<owner>` answered with an array, with no `type` or with
@@ -1097,11 +1103,12 @@ changes none of its reading rules, with one exception, an owner alone
     network messages;
   - browser (light and dark, 375 px and 1280 px):
     - typing `acme/` makes the owner's requests once; typing on to
-      `acme/widg` makes none; the datalist's suggestions are shown under
-      the field (asserted as shown, not only as a `list` attribute, in
-      Chromium; item 30 for other browsers); the datalist holds
-      `acme/<repo>` for each repo; a second `acme/` later in the same
-      page visit makes none; a reload makes them again;
+      `acme/widg` makes none; the field has `list="repo-list"`, and
+      the datalist holds `acme/<repo>` for each repo, as `<option>`
+      values; a second `acme/` later in the same page visit makes none;
+      a reload makes them again. Whether the browser shows the
+      suggestions is browser chrome, not the page's DOM, so no test
+      asserts it (item 30);
     - `acme/`, then leaving the field and Open while the owner's read
       is still running: the owner's requests are made once;
     - leaving the field with `acme` shows "Repo of acme" with the repos;
@@ -1171,12 +1178,16 @@ changes none of its reading rules, with one exception, an owner alone
       no select);
     - Forget of `acme`'s token while the datalist holds `acme`'s repos
       and the select shows a branch list of an `acme` repo: the datalist
-      is emptied and the select hidden; the field's text stays;
-    - the field keeps `autocomplete="off"`, and in Chromium the
-      datalist's suggestions are still shown;
-    - choosing a repo in the opening guide's select, and, in Chromium,
-      choosing a datalist option, each with nothing typed in the Owner
-      field: `#owner-input` then holds that owner;
+      is emptied and the select hidden; the field's text stays; with
+      the focus on the select, a Forget from another tab moves it to
+      the field;
+    - the field keeps `autocomplete="off"`;
+    - choosing a repo in the opening guide's select, and filling the
+      field with a datalist option's value (Playwright's `fill`, which
+      fires `input` as the browser's own choice does; the choice itself
+      is item 30), each with nothing typed in the Owner field:
+      `#owner-input` then holds that owner;
+    - leaving the field with `.`, `..`, `./` or `../` makes no request;
     - accessibility: the field's `list`, the select's label as it
       changes, the focus kept on the select, the tab order field,
       select, Open; the message line's role;
@@ -1665,7 +1676,10 @@ forgets the token held at that moment.
   status" panel of 3.9, when its status was read with it; from PBI-1.19
   also the opening guide's datalist, select and message for that owner
   (3.1, "Guided opening"), whose running reads are abandoned and whose
-  kept repo list is dropped. Results loaded without it stay. It counts
+  kept repo list is dropped; the opening guide clears these on any token
+  change for the owner, an Add included, whether they were read with a
+  token or without, so its lists always follow the token now held.
+  Other results loaded without it stay. It counts
   as a newer load (3.1, "Two loads at once"), so the answer of a load
   still running is dropped and cannot show private text again; the
   message is "The token for `<owner>` has been forgotten.". A token held
@@ -4140,9 +4154,10 @@ Items 29 to 31 are PBI-1.19's (3.1, "Guided opening"):
     Enter does while its suggestions are shown; and whether a browser
     shows a datalist's suggestions differently on a field with
     `autocomplete="off"`, which the field keeps (3.1, "Guided opening").
-    Not checked; no browser behaviour is claimed here. The build's
-    browser tests check in Chromium that the suggestions are shown;
-    other browsers are PBI-1.4's.
+    Not checked; no browser behaviour is claimed here. Whether the
+    suggestions are shown is browser chrome, outside the page's DOM, so
+    the build's browser tests check only the `list` attribute and the
+    `<option>` values (3.1); trying it in the browsers is PBI-1.4's.
 31. **Open; PBI-1.19.** Whether `api.github.com` answers
     `/users/<owner>` for an organisation with `"type": "Organization"`
     as the documentation's schema suggests; the documentation's example
