@@ -177,6 +177,41 @@ test.describe("the browser enforces it", () => {
     expect(await violations()).toEqual([]);
   });
 
+  test("a loaded project with its branch picker shown: no violation and no console error (3.13)", async ({
+    page,
+  }) => {
+    const problems: string[] = [];
+    page.on("console", (m) => m.type() === "error" && problems.push(m.text()));
+    page.on("pageerror", (e) => problems.push(e.message));
+    const violations = await watchViolations(page);
+    const cors = { "access-control-allow-origin": "*" };
+    await page.route(/^https:\/\/(api\.github\.com|raw\.githubusercontent\.com)\//, (route) => {
+      const url = route.request().url();
+      if (url === "https://api.github.com/repos/acme/widgets")
+        return route.fulfill({ status: 200, headers: cors, body: '{"default_branch":"main"}' });
+      if (url.includes("/branches?"))
+        return route.fulfill({
+          status: 200,
+          headers: cors,
+          body: '[{"name":"main"},{"name":"dev"}]',
+        });
+      if (url.includes("/git/trees/"))
+        return route.fulfill({
+          status: 200,
+          headers: cors,
+          body: '{"truncated":false,"tree":[{"path":"BACKLOG.md","type":"blob"}]}',
+        });
+      return route.fulfill({ status: 200, headers: cors, body: "- **[NOW] A-1** — One." });
+    });
+    await page.goto("/");
+    await page.locator("#url-input").fill("https://github.com/acme/widgets");
+    await page.locator("#open-url").click();
+    await expect(page.locator("#branch-select option")).toHaveText(["main (default)", "dev"]);
+    await expect(page.locator("#branch-picker")).toBeVisible();
+    expect(await violations()).toEqual([]);
+    expect(problems).toEqual([]);
+  });
+
   test("a script added to the page at run time does not run", async ({ page }) => {
     const violations = await watchViolations(page);
     await page.goto("/");

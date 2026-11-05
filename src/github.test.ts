@@ -9,6 +9,7 @@ import {
   blobUrl,
   CLONE_MESSAGE,
   type Fetcher,
+  listBranches,
   loadRepo,
   REPOSITORY_MESSAGE,
   readRepoFile,
@@ -190,6 +191,8 @@ describe("loadRepo: the requests of 3.1, in order", () => {
       backlogText: "backlog text",
       statusText: "status text",
       projectsText: null,
+      // Learned from request 1, for the branch picker's default mark (3.13).
+      defaultBranch: "main",
     });
   });
 
@@ -204,6 +207,8 @@ describe("loadRepo: the requests of 3.1, in order", () => {
     const r = await loadRepo({ ...ref, branch: "feat/x" }, fetcher);
     expect(calls).toHaveLength(2);
     expect(r.ok && r.statusText).toBeNull();
+    // No request 1, so the default branch is not known (3.13).
+    expect(r.ok && r.defaultBranch).toBeNull();
   });
 
   it("reads the first of the three paths and lists all that exist (info for the report)", async () => {
@@ -745,5 +750,140 @@ describe("readRepoFile: one file of a repo (3.9, Show status)", () => {
     const r = await readRepoFile(at, PATH, fetcher, TOKEN);
     expect(r).toMatchObject({ ok: false, kind: "network" });
     expect(JSON.stringify(r)).not.toContain(TOKEN);
+  });
+});
+
+describe("listBranches (3.13, the branch list)", () => {
+  const OWNER_REPO = { owner: "acme", repo: "widgets" };
+  const pageUrl = (n: number) => `${API}/branches?per_page=100&page=${n}`;
+  const names = (from: number, n: number) =>
+    JSON.stringify(Array.from({ length: n }, (_, i) => ({ name: `b${from + i}` })));
+
+  it("asks for page 1 only when it holds fewer than 100 items, with {owner, repo} alone", async () => {
+    const { fetcher, sent } = fakeWithInit({
+      [pageUrl(1)]: { status: 200, body: JSON.stringify([{ name: "main" }, { name: "dev" }]) },
+    });
+    const r = await listBranches(OWNER_REPO, fetcher);
+    expect(sent.map((x) => x.url)).toEqual([pageUrl(1)]);
+    // Without a token: no header, no options at all.
+    expect(sent[0]?.init).toBeUndefined();
+    expect(r).toEqual({ names: ["main", "dev"], more: false, pagesRead: 1, failure: null });
+  });
+
+  it("asks for the next page only after a page of 100, and never a fourth", async () => {
+    const { fetcher, sent } = fakeWithInit({
+      [pageUrl(1)]: { status: 200, body: names(0, 100) },
+      [pageUrl(2)]: { status: 200, body: names(100, 100) },
+      [pageUrl(3)]: { status: 200, body: names(200, 100) },
+    });
+    const r = await listBranches(OWNER_REPO, fetcher);
+    expect(sent.map((x) => x.url)).toEqual([pageUrl(1), pageUrl(2), pageUrl(3)]);
+    expect(r.names).toHaveLength(300);
+    expect(r).toMatchObject({ more: true, pagesRead: 3, failure: null });
+  });
+
+  it("stops after a page of fewer than 100", async () => {
+    const { fetcher, sent } = fakeWithInit({
+      [pageUrl(1)]: { status: 200, body: names(0, 100) },
+      [pageUrl(2)]: { status: 200, body: names(100, 37) },
+    });
+    const r = await listBranches(OWNER_REPO, fetcher);
+    expect(sent).toHaveLength(2);
+    expect(r).toMatchObject({ more: false, pagesRead: 2 });
+    expect(r.names).toHaveLength(137);
+  });
+
+  it("with a token: every page carries the header, omits credentials, is not cached, and no URL holds the token", async () => {
+    const { fetcher, sent } = fakeWithInit({
+      [pageUrl(1)]: { status: 200, body: names(0, 100) },
+      [pageUrl(2)]: { status: 200, body: names(100, 3) },
+    });
+    await listBranches(OWNER_REPO, fetcher, TOKEN);
+    expect(sent).toHaveLength(2);
+    for (const x of sent) {
+      expect(new URL(x.url).host).toBe("api.github.com");
+      expect(x.url).not.toContain(TOKEN);
+      expect(x.init).toEqual({
+        headers: { Authorization: `Bearer ${TOKEN}` },
+        credentials: "omit",
+        cache: "no-store",
+      });
+    }
+  });
+
+  it.each([
+    [
+      "401 with a token",
+      { status: 401 },
+      "token-refused",
+      "GitHub refused the token for acme: it may have expired. It has been forgotten; enter a new one.",
+    ],
+    [
+      "403 at the rate limit",
+      { status: 403, headers: { "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "1793836800" } },
+      "rate-limit",
+      "GitHub's rate limit is reached. It resets at 2026-11-05 00:00:00 UTC.",
+    ],
+    [
+      "another 403",
+      { status: 403 },
+      "forbidden",
+      'GitHub says the token may not read this repo: it may lack the "Contents: read" permission, or an organisation\'s token policy may stop it.',
+    ],
+    [
+      "a 404, read as a request that is not request 1 or 2",
+      { status: 404 },
+      "http",
+      `GitHub answered HTTP 404 for ${API}/branches?per_page=100&page=1.`,
+    ],
+    [
+      "an answer that is not an array",
+      { status: 200, body: '{"message":"no"}' },
+      "bad-response",
+      "GitHub's answer for the branch list was not understood.",
+    ],
+  ] as const)(
+    "%s: the failure and its message, with no names",
+    async (_n, answer, kind, message) => {
+      const { fetcher } = fakeWithInit({ [pageUrl(1)]: answer });
+      const r = await listBranches(OWNER_REPO, fetcher, TOKEN);
+      expect(r).toEqual({
+        names: [],
+        more: false,
+        pagesRead: 0,
+        failure: expect.objectContaining({ kind, message }),
+      });
+    },
+  );
+
+  it("a network failure: the host and the reason without a token, the host only with one", async () => {
+    const throwing: Fetcher = async () => {
+      throw new Error("offline");
+    };
+    expect((await listBranches(OWNER_REPO, throwing)).failure?.message).toBe(
+      "The request to api.github.com failed: offline.",
+    );
+    expect((await listBranches(OWNER_REPO, throwing, TOKEN)).failure?.message).toBe(
+      "The request to api.github.com failed.",
+    );
+  });
+
+  it("a failure on page 2 returns page 1's names and the failure", async () => {
+    const { fetcher, sent } = fakeWithInit({
+      [pageUrl(1)]: { status: 200, body: names(0, 100) },
+      [pageUrl(2)]: { status: 500 },
+    });
+    const r = await listBranches(OWNER_REPO, fetcher);
+    expect(sent).toHaveLength(2);
+    expect(r.names).toHaveLength(100);
+    expect(r).toMatchObject({
+      more: false,
+      pagesRead: 1,
+      failure: {
+        kind: "http",
+        status: 500,
+        message: `GitHub answered HTTP 500 for ${pageUrl(2)}.`,
+      },
+    });
   });
 });
