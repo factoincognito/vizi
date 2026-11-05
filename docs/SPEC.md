@@ -1432,22 +1432,26 @@ format of `PROJECTS.md`, and what counts as a pointer, is
     behind a control that says less than they do.
   - **Its words,** exactly, with the parts in code shown as code:
 
-    "An umbrella is a project that gathers other projects under
-    headings, read from its `PROJECTS.md`. A project with a repo of its
-    own is shown as `<owner>/<repo>`, which you can open in vizi or on
-    GitHub. A pre-project is a project at an early stage, with no repo
+    "An umbrella is a project that lists other projects in its
+    `PROJECTS.md`, grouped under the file's headings where it has
+    them. A project with a repo of its own is shown as `<owner>/<repo>`,
+    which you can open in vizi or on GitHub. A pre-project is a project at an early stage, with no repo
     of its own yet, that lives in this umbrella's repo for now: it is
     shown as `projects/<name>/`, and "Show status" reads its
     `STATUS.md`."
 
     The words follow 3.9 and `docs/BACKLOG-FORMAT.md` section 5: the
-    tree is the file's headings with the pointers under them (P3); a
+    tree is the file's headings with the pointers under them (P3), and
+    pointers above the first heading are listed under "(no heading)"
+    (P4), so "where it has them" covers a file with few headings or
+    none; a
     repo pointer is `<owner>/<repo>`, a GitHub repo, with "Open in vizi"
     and "On GitHub"; a folder pointer is `projects/<name>/`, a folder of
     the same project (P4), with "Show status", which reads its
     `STATUS.md`. A pre-project is the product owner's name for what a
     folder pointer points at (22:24). The form is written with angle
-    brackets, as the Repository field's hint is (3.1, item 14, 21:01).
+    brackets, as the Repository field's hint is ("What is decided",
+    item 14, 21:01; 3.1, "The Repository field").
   - **Static text in the page.** The paragraph is data in `src/help.ts`
     (as `UMBRELLA_HELP`, a list of parts, each plain text or code, as
     the help view's paragraphs are, 3.10), built into the one inline
@@ -1464,9 +1468,12 @@ format of `PROJECTS.md`, and what counts as a pointer, is
     light and 7.94:1 dark. Code parts use the page's code style. On a
     phone it wraps at the column's width, with no sideways scroll.
   - **Accessibility:** it is real text in the tab panel, before the
-    tree, so a screen reader reads it first on entering the tab, and the
-    tab panel has `aria-describedby="umbrella-help"`. It is not a
-    heading and takes no focus. Its meaning is in words, not in colour.
+    tree, so a screen reader reads it first on entering the tab. The
+    panel has no `aria-describedby` for it (Clead's call): its place
+    already makes it read first, and naming it as the panel's
+    description too would have some screen readers read it twice. It
+    is not a heading and takes no focus. Its meaning is in words, not
+    in colour.
   - **Not changed:** the tree, the links, "Show status", the report
     and the requests of 3.9.
   - **Tests** (test first):
@@ -1480,8 +1487,8 @@ format of `PROJECTS.md`, and what counts as a pointer, is
     - browser (GitHub stubbed, light and dark, 375 px and 1280 px): with
       a `PROJECTS.md`, the Umbrella tab's panel starts with
       `#umbrella-help`, before `#umbrella-tree`, with the exact text
-      and four `code` elements; the panel's `aria-describedby` names
-      it; opening the tab makes no request beyond those of 3.9; the
+      and four `code` elements; the panel has no `aria-describedby`;
+      opening the tab makes no request beyond those of 3.9; the
       paragraph's colour against its nearest opaque background is at
       least 4.5:1; no sideways scroll at 375 px; without a
       `PROJECTS.md` there is no Umbrella tab and no paragraph; the CSP
