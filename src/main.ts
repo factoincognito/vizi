@@ -35,6 +35,7 @@ import {
   type Paragraph,
   plainText,
   READ_ONLY_SENTENCE,
+  UMBRELLA_HELP,
 } from "./help";
 import {
   type Block,
@@ -1465,6 +1466,8 @@ function mount(): void {
       h(
         "div",
         { id: "panel-umbrella", role: "tabpanel", hidden: "" },
+        // What an umbrella and a pre-project are: static text, first in the panel (3.9, PBI-1.18).
+        h("p", { id: "umbrella-help" }, ...helpParts(UMBRELLA_HELP)),
         h("div", { id: "umbrella-tree" }),
         h("section", {
           id: "project-status",
