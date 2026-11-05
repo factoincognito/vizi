@@ -17,10 +17,11 @@ import { branchListRead } from "./picker";
 
 const test = base.extend<{ guard: undefined }>({
   guard: [
-    async ({ page, baseURL }, use) => {
+    async ({ context, baseURL }, use) => {
       const stray: string[] = [];
       const own = [`${baseURL}/`, pathToFileURL(join(__dirname, "..", "dist", "index.html")).href];
-      page.on("request", (r) => {
+      // On the context, so a second tab's requests are guarded too.
+      context.on("request", (r) => {
         if (!isAllowedRequest(r.url(), own)) stray.push(r.url());
       });
       await use(undefined);
@@ -1282,6 +1283,26 @@ test.describe("leaving the field by a click below it: nothing moves (3.1, Clead,
     const [before, atBlur] = await rects();
     expect(atBlur).toEqual(before);
     stub.release();
+  });
+
+  test("after Open in vizi writes acme/widgets, focusing and leaving the field by a click on the toggle moves nothing", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context);
+    await page.goto("/");
+    await field(page).fill("https://github.com/acme/hub");
+    await openButton(page).click();
+    await expect(page.locator("#tab-umbrella")).toBeVisible();
+    await page.getByRole("link", { name: "Open in vizi" }).first().click();
+    await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
+    await expect(field(page)).toHaveValue("acme/widgets");
+    await field(page).focus();
+    const rects = await watchPosition(page, "#private-repos-toggle");
+    await page.locator("#private-repos-toggle").click();
+    await expect(page.locator("#private-repos-toggle")).toHaveAttribute("aria-expanded", "true");
+    const [before, atBlur] = await rects();
+    expect(atBlur).toEqual(before);
   });
 
   /** The space between the address row and the access line, in px. */

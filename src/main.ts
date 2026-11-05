@@ -1587,8 +1587,7 @@ function onGuideInput(): void {
   const text = guideText();
   const before = lastGuideText;
   lastGuideText = text;
-  // The message line's space follows the typing only, never a blur or a read (3.1, Clead, #85).
-  must("guide-message").classList.toggle("reserved", text.kind !== "none");
+  reserveGuideLine(text);
   const repoOf = (t: GuideText) => (t.kind === "repo" ? t.repo.toLowerCase() : null);
   if (guideOwner(text) !== guideOwner(before) || repoOf(text) !== repoOf(before)) {
     hideGuideSelect();
@@ -1606,9 +1605,19 @@ function onGuideInput(): void {
   if (becameOwnerSlash) askOwnerList(text.owner, false);
 }
 
+/**
+ * The message line takes its one line while the field's text is guided, set
+ * on an `input` and on the page's own write of the field only, never on a
+ * blur, a focus or a read, so a blur moves nothing (3.1, Clead, #85).
+ */
+function reserveGuideLine(text: GuideText): void {
+  must("guide-message").classList.toggle("reserved", text.kind !== "none");
+}
+
 /** The page wrote the field (a repo chosen in the select, "Open in vizi"): no `input` event, so the guide follows it here. */
 function guideFieldWritten(): void {
   lastGuideText = guideText();
+  reserveGuideLine(lastGuideText);
   syncDatalist(lastGuideText);
 }
 
