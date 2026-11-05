@@ -1501,12 +1501,17 @@ function guideRefused(
   return true;
 }
 
-/** Shows an owner's list, if the field still names that owner (alone or with a repo). */
+/**
+ * Shows an owner's list, if the field still names that owner (alone or with
+ * a repo). With a repo in the field it fills the datalist only: the select
+ * and the message line are then the repo's branch read's (3.1, "Edge cases").
+ */
 function applyOwnerRead(read: OwnerRead): void {
   const text = guideText();
   const owner = read.owner.toLowerCase();
   if (guideOwner(text) !== owner || text.kind === "none") return;
   fillDatalist(text.owner, read.names);
+  if (text.kind === "repo") return;
   const wanted = ownerSelectWanted === owner && text.kind === "owner";
   const view = ownerView(read, wanted);
   if (view.options) showOwnerSelect(text.owner, view.options);
@@ -1582,13 +1587,15 @@ function onGuideInput(): void {
   const text = guideText();
   const before = lastGuideText;
   lastGuideText = text;
+  // The message line's space follows the typing only, never a blur or a read (3.1, Clead, #85).
+  must("guide-message").classList.toggle("reserved", text.kind !== "none");
   const repoOf = (t: GuideText) => (t.kind === "repo" ? t.repo.toLowerCase() : null);
   if (guideOwner(text) !== guideOwner(before) || repoOf(text) !== repoOf(before)) {
     hideGuideSelect();
     setGuideMessage("", null);
     ownerSelectWanted = null;
-    // A read of the owner's list still running says so (3.1, the message line).
-    if (text.kind !== "none" && ownerLists.reading(text.owner))
+    // A read of the owner's list still running says so, for an owner alone (3.1, the message line).
+    if (text.kind === "owner" && ownerLists.reading(text.owner))
       setGuideMessage(readingRepos(text.owner), text.owner);
   }
   syncDatalist(text);

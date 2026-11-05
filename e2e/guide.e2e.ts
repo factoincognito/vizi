@@ -422,6 +422,49 @@ test.describe("leaving the field, and the select (3.1)", () => {
     expect(times(stub, repoUrl("acme", "widgets"))).toBe(2);
   });
 
+  test("a late owner-list answer with a repo in the field fills the datalist only: the branch read's 404 message and its select stay", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context, { hold: (u) => u === orgPage("acme") });
+    await page.goto("/");
+    await typeIn(page, "acme/");
+    await expect.poll(() => times(stub, orgPage("acme"))).toBe(1);
+    await field(page).pressSequentially("missing");
+    await clickAway(page);
+    const notFound = "Not found or not public. If the repo is private, add a token for its owner.";
+    await expect(guideMessage(page)).toHaveText(notFound);
+    stub.release(orgPage("acme"));
+    await expect.poll(() => optionValues(page)).toHaveLength(3);
+    await settle(page);
+    await expect(guideMessage(page)).toHaveText(notFound);
+    await expect(select(page)).toBeHidden();
+  });
+
+  test("a late owner-list answer leaves a shown branch select and its line alone", async ({
+    page,
+    context,
+  }) => {
+    const many = Array.from({ length: 300 }, (_, i) => `r${String(i).padStart(3, "0")}`);
+    const stub = await stubGithub(context, {
+      owners: { acme: { type: "Organization", repos: ["widgets", ...many] } },
+      hold: (u) => u === orgPage("acme"),
+    });
+    await page.goto("/");
+    await typeIn(page, "acme/");
+    await expect.poll(() => times(stub, orgPage("acme"))).toBe(1);
+    await field(page).pressSequentially("widgets");
+    await clickAway(page);
+    await expect(label(page)).toHaveText("Branch of acme/widgets");
+    await expect(guideMessage(page)).toHaveText("");
+    stub.release(orgPage("acme"));
+    // The list is past the cap, so its own outcome would be the past-cap line.
+    await expect.poll(() => times(stub, orgPage("acme", 3))).toBe(1);
+    await settle(page);
+    await expect(label(page)).toHaveText("Branch of acme/widgets");
+    await expect(guideMessage(page)).toHaveText("");
+  });
+
   test("a second blur replaces a first whose request 1 is held: the first makes no branch request, the second's branches show", async ({
     page,
     context,
@@ -605,7 +648,7 @@ test.describe("Open and Enter (3.1)", () => {
     await expect(select(page)).toBeHidden();
   });
 
-  test("Open after page 1 of the guide's branches (100) answered: no page 2 from the guide", async ({
+  test("Open while page 1 of the guide's branches (100 items) is held: when it answers, the guide asks for no page 2", async ({
     page,
     context,
   }) => {
@@ -1073,22 +1116,31 @@ test.describe("messages for each outcome (3.1, Edge cases)", () => {
     );
   });
 
-  test("a 401 with a token: the token is forgotten and 3.8's message is in #message", async ({
+  test("a 401 with a token: the token is forgotten, 3.8's message is in #message, the results loaded with it are hidden, and the next acme/ reads again", async ({
     page,
     context,
   }) => {
-    await stubGithub(context, {
-      status: (u) => (u === ownerUrl("acme") ? { status: 401 } : undefined),
+    const stub = await stubGithub(context, {
+      status: (u, n) => (u === ownerUrl("acme") && n === 0 ? { status: 401 } : undefined),
     });
     await page.goto("/");
     await addToken(page, "acme");
+    await field(page).fill("https://github.com/acme/widgets");
+    await openButton(page).click();
+    await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
+    await branchListRead(page);
     await field(page).fill("acme");
     await clickAway(page);
     await expect(page.locator("#message")).toHaveText(
       "GitHub refused the token for acme: it may have expired. It has been forgotten; enter a new one.",
     );
     await expect(page.locator('[data-testid=token-line][data-owner="acme"]')).toHaveCount(0);
+    await expect(page.locator("#results")).toBeHidden();
     await expect(select(page)).toBeHidden();
+    await field(page).fill("");
+    await field(page).pressSequentially("acme/");
+    await expect.poll(() => times(stub, ownerUrl("acme"))).toBe(2);
+    await expect.poll(() => optionValues(page)).toHaveLength(3);
   });
 
   test("an owner list that fails on page 2 shows its names, incomplete, and is read again; a page 1 failure is read again on the next blur, once", async ({
@@ -1174,7 +1226,7 @@ test.describe("the field and the Owner prefill (3.1, 3.8)", () => {
   });
 });
 
-test.describe("leaving the field by a click below it: nothing moves (3.1, Clead, 2026-11-05, #85)", () => {
+test.describe("leaving the field by a click below it: nothing moves (3.1, Clead, 2026-11-05, #85; the line reserved while the guide is in use)", () => {
   /**
    * Records where `selector` is before, and again inside the field's own
    * `blur` event, after the opening guide's handler (registered first) has
@@ -1232,11 +1284,37 @@ test.describe("leaving the field by a click below it: nothing moves (3.1, Clead,
     stub.release();
   });
 
-  test("the message line takes one line's height while empty", async ({ page }) => {
+  /** The space between the address row and the access line, in px. */
+  const rowToAccess = (page: Page) =>
+    page.evaluate(
+      () =>
+        (document.getElementById("access-line")?.getBoundingClientRect().top ?? 0) -
+        (document.querySelector(".url-row")?.getBoundingClientRect().bottom ?? 0),
+    );
+  /** 3.12's spacing as main builds it: 10 px on desktop, 8 px on a phone. */
+  const idleGap = (page: Page) => ((page.viewportSize()?.width ?? 0) < 800 ? 8 : 10);
+
+  test("the guide idle: the row-to-access-line gap is 3.12's, with an empty field and with a full address", async ({
+    page,
+  }) => {
     await page.goto("/");
+    expect(await rowToAccess(page)).toBe(idleGap(page));
+    await field(page).fill("https://github.com/acme/widgets");
+    expect(await rowToAccess(page)).toBe(idleGap(page));
+  });
+
+  test("the message line takes one line's height on typing acme, and gives it back on clearing the field", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context);
+    await page.goto("/");
+    await typeIn(page, "acme");
     await expect(guideMessage(page)).toHaveText("");
-    const box = await guideMessage(page).boundingBox();
-    expect(box?.height ?? 0).toBeGreaterThanOrEqual(20);
+    expect((await guideMessage(page).boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(20);
+    expect(await rowToAccess(page)).toBeGreaterThan(idleGap(page) + 20);
+    await field(page).fill("");
+    expect(await rowToAccess(page)).toBe(idleGap(page));
   });
 });
 

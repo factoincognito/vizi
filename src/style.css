@@ -273,16 +273,23 @@ main {
 }
 
 /*
- * The opening guide's message line always takes one line's height, empty or
- * not, so nothing below the address row moves when "Reading…" or "Choose
- * one…" appears on leaving the field (3.1, Clead, 2026-11-05, #85).
+ * The opening guide's message line takes no space while the guide is idle
+ * (3.12's spacing). From the input at which the field's text becomes guided
+ * it takes one line's height, empty or not, so a blur that writes
+ * "Reading…" or "Choose one…" moves nothing below the row; the space goes
+ * only on an input that leaves the text not guided (3.1, Clead, 2026-11-05,
+ * #85).
  */
 #guide-message {
-  margin: 6px 0 0;
-  min-height: 20px;
+  margin: 0;
   font-size: 14px;
   line-height: 20px;
   color: var(--muted);
+}
+
+#guide-message.reserved {
+  margin-top: 6px;
+  min-height: 20px;
 }
 
 #url-input {
