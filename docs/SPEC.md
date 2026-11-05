@@ -296,6 +296,9 @@ Clead's design, within the approved intent.
 - `src/markdown.ts`: a pure module. It turns Markdown text into a tree
   of allowed nodes under the rendering contract (3.7). It returns data,
   not HTML.
+- `src/guide.ts` (from PBI-1.19): a pure module for the opening guide of
+  3.1 ("Guided opening"): how it reads the field, its requests' kinds,
+  the parsing of its lists and its messages.
 - `src/main.ts`: reads the files from GitHub and
   builds the page from the modules' results. It holds no parsing logic.
 
@@ -818,10 +821,12 @@ changes none of its reading rules, with one exception, an owner alone
          items whose `owner.login` equals the owner (without regard to
          case) are listed, since a token named for an owner may belong
          to another account (3.8). There is no second page when page 1
-         leaves no item (Clead's call, so an owner costs at most four
-         requests), and the list counts as read in full: the line then
-         says the owner has no repos vizi can see with its token, with
-         the hint below;
+         leaves no item (Clead's call: with `affiliation=owner`, an empty
+         page 1 for that owner means the token belongs to another
+         account, so later pages hold none of the owner's repos either),
+         and the list counts as read in full: the line then says the
+         owner has no repos vizi can see with its token, with the hint
+         below;
        - a **user, without a token for that owner:**
          `GET /users/<owner>/repos?type=owner&sort=full_name`, "List
          repositories for a user": "Lists public repositories for the
@@ -898,9 +903,10 @@ changes none of its reading rules, with one exception, an owner alone
     at the same docs commit, blob
     `110917f527966078d4e1c56a48d2f1a705b0ceed`). An owner's list costs
     two to four requests (request 1 above and one to three pages), once
-    per page visit when it is read in full. Each time a repo's branches
-    are shown (below) costs two to four more. A load then costs what 3.1
-    says, and the picker's list what 3.13 says.
+    per page visit when it is read in full. Each blur with an owner and
+    a repo (below) costs two to four more, unless the focus moves to
+    "Open". A load then costs what 3.1 says, and the picker's list what
+    3.13 says.
 - **The list while typing: a native `<datalist>`** (Clead's call, native
   first, as 3.13's select). The field gets `list="repo-list"` and keeps
   `autocomplete="off"`, the privacy-safe choice: the browser is asked
@@ -919,7 +925,12 @@ changes none of its reading rules, with one exception, an owner alone
   changes, it is emptied at once, and filled when that owner's list is
   read or kept. No custom listbox or combobox is built; the field keeps
   its label "Repository" and its role.
-- **Leaving the field** (`blur`), and Open, for guided text. The opening
+- **Leaving the field** (`blur`), and Open, for guided text. A blur of
+  the field or of the select whose focus moves to "Open" (the event's
+  `relatedTarget`) does nothing: Open does what follows for the field's
+  text, so a click on Open makes no read that Open would drop. Where a
+  click does not move the focus to "Open" (not checked per browser,
+  item 30), the blur's read starts and Open stops it (below). The opening
   guide shows its result in one native `<select id="guide-select">` with
   its `<label>`, placed in the address row between the field and "Open"
   (on desktop on the same row, the field shrinking, at most 260 px wide;
@@ -961,7 +972,9 @@ changes none of its reading rules, with one exception, an owner alone
     had no default branch", in `#guide-message`, and no select); then
     the branch list with 3.13's request ("Which request lists the
     branches", the same `listBranches`, pages and cap). A new read
-    replaces the one before it: the older read's answer is dropped. The
+    replaces the one before it: the older read makes no further request
+    (no branch list after its request 1, no further page) and its answer
+    is dropped. The
     select's label becomes "Branch of `<owner>/<repo>`", its options are
     the branches as 3.13 orders them (the default first, " (default)"
     after it, then by character codes; `#` and `%` disabled), and the
@@ -977,7 +990,8 @@ changes none of its reading rules, with one exception, an owner alone
     Repository field" sets out (request 1 when `branch` is `null`), and
     the picker of 3.13 then reads its own list: nothing the opening
     guide read is reused. Open hides the select and `#guide-message`,
-    and the answer of a branch read still running is dropped. Whether
+    and a branch read still running is stopped as a replaced one is: no
+    further request, its answer dropped. Whether
     Enter, while the browser shows the datalist's suggestions, chooses a
     suggestion instead of submitting is the browser's own behaviour and
     was not checked (item 30); the opening guide handles an Enter that
@@ -987,9 +1001,10 @@ changes none of its reading rules, with one exception, an owner alone
   owner, or the owner and repo, it was asked for. An owner's list read
   in full is kept whenever it arrives (unless its read was abandoned on
   a token change, above), but an answer changes the datalist, the select
-  or `#guide-message` only if the field's text, read as above, is still
-  that owner (for a repo list) or that owner and repo (for a branch
-  list) when it arrives, and, for a branch list, only if its read is the
+  or `#guide-message` only if, when it arrives, the field's text, read
+  as above, still names that owner, alone or with a repo, as `acme/wi`
+  does (for a repo list), or is still that owner and repo (for a branch
+  list), and, for a branch list, only if its read is the
   latest one. A kept list is used, with no request, when the field comes
   back to its owner. The datalist follows the field while typing; the
   select is shown only after a blur of the field or of the select, or an
@@ -1000,8 +1015,8 @@ changes none of its reading rules, with one exception, an owner alone
   which sets the field's value and fires no `input` event) does not hide
   it; it updates the Owner prefill itself ("Where other parts set or
   read the field"). Every other load (an entry of 3.14, "Open in vizi"
-  or a pick of 3.13) also hides the select and `#guide-message`, as
-  Open does.
+  or a pick of 3.13) also hides the select and `#guide-message`, and
+  stops a running branch read, as Open does.
 - **The opening guide's message line** `#guide-message`
   (`role="status"`, 14 px, muted, under the row, taking no space while
   empty) says "Reading `<owner>`'s repos…" or "Reading the branches…"
@@ -1120,17 +1135,32 @@ changes none of its reading rules, with one exception, an owner alone
       picker of 3.13 makes its own branch request; choosing another
       branch in the opening guide's select and Open loads it by name,
       with no request 1;
-    - leaving the field twice with `acme/widgets` in it reads the repo
-      and its branches twice (nothing of a repo is kept), and the select
-      shows the second read's branches when the first answers last;
+    - leaving the field twice with `acme/widgets` in it, the first read
+      answered, reads the repo and its branches twice (nothing of a repo
+      is kept); with the first read's request 1 held back, the second
+      blur replaces it, the first makes no branch request, and the
+      select shows the second read's branches even when the first's
+      request 1 answers last;
     - **Save after a guided open,** written in whichever of PBI-1.19 and
       PBI-1.12 is built second (their order is not fixed; both come
       after PBI-1.15): 3.14's "Save" stores `null` for a guided open of
       the default branch and the name for another branch. 3.14's tests
       gain this case if PBI-1.12 is built second;
-    - Open with `acme/widgets` while the opening guide's branch read is
-      running: the load goes on, and no select is shown when that read
-      answers; the same with Enter;
+    - Open with `acme/widgets` while the opening guide's read is
+      running: when request 1 is still running, no branch request
+      follows it; when page 1 of the branches (100 items) is answered,
+      no page 2 is asked for; the load goes on, and no select is shown;
+      the same with Enter, and with a second blur that replaces the
+      read;
+    - clicking "Open" with `acme/widgets` in the field (the focus moves
+      to "Open"): the blur starts no read, so the opening guide makes no
+      request, and the load makes its own;
+    - with a branch select shown, typing a change of the repo hides it;
+      choosing a repo in the owner's select leaves the select shown; an
+      entry of 3.14, "Open in vizi", and a pick of 3.13 each hide the
+      select and `#guide-message`;
+    - `acme/`, then typing on to `acme/wi` before the owner's list
+      answers: the answer still fills the datalist;
     - a token for `acme` that belongs to another account: `/user/repos`
       keeps nothing, no further request is made, and the line shows the
       "with its token" message; typing `acme/<repo>` and Open still
@@ -3965,8 +3995,8 @@ PBI-1.2's; their outcome after it (PR #9):
    requests 1 and 2) and up to three to `raw.githubusercontent.com`, and
    each "Show status" of the umbrella view one more (3.9); from PBI-1.19
    the opening guide's reads add two to four per owner, once per page
-   visit when its list is read in full, and two to four each time a
-   repo's branches are shown (3.1, "Guided opening", which also quotes
+   visit when its list is read in full, and two to four on each blur
+   with an owner and a repo (3.1, "Guided opening", which also quotes
    GitHub's documented limit of 60 anonymous requests per hour).
    The checks in 3.1 ran through a proxy that appears to add
    credentials, so they do not show the anonymous limit.
@@ -4158,6 +4188,10 @@ Items 29 to 31 are PBI-1.19's (3.1, "Guided opening"):
     suggestions are shown is browser chrome, outside the page's DOM, so
     the build's browser tests check only the `list` attribute and the
     `<option>` values (3.1); trying it in the browsers is PBI-1.4's.
+    Also not checked: in which browsers a click on a button moves the
+    focus to it (3.1 skips the blur's read when it does), and whether,
+    on a phone, the select shown on the field's blur can move "Open"
+    under a tap that is landing on it.
 31. **Open; PBI-1.19.** Whether `api.github.com` answers
     `/users/<owner>` for an organisation with `"type": "Organization"`
     as the documentation's schema suggests; the documentation's example
