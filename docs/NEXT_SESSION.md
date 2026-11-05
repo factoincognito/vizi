@@ -70,10 +70,12 @@ vizi's local rules are in `RULES.md`, and the global ones in the product
 office's Rules, a private repository the CI reviewer cannot read. The CI
 reviewer still reads `CLAUDE.md`, not `RULES.md`, so it no longer sees
 the rules it checks a diff against, and `.github/reviewer/instructions.md`
-still tells it to check against `CLAUDE.md`. Clead's proposal, not
-decided: add `RULES.md` to the documents it reads (`REVIEW_DOCS` in
-`.github/reviewer/review.mjs`, `RULES.md` L § 3 (1)). That gives it the
-local rules only; the global Rules stay unreadable in CI. Under `RULES.md`
+still tells it to check against `CLAUDE.md`. Decided by the product owner,
+2026-11-05 18:49 (product-office DECISIONS.md): `RULES.md` is added to the
+documents it reads (`RULES.md` L § 3 (1), `memory/standards.md` § 7,
+`REVIEW_DOCS` in `.github/reviewer/review.mjs`), in its own PR right after
+#88 merges, reviewed by a manual Opus Crog under `RULES.md` L § 4 (8). That
+gives it the local rules; the global Rules stay unreadable in CI. Under `RULES.md`
 L § 4 (2) and (7), a CI `APPROVE` counted as Crog's review of a
 rules or process change (product-office `RULES.md` § 28 (1)(b)), and the
 CI reviewer cannot check such a change against the global Rules that
@@ -84,13 +86,14 @@ config only, and a rules or process change gets a manual Opus Crog review
 (`RULES.md` L § 4 (11)). That decision accepts the gap for code PRs: a CI
 review of vizi code checks it against `CLAUDE.md`, `memory/standards.md`
 and `docs/SPEC.md` (`RULES.md` L § 3 (1)), and the global Rules stay
-unchecked by the CI reviewer until the public copy exists. Adding
-`RULES.md` to `REVIEW_DOCS` is still open; until then the CI reviewer does
-not read vizi's local rules either.
-**Impact on plan:** (b) and (c) widen the contract (a WHAT); the script
-and instructions change by a few lines.
-**Action:** Clead asks the product owner to accept, change or reject (b)
-and the open part of (c); until he decides the contract stays as it is.
+unchecked by the CI reviewer until the public copy exists. Until the
+`REVIEW_DOCS` PR merges, the CI reviewer does not read vizi's local rules
+either.
+**Impact on plan:** (b) widens the contract (a WHAT); the script and
+instructions change by a few lines.
+**Action:** (c): Clead opens the `REVIEW_DOCS` PR right after #88 merges.
+(b): Clead asks the product owner to accept, change or reject it; until he
+decides, that part of the contract stays as it is.
 
 ### 4. Follow-ups of the CI reviewer pilot — new, small, none blocks the pilot
 
