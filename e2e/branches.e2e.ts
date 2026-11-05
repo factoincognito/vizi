@@ -350,7 +350,8 @@ test.describe("the cap and names (3.13)", () => {
     context,
   }) => {
     const markup = "<img src=x onerror=alert(1)>";
-    await stubGithub(context, { branches: { widgets: ["main", "a#b", markup] } });
+    const flag = "<img src=x onerror=window.__viziPwned=1>";
+    await stubGithub(context, { branches: { widgets: ["main", "a#b", markup, flag] } });
     const dialogs: string[] = [];
     page.on("dialog", (d) => {
       dialogs.push(d.message());
@@ -361,10 +362,12 @@ test.describe("the cap and names (3.13)", () => {
     const hash = select(page).locator("option", { hasText: "a#b" });
     await expect(hash).toHaveText("a#b (cannot be opened in vizi)");
     await expect(hash).toBeDisabled();
-    await expect(select(page).locator("option", { hasText: "<img" })).toHaveText(markup);
-    await expect(page.locator("#branch-picker img")).toHaveCount(0);
+    await expect(select(page).locator("option", { hasText: "alert" })).toHaveText(markup);
+    await expect(select(page).locator("option", { hasText: "__viziPwned" })).toHaveText(flag);
     await settle(page);
     expect(dialogs).toEqual([]);
+    // Had either name been read as markup, its handler would have run and set the flag or opened a dialog.
+    expect(await page.evaluate(() => "__viziPwned" in window)).toBe(false);
   });
 });
 
@@ -533,7 +536,7 @@ test.describe("late answers of the list (3.13, Errors)", () => {
     await expect(page.locator("#branch-select option")).toHaveCount(0);
   });
 
-  test("a 401 on the list whose token was replaced meanwhile keeps the new token and does not say it was forgotten", async ({
+  test("a 401 on the list whose token was replaced meanwhile keeps the new token, with 3.8's message", async ({
     page,
     context,
   }) => {
@@ -548,8 +551,9 @@ test.describe("late answers of the list (3.13, Errors)", () => {
     // A new token for the same owner replaces the one the list's read carries; that is not a Forget.
     await tokenFor(page, "acme", TOKEN_OTHER);
     stub.release(due);
+    // 3.8's message, as the spec reads; that its wording does not fit this case is PBI-1.10 (from #42, item 7).
     await expect(page.locator("#branch-message")).toHaveText(
-      "The branch list could not be read: GitHub refused the token for acme: it may have expired.",
+      "The branch list could not be read: GitHub refused the token for acme: it may have expired. It has been forgotten; enter a new one.",
     );
     await expect(page.locator("#results")).toBeVisible();
     await expect(openBranch(page)).toBeEnabled();
@@ -676,8 +680,18 @@ test.describe("layout (3.13)", () => {
     const s = await select(page).boundingBox();
     const b = await openBranch(page).boundingBox();
     if (!s || !b) throw new Error("no box");
-    if (phone) expect(b.y).toBeGreaterThanOrEqual(s.y + s.height);
-    else {
+    if (phone) {
+      // The label above, then the select and the button across the row's width (3.13, "Phone layout").
+      const label = await page.locator("label[for=branch-select]").boundingBox();
+      const row = await page.locator("#branch-picker").boundingBox();
+      if (!label || !row) throw new Error("no box");
+      expect(label.y + label.height).toBeLessThanOrEqual(s.y + 0.5);
+      expect(b.y).toBeGreaterThanOrEqual(s.y + s.height);
+      for (const box of [s, b]) {
+        expect(Math.abs(box.x - row.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(box.width - row.width)).toBeLessThanOrEqual(1);
+      }
+    } else {
       expect(s.width).toBeLessThanOrEqual(420);
       expect(Math.abs(b.y - s.y)).toBeLessThanOrEqual(1);
     }
