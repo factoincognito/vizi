@@ -857,6 +857,20 @@ alone (below).
     tokens", a 401, or another tab's `storage` event (3.8). A failed
     read is not kept: the next time the field loses focus, or Open is
     used, with that owner alone, it is read once more.
+  - **A read outlives no token change.** Each guide read carries the
+    token it started with (or none). When the token held for its owner
+    changes in any of those ways while the read is running, the read is
+    abandoned: it makes no further request (no further page, and no
+    branch list after request 1; the page's fetch refuses before the
+    request is made, as 3.8 builds it for a replaced load), and its
+    answer, when it comes, is neither cached nor shown. So a list read
+    with a forgotten token never reaches the cache, the datalist or the
+    select.
+  - **What a token change hides.** The same changes, for an owner,
+    empty the datalist and hide the select and the guide's message line
+    when they hold that owner's repos or one of that owner's repos'
+    branches (3.8, "Forget, per owner"). The field's text stays; the
+    next `/`, blur or Open reads again, with the token now held.
   - **The anonymous rate limit:** "The primary rate limit for
     unauthenticated requests is 60 requests per hour", per IP address,
     and 5,000 per hour for a personal access token
@@ -929,16 +943,24 @@ alone (below).
     branch request ("When", "reused" in the decision's words).
   - **Open straight from the field.** Clicking Open with an owner and a
     repo in the field blurs the field first, and the blur starts the
-    guide's reads for that repo. Open does not start a load of its own
-    beside them: it starts the load at once, as a newer load (3.1), and
-    that load waits for the guide's running reads (shared, above)
-    instead of making request 1, then takes the default branch from
-    them, and the picker takes their branch list. A load with the
-    default branch is a load with `branch` `null` (so 3.14 saves it as
-    following the default). If the guide's reads fail, the load makes
-    its own requests as "The Repository field" sets out, and the picker
-    reads its list as 3.13 does. The same holds for Enter in the field.
-    So Open straight from the field costs no request twice.
+    guide's reads for that repo. Open starts the load at once, as a
+    newer load (3.1); the load makes no request 1 of its own but waits
+    for the guide's running reads (shared, above), takes the default
+    branch from them, and the picker takes their branch list. A load
+    with the default branch is a load with `branch` `null` (so 3.14
+    saves it as following the default). The same holds for Enter in the
+    field.
+    - **Only with the same token.** A load reuses a guide read, running
+      or finished, only when that read carries the token the load uses
+      (the one held for the owner when the load starts). Otherwise the
+      load makes its own requests as "The Repository field" sets out,
+      and the picker reads its list as 3.13 does.
+    - **A failed guide read is reused as a failure.** When the guide's
+      request 1 failed, the load fails with that answer's message and
+      makes no request 1 again (a 401 is handled once, by the guide, as
+      3.8 sets out); when only the branch list failed, the load goes on
+      and the picker reads its list as 3.13 does. So a 404 or a network
+      failure is not asked twice.
 - **Typing on, and newest wins.** Every guide answer is for the owner,
   or the owner and repo, it was asked for. It is kept in the memory
   cache whenever it arrives, but it changes the datalist, the select or
@@ -1014,6 +1036,9 @@ alone (below).
     `"type": "Bot"` gives the "not understood" message; a repo answer
     without `default_branch` gives the no-default message;
     the request kind: organisation, user with a token, user without;
+    a read abandoned on a token change for its owner makes no further
+    request and its answer is not cached; a read for another owner goes
+    on;
     a page parsed (an item without a valid `name` skipped, a repeat once,
     `/user/repos` items of another owner dropped, the order by
     character codes); the cap by items (100, 100, 100 with one skipped:
@@ -1072,6 +1097,18 @@ alone (below).
       blur, once;
     - "Add" or "Forget" of `acme`'s token drops `acme`'s cache: the next
       `acme/` reads again;
+    - Forget of `acme`'s token while `acme`'s repo read is due (page 1
+      answered with 100 items, page 2 held back): no page 2 request is
+      made, the late answer is not shown in the datalist and not cached
+      (the next `acme/` reads again); the same while a repo's request 1
+      or branch list is due;
+    - Forget of `acme`'s token while the datalist holds `acme`'s repos
+      and the select shows a branch list of an `acme` repo: the datalist
+      is emptied and the select hidden; the field's text stays;
+    - a guide read made without a token, then a token added for `acme`,
+      then Open: the load uses the token and makes its own requests;
+    - the guide's request 1 answered 404, then Open: one request 1 in
+      all, and the load shows the 404 message;
     - accessibility: the field's `list`, the select's label as it
       changes, the focus kept on the select, the tab order field,
       select, Open; the message line's role;
@@ -1556,7 +1593,10 @@ forgets the token held at that moment.
   from memory and from `localStorage`, and removes its line. Results
   loaded with that owner's token are hidden, since they may hold private
   text: the project, when its load used that token, and the "Project
-  status" panel of 3.9, when its status was read with it. Results loaded
+  status" panel of 3.9, when its status was read with it; from PBI-1.19
+  also the guide's datalist, select and message for that owner (3.1,
+  "Guided opening"), whose running reads are abandoned and whose cache
+  entries are dropped. Results loaded
   without it stay. It counts as a newer load (3.1, "Two loads at
   once"), so the answer of a load still running is dropped and cannot
   show private text again; the message is "The token for `<owner>` has
