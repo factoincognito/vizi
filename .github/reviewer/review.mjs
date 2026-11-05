@@ -20,8 +20,8 @@ export const BOUNDARY_MARKER = SYSTEM_PROMPT_DYNAMIC_BOUNDARY;
 // The review documents, in cache order: the most stable first.
 export const REVIEW_DOCS = ["CLAUDE.md", "memory/standards.md", "docs/SPEC.md"];
 
-// Files the change model gives no review gate (CLAUDE.md, "Change execution
-// model": backlog, changelog, STATUS.md, notes). A PR that changes only these
+// Files with no review gate (product-office RULES.md § 28 (1)(c): backlog,
+// changelog, STATUS.md, notes; RULES.md L § 4 (5)). A PR that changes only these
 // is not reviewed (product owner, 2026-11-04 23:02, product-office DECISIONS.md).
 // Exact paths only.
 export const REVIEW_FREE_FILES = new Set([
