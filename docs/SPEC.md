@@ -711,8 +711,11 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
   - browser: the label "Repository" for `#url-input` and the placeholder
     "<owner>/<repo>"; the refusal and `.git` messages word for word,
     with `<owner>/<repo>`; `acme/widgets`, `github.com/acme/widgets` and
-    `https://github.com/acme/widgets` make the same requests; the short
-    form with `/tree/<branch>` makes no request 1; a refused text makes
+    `https://github.com/acme/widgets` load the same way: submitted with
+    Enter they make the same requests (from PBI-1.19 a click on "Open"
+    first blurs the field, which for the short form adds the opening
+    guide's request 1, "Guided opening"; Clead, 2026-11-05, #85); the
+    short form with `/tree/<branch>` makes no request 1; a refused text makes
     no request and shows the message; `acme/widgets/tree/fix-%C3%A5`
     makes request 2 for the branch `fix-å` (sent encoded once, as
     `fix-%C3%A5`) and the heading reads `acme/widgets (fix-å)`;
