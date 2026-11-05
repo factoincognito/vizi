@@ -1,0 +1,36 @@
+L § 1 (C) This project is bound by the Rules and Processes of factoincognito, product-office.
+Adopted: Adam, 2026-11-05 13:03 to 13:05, product-office DECISIONS.md; admitted 2026-11-05, signed off at cutover, P-7 § 3
+
+L § 2 The project and its files
+(1) This repository is public.
+(2) The project's purpose, goals and product decisions are in `memory/project.md`; the specification is `docs/SPEC.md`.
+(3) The backlog is `docs/BACKLOG.md`, the staging file `docs/NEXT_SESSION.md`, and the decisions file `memory/decisions.md`, with decisions that need more than a table row as ADRs in `docs/decisions/`. Session reasoning that cannot be derived from the repository goes in `memory/context.md`, a change of scope or goals in `memory/project.md`. The change history is `CHANGELOG.md`, the status `STATUS.md`, the language pack's code standards `languages/web/code-standards.md`, and the CI reviewer is in `.github/reviewer/`.
+(4) The template's `docs/CROG_ONBOARDING.md` and `memory/roles.md` are not kept; what they held is in the product office's Rules and Processes.
+(5) At session start, a session also reads `memory/context.md`. Before writing code, it reads `docs/SPEC.md`.
+Adopted: (1) to (3) and (5) not recorded, carried over from vizi:CLAUDE.md "Public repo", "Where everything is", "Session startup" 1, "Session end" 2 and "If you are Crog", and vizi:memory/decisions.md (header); (4) Clead, PO-72 step 5 cutover (P-7 § 3 (2), P-11 § 4 (3))
+
+L § 3 Review inputs
+(1) A review of a vizi PR, by the CI reviewer (L § 4) or by a Crog agent that Clead starts, is given only the diff and `CLAUDE.md`, `memory/standards.md` and `docs/SPEC.md` as they are on the PR's base commit. The CI reviewer's own fixed instructions (`.github/reviewer/instructions.md`) are not context. The review is not given the PR description, comments or commit messages.
+(2) The test coverage narrative table, the red run and the `Test-exempt:` reasons are therefore listed under what the review did not check. Whether the review gets them is a question for Adam (`docs/NEXT_SESSION.md`, entry 2); until he decides, (1) stays as it is.
+Overrides P-3 § 2 (2) (the review standard given is `memory/standards.md`, and the table and red run are not given) and P-3 § 3 (4) as to the table and the red run.
+Adopted: `CLAUDE.md` added to the inputs by Adam, 2026-11-04, for the PO-68 pilot (vizi:memory/standards.md § 7, vizi:docs/ROUTINES.md "Review Routine — input contract"); separate invocation and inputs recorded 2026-06-27, decider not recorded, tpl:memory/decisions.md; carried over from vizi:CLAUDE.md "How Clead executes" and "Change execution model" 7 "What it reads"; (2) carried over from vizi:docs/NEXT_SESSION.md entry 2
+
+L § 4 The CI reviewer (PO-68 pilot)
+(1) While the pilot lasts, the workflow `.github/workflows/crog-review.yml`, a script on the Claude Agent SDK in `.github/reviewer/` (on Opus, paid by the organization's API credits), is Crog for this repository's PRs, except as this paragraph says. What it does is described in `docs/ROUTINES.md`, "CI review".
+(2) What counts. Wherever the Rules require Crog's review, the review is the comment `Crog review: APPROVE` or `Crog review: CHANGES NEEDED`, ending `Head reviewed: <SHA>`, that `github-actions[bot]` posted. The merger accepts it only if its SHA is the PR's current head, the comment was never edited (`updated_at` equals `created_at`), and the `review` job of a `Crog review` run on that SHA succeeded. The same text typed by a session does not count. This guards against honest mistakes, not against someone with write access.
+(3) Merge gate. The CI check that gates a merge is `build`. A failed `Crog review` job (a key or credits that ran out, an outage) is not a CI failure; it is a head the workflow did not review. Overrides P-4 § 1 (3) as to the `Crog review` job.
+(4) Not reviewed. For a head the workflow did not review (a fork, a failed run), a comment saying "Not reviewed" (a diff over its cap; that comment is not a verdict), and a PR whose base branch was changed after its review (the issue timeline has a `base_ref_changed` event dated after the verdict comment), Clead starts Crog as a separate agent on Opus. A manual Crog verdict on a head prevails over any CI verdict on it. A verdict is not redone when the base branch only moves on.
+(5) Skipped. The workflow posts no review on a head whose changed files, compared with the PR's base branch, are only `docs/BACKLOG.md`, `CHANGELOG.md`, `STATUS.md` and `docs/NEXT_SESSION.md`. No manual Crog agent is started for such a head, unless the change is of a kind `RULES.md` § 28 sends to review; then it is reviewed as under (4).
+(6) Disagreement. An author who thinks a CI `CHANGES NEEDED` is wrong does not re-run the job or push an empty commit, and Clead does not start a manual Crog agent to get another answer; the question goes to Adam in accordance with Process P-3 § 6 (2), with both sides stated. The three-round limit counts the verdicts that can satisfy the gate. Overrides P-3 § 6 (1) for a disagreement with a CI verdict.
+(7) Whose code. Code and config written by Crog are reviewed by Clead; on such a PR the CI verdict is extra. The PR description names who wrote the change; if it does not, both reviews are required: Clead's, and the CI verdict or a manual Crog verdict. A process change written by Crog is reviewed by Crog, so the CI verdict counts.
+(8) Self-review. A PR that changes `.github/workflows/**`, `.github/reviewer/**`, L § 3, this paragraph or `memory/standards.md` is not reviewed by the workflow it may change: a separate Crog agent on Opus gives the required review, and a CI verdict on it is extra.
+(9) Limits. The workflow only reads code and writes one PR comment. It never merges, approves through GitHub's review API or pushes; merging stays with the sessions.
+(10) Model. The CI reviewer runs on Opus 5.5, set in `.github/reviewer/review.mjs`; moving it to another model is Adam's decision.
+(11) End. The pilot ends when Adam ends it. This paragraph is then removed in a PR of its own.
+Adopted: the pilot, Adam, 2026-11-04, product-office BACKLOG.md PO-68; wording Clead's, not yet read by Adam, carried over from vizi:CLAUDE.md "Change execution model" 7; (5) Adam, 2026-11-04 23:02, product-office DECISIONS.md, and #78; (10) not recorded, carried over from vizi:CLAUDE.md "Model and effort" and `.github/reviewer/README.md`
+
+L § 5 Web pack: what the page loads
+(1) In vizi the web pack's rule "One self-contained file" (`languages/web/code-standards.md`) covers what the page loads at startup, so fetching a backlog after the user types a public GitHub repo's address is allowed. Content the page shows never makes a request of its own (`docs/SPEC.md` 3.7).
+(2) The load check in `e2e/smoke.e2e.ts` stays as it is, and the browser tests stub GitHub's answers with Playwright routes, so no test reaches the network.
+Overrides § 32 (1) and P-11 § 5 (1) as to that rule of the web pack.
+Adopted: Adam's intent approval of `docs/SPEC.md`, 2026-11-04 (`docs/SPEC.md` 2.3), carried over from vizi:languages/web/code-standards.md "Web rules"

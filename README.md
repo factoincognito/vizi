@@ -4,8 +4,10 @@ Visualizes the progression of your projects
 
 A project run with the Clead + Crog workflow: a product owner decides
 what gets built, Clead (Claude, Tech Owner) owns how, and Crog (Claude
-Code, Senior Developer) implements. Everything the agents need lives in
-this repo: `CLAUDE.md` is the entry point.
+Code, Senior Developer) implements. It is bound by the Rules and
+Processes of factoincognito's product office, the private repository
+`factoincognito/product-office` (`RULES.md` L § 1). `CLAUDE.md` is this
+repository's entry point and `RULES.md` holds its local rules.
 
 ## Setup
 
@@ -16,24 +18,11 @@ this repo: `CLAUDE.md` is the entry point.
 - A GitHub account, and git
 
 ### Working setup
-Run the Claude app next to VS Code. In the Claude app, create a Claude
-Project for this repo, add the repo to that Claude Project (give it
-access when asked), and start a chat inside the Claude Project;
-`CLAUDE.md` loads from the repo. Before the first task, ask Clead to
-summarise `memory/context.md` and `memory/project.md`: if it can
-describe the project and its goals, it is oriented. In VS Code, open
-your clone and use a Claude Code tab if you want to run Crog yourself.
-
-Keep one Claude Project per repo, so what Clead learns in one project
-never mixes with another (`docs/decisions/0001-rebuild-workflow.md`,
-§6, "Cowork project setup"; written for Cowork, the reasoning is the
-same).
-
-### Starting later sessions
-In the Claude app, start a new chat inside the project's Claude Project
-(it already has the repo). Clead follows the session startup steps in
-`CLAUDE.md`. The first thing you say is the first thing
-that matters.
+Work on vizi starts from the product office: a chat in its Claude
+Project, which attaches this repository when the work needs it
+(product-office `RULES.md` §§ 21 and 23 (5), Process P-1). In VS Code,
+open your clone and use a Claude Code tab if you want to run Crog
+yourself.
 
 ### Working from another computer
 You can work on this project from more than one computer, for example
@@ -85,8 +74,8 @@ On the other computer, once:
    `docs/DEV_INFRASTRUCTURE.md`, "New machine setup", steps 2 and 4.
 
 4. In the Claude app, sign in with the same Claude account and open
-   this project's Claude Project, as on your first computer. The Claude
-   app needs nothing else on this computer; the copy is for working in
+   the product office's Claude Project, as on your first computer. The
+   Claude app needs nothing else on this computer; the copy is for working in
    VS Code with Claude Code.
 
 ## The team
@@ -99,14 +88,8 @@ On the other computer, once:
 
 ## Workflow
 
-The product owner describes the next PBI. Clead specs it; the product
-owner confirms it captures the intent. Crog implements, test first.
-Reviews and merges are delegated: Clead reviews Crog's code, Crog
-reviews Clead's code, config and process changes, and Crog merges once
-the review passes and CI is green. After 3 review rounds without
-agreement, the product owner decides. The product owner is never used to
-pass messages between Clead and Crog. Details: `CLAUDE.md`, "Change
-execution model".
+How changes are specified, made, reviewed and merged is set by the
+product office's Rules and Processes and this repository's `RULES.md`.
 
 ## Working without Claude
 
@@ -141,7 +124,7 @@ With Claude, the Clead and Crog workflow comes on top of it.
 
 - Clead and Crog, and everything they do: specs, reviews, merges,
   session start and end, `..wrap` and pins.
-- `CLAUDE.md` and `memory/roles.md` are written for Clead and Crog, and
+- `CLAUDE.md` and `RULES.md` are written for Clead and Crog, and
   `memory/context.md` is Clead's session notes. Without Claude, nobody
   reads them as instructions.
   The other files under `memory/` hold the project's own data, such as

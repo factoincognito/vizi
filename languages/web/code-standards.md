@@ -9,7 +9,7 @@ Everything in the Node/TypeScript standards applies, plus the web rules below.
 - **Global types are listed** — TypeScript 6 no longer loads every installed `@types` package, so `tsconfig.json` lists them in `types` (`jest` by default). Add any you install, e.g. `node` after `npm install -D @types/node`.
 - **Jest + ts-jest** for unit tests — minimum 80% line coverage enforced in CI
 - **Playwright** for browser tests — they run against the built file, not the dev server
-- **Test first** — write the failing test (`src/*.test.ts`, or a browser test in `e2e/`) and run it red before the code; `build` fails a pull request that changes `src/` or `index.html` without changing a test (see `CLAUDE.md`, Both agents: test first).
+- **Test first** — write the failing test (`src/*.test.ts`, or a browser test in `e2e/`) and run it red before the code; `build` fails a pull request that changes `src/` or `index.html` without changing a test (product-office `RULES.md` § 30).
 - **No hardcoded values** — everything configurable via constants or config files
 - **Error handling** — always type-narrow errors; never `catch (e: any)`
 - **Imports** — relative imports within the project; no barrel files unless justified
@@ -17,7 +17,7 @@ Everything in the Node/TypeScript standards applies, plus the web rules below.
 ### Web rules
 
 - **One self-contained file.** `npm run build` produces `dist/index.html` with all script and style inlined. No CDN scripts, web fonts, images or other external requests. The browser test fails if the page requests anything besides its own document.
-  - **In vizi** (product owner's intent approval of `docs/SPEC.md`, 2026-11-04; `docs/SPEC.md` 2.3): the rule covers what the page loads at startup, so fetching a backlog after the user types a public GitHub repo's address is allowed. Content the page shows never makes a request of its own (`docs/SPEC.md` 3.7). The load check in `e2e/smoke.e2e.ts` stays as it is, and the browser tests stub GitHub's answers with Playwright routes, so no test reaches the network.
+  - **In vizi** the rule covers what the page loads at startup: `RULES.md` L § 5.
 - **Logic in pure modules, wiring in `src/main.ts`.** Calculations and other logic live in `src/*.ts` modules that do not touch the DOM; test them with Jest. `src/main.ts` only wires that logic to the page. It is excluded from the coverage gate and is covered by the Playwright tests.
 - **Phone first.** Design for 375px width first. The page must not scroll sideways at 375px or at 1280px.
 - **Light and dark.** Support `prefers-color-scheme`. Every browser test runs in both.

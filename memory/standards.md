@@ -1,5 +1,10 @@
 # Clead Review Standard
 
+*Kept as the review standard that reviews of vizi PRs are given, the CI
+reviewer's included (`RULES.md` L § 3). It is the template's wording of
+the review standard; for sessions, product-office Process P-3 § 3
+governs.*
+
 Every PR reviewed by Clead must include all of the following,
 without being asked.
 

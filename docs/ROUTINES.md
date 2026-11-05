@@ -1,27 +1,20 @@
 # Routines and Trigger Wiring
 
-*Scope note: this document describes how reviews and Crog's work are triggered. Which changes need which review is in CLAUDE.md's "Change execution model" section.*
+*Scope note: this document describes how reviews are triggered in this
+repository. Which changes need which review: product-office `RULES.md`
+§ 28; the review inputs and the CI reviewer's rules: `RULES.md` L § 3
+and L § 4.*
 
-## Current state (2026-09-30)
+## Workflows that comment
 
-1. The author opens the PR (Crog for code, Clead for docs, process and
-   its own config changes).
-2. Clead starts the review directly, except where the CI reviewer reviews
-   (section "CI review" below, PO-68 pilot). No other automation triggers it:
-   `review.yml` only posts a `<!-- clead-review-ready -->` marker
-   comment on PRs that touch `src/`, and nothing reads it.
-3. The reviewer posts the verdict on the PR. Fix loop until approved,
-   escalating to Adam after 3 rounds.
-4. Crog merges once CI is green and the review has passed.
-5. `changelog.yml` posts a reminder on every merge to open a CHANGELOG
-   PR, except for a PR that already changed `CHANGELOG.md`.
+- `review.yml` only posts a `<!-- clead-review-ready -->` marker comment
+  on PRs that touch `src/`, and nothing reads it.
+- `changelog.yml` posts a reminder on every merge to open a CHANGELOG
+  PR, except for a PR that already changed `CHANGELOG.md`.
 
-Adam is not in this loop and never relays messages. How Clead reaches
-Crog today: by starting Crog as a separate agent from its own session,
-with only the diff and the review documents of `memory/standards.md`
-section 7 as input. Clead cannot
-reach a Crog session running in Adam's VS Code (tested 2026-09-30 with
-Remote Control from a cloud Clead session: not reachable).
+Clead cannot reach a Crog session running in Adam's VS Code (tested
+2026-09-30 with Remote Control from a cloud Clead session: not
+reachable).
 
 ## CI review (PO-68 pilot, from PR #68)
 
@@ -60,7 +53,7 @@ organization's monthly API credits (product-office PO-68).
   merges, approves through GitHub's review API or pushes; merging stays with
   the sessions.
 - Whether this verdict counts as Crog's required review is set in
-  `CLAUDE.md`, not here.
+  `RULES.md` L § 4, not here.
 - Known limit: the script and `instructions.md` come from the PR's own
   checkout (only the three documents come from the base commit), so a PR
   that changes `.github/reviewer/**` or the workflow is reviewed by its own
@@ -80,41 +73,3 @@ organization's monthly API credits (product-office PO-68).
   Claude context.
 
 Neither is built or tested yet.
-
-## Review Routine — input contract (hard constraint)
-
-The review Routine must receive **only**:
-- The PR diff
-- `docs/SPEC.md`
-- `memory/standards.md`
-- `CLAUDE.md` (added for the CI reviewer, PO-68 pilot, by the product owner's
-  instruction to the pilot session on 2026-11-04, recorded in product-office
-  `BACKLOG.md` PO-68; `memory/standards.md` section 7 lists the same four)
-
-It must **not** receive:
-- The implementation conversation history
-- Design-time memory
-- Any context from the session that produced the spec
-
-This is a hard constraint. Reviewer independence is structural,
-not conventional. Same-session context reset is not sufficient —
-the context remains in the window and will influence the review.
-
-## Crog prompt conventions
-
-When Clead hands Crog a prompt, it is wrapped in a delimiter block:
-
-    ========== CROG PROMPT HH:MM #N ==========
-    <prompt text>
-    ====================================
-
-- **HH:MM** — 24h local time, freshly checked at write time (not
-  reused from a prior prompt in the session).
-- **#N** — a session-unique ID, starting at `#1` and incrementing by
-  one for every subsequent Crog prompt in that same Clead session,
-  regardless of which repo or PR the prompt concerns. Clead maintains
-  this counter itself — it is not Adam's manual bookkeeping.
-- **Purpose** — lets anyone refer back to a specific prompt
-  unambiguously (e.g. "see CROG PROMPT 10:47 #1"). Since 2026-09-30
-  Clead sends prompts to Crog itself; when Adam chooses to run a task
-  in his own Crog tab, the delimiters show him exactly what to paste.

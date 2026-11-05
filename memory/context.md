@@ -2,9 +2,8 @@
 
 **Purpose:** Reasoning and conversation context that does not fit
 neatly into the structured memory files (`memory/project.md`,
-`memory/decisions.md`, `memory/roles.md`, `memory/standards.md`). Read
-this alongside them, not instead of them. Clead updates it at `..wrap`
-(see `CLAUDE.md`, "Session end").
+`memory/decisions.md`, `memory/standards.md`). Read
+this alongside them, not instead of them.
 
 ---
 
