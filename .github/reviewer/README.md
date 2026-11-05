@@ -14,7 +14,10 @@ and is not part of the built page or the root `package.json`.
   GitHub API (pinned to the two SHAs) and four documents from the base commit
   (`REVIEW_DOCS`: `CLAUDE.md`, `RULES.md`, `memory/standards.md`, `docs/SPEC.md`),
   calls the model, posts one comment. The only GitHub calls: read the compare
-  (its file list, then its diff), list the PR's comments, post a comment.
+  (its file list, then its diff), list the PR's comments, post a comment. A
+  document missing on the base commit (a PR based on a commit before `RULES.md`
+  existed) fails the job before the model is called, and nothing is posted:
+  a head the workflow did not review (`RULES.md` L § 4 (3) and (4)).
 - `instructions.md`: the reviewer's fixed instructions (first in the cached
   prompt).
 - `test/`: `node --test`; the SDK and GitHub are faked, so no key and no cost.

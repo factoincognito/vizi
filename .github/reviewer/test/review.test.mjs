@@ -248,11 +248,10 @@ test("the fixed block is identical for two different heads and diffs (so the cac
 test("the instructions name every review document, RULES.md included, as an input", () => {
   assert.ok(REVIEW_DOCS.includes("RULES.md"), "RULES.md is a review document");
   const instructions = readFileSync(new URL("../instructions.md", import.meta.url), "utf8");
-  const inputs = instructions.slice(
-    instructions.indexOf("You have exactly these inputs:"),
-    instructions.indexOf("You have no tools."),
-  );
-  assert.ok(inputs.length > 0, "the instructions have their list of inputs");
+  const start = instructions.indexOf("You have exactly these inputs:");
+  const end = instructions.indexOf("You have no tools.");
+  assert.ok(start >= 0 && end > start, "the instructions have their list of inputs");
+  const inputs = instructions.slice(start, end);
   for (const path of REVIEW_DOCS) {
     assert.ok(inputs.includes(`\`${path}\``), `the list of inputs names ${path}`);
   }
