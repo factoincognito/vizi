@@ -122,9 +122,21 @@ async function stubGithub(context: BrowserContext, options: StubOptions = {}): P
 
 const gets = (stub: Stub) => stub.seen.filter((s) => s.method === "GET");
 
+/**
+ * Opens a repo by writing the field, with the `input` event typing fires,
+ * and submitting the form, as Enter does, without ever focusing the field.
+ * A focused field is blurred by the test's next click, and for
+ * `owner/repo` that blur starts the opening guide's own read with the token
+ * held (3.1, "Guided opening"); these tests count a load's requests, so the
+ * field never has the focus. e2e/guide.e2e.ts tests the blur and the click.
+ */
 async function openUrl(page: Page, url = REPO) {
-  await page.locator("#url-input").fill(url);
-  await page.locator("#open-url").click();
+  await page.evaluate((text) => {
+    const field = document.getElementById("url-input") as HTMLInputElement;
+    field.value = text;
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    (document.getElementById("url-form") as HTMLFormElement).requestSubmit();
+  }, url);
 }
 
 /** An owner's row: its owner, its masked token, and its box ticked exactly when the token is saved (3.12). */
@@ -393,6 +405,30 @@ test.describe("what a load with a token sends (3.8)", () => {
     for (const s of gets(stub).filter((g) => g.headers.authorization)) {
       expect(s.headers.cookie).toBeUndefined();
     }
+  });
+
+  test("a real fill and click on Open with acme/widgets: the opening guide's request 1 from the blur, then the load's requests, all with the token", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context);
+    await page.goto("/");
+    await openPanel(page);
+    await useToken(page, TOKEN);
+    await page.locator("#url-input").fill(REPO);
+    await page.locator("#open-url").click();
+    await expect(page.getByTestId("column").first()).toBeVisible();
+    await branchListRead(page);
+    // The click blurs the field first: the guide's request 1 (3.1, "Guided opening"), stopped by Open.
+    expect(gets(stub).map((s) => s.url)).toEqual([
+      API,
+      API,
+      `${API}/git/trees/main?recursive=1`,
+      `${API}/contents/docs/BACKLOG.md?ref=main`,
+      `${API}/contents/STATUS.md?ref=main`,
+      branchesUrl("acme", "widgets"),
+    ]);
+    for (const s of gets(stub)) expect(s.headers.authorization).toBe(`Bearer ${TOKEN}`);
   });
 
   test("without a token the requests are those of 3.1: raw.githubusercontent.com, no Authorization header", async ({

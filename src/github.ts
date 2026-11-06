@@ -45,7 +45,8 @@ export const BACKLOG_PATHS: readonly string[] = [
 ];
 
 const NAME = /^[A-Za-z0-9._-]+$/;
-const isName = (s: string) => NAME.test(s) && s !== "." && s !== "..";
+/** 3.1's name rule for an owner or a repo: letters, digits, `.`, `_` and `-`, and neither `.` nor `..`. */
+export const isName = (s: string) => NAME.test(s) && s !== "." && s !== "..";
 
 /** The Repository field's message for a text it cannot read (docs/SPEC.md 3.1, "The Repository field"). */
 export const REPOSITORY_MESSAGE =
@@ -186,22 +187,11 @@ function resetTime(seconds: string | null): string | null {
 }
 
 /**
- * The requests of one repo, as 3.1 and 3.8 set them out: `get` makes one
- * request and turns what comes back into text or a failure, and `file`
- * reads one file (request 3) from raw.githubusercontent.com, or with a
- * token through the contents API. The token is never part of a URL or of
- * a message.
+ * One request to GitHub as 3.1 and 3.8 set them out, for an owner: `get`
+ * makes one request and turns what comes back into text or a failure. With
+ * a token it goes in the Authorization header, never in a URL or a message.
  */
-function makeRequests(
-  ref: { owner: string; repo: string },
-  fetcher: Fetcher,
-  token: string | null,
-) {
-  const api = `https://api.github.com/repos/${ref.owner}/${ref.repo}`;
-  const raw = (branch: string, path: string) =>
-    `https://raw.githubusercontent.com/${ref.owner}/${ref.repo}/${branch}/${path}`;
-  const contents = (branch: string, path: string) =>
-    `${api}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`;
+function makeGet(owner: string, fetcher: Fetcher, token: string | null) {
   /** The options of a request that carries the token; `raw` asks for a file's text. */
   const options = (rawText: boolean): RequestOptions | undefined =>
     token === null
@@ -222,7 +212,7 @@ function makeRequests(
       return failure(
         "token-refused",
         401,
-        `GitHub refused the token for ${ref.owner.toLowerCase()}: it may have expired. It has been forgotten; enter a new one.`,
+        `GitHub refused the token for ${owner.toLowerCase()}: it may have expired. It has been forgotten; enter a new one.`,
       );
     }
     if (answer.status === 403) {
@@ -244,7 +234,7 @@ function makeRequests(
   };
 
   /** One request; a 404 on the API requests means not found or not public, any other failure shows its status. */
-  const get = async (
+  return async (
     url: string,
     api404: boolean,
     rawText = false,
@@ -284,7 +274,24 @@ function makeRequests(
       return failure("network", null, `Reading the answer from ${new URL(url).host} failed.`);
     }
   };
+}
 
+/**
+ * The requests of one repo, as 3.1 and 3.8 set them out: `get` makes one
+ * request (makeGet), and `file` reads one file (request 3) from
+ * raw.githubusercontent.com, or with a token through the contents API.
+ */
+function makeRequests(
+  ref: { owner: string; repo: string },
+  fetcher: Fetcher,
+  token: string | null,
+) {
+  const api = `https://api.github.com/repos/${ref.owner}/${ref.repo}`;
+  const raw = (branch: string, path: string) =>
+    `https://raw.githubusercontent.com/${ref.owner}/${ref.repo}/${branch}/${path}`;
+  const contents = (branch: string, path: string) =>
+    `${api}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`;
+  const get = makeGet(ref.owner, fetcher, token);
   /** Request 3: one file of the repo at a branch. */
   const file = (branch: string, path: string) =>
     token === null ? get(raw(branch, path), false) : get(contents(branch, path), false, true);
@@ -303,6 +310,28 @@ export async function readRepoFile(
 }
 
 /**
+ * Request 1 of 3.1 on its own: the repo's default branch. A 404 is 3.1's
+ * (or, with a token, 3.8's) message; an answer without a non-empty
+ * `default_branch` string is "GitHub's answer for the repo had no default
+ * branch." Used by a load, and by the opening guide (3.1, "Guided opening").
+ */
+export async function readDefaultBranch(
+  ref: { owner: string; repo: string },
+  fetcher: Fetcher,
+  token: string | null = null,
+): Promise<{ ok: true; branch: string } | LoadFailure> {
+  const { api, get } = makeRequests(ref, fetcher, token);
+  const r1 = await get(api, true);
+  if ("ok" in r1) return r1;
+  const body = parseJson(r1.text);
+  const def = isRecord(body) ? body.default_branch : undefined;
+  if (typeof def !== "string" || def === "") {
+    return failure("bad-response", 200, "GitHub's answer for the repo had no default branch.");
+  }
+  return { ok: true, branch: def };
+}
+
+/**
  * Reads a repo through GitHub's API. Without a token it is the anonymous
  * reading of 3.1. With one (3.8) every request goes to api.github.com with
  * the token in an Authorization header, and the files are read through the
@@ -314,19 +343,13 @@ export async function loadRepo(
   token: string | null = null,
 ): Promise<LoadResult> {
   const { api, get, file } = makeRequests(ref, fetcher, token);
-
   let branch = ref.branch;
   let defaultBranch: string | null = null;
   if (branch === null) {
-    const r1 = await get(api, true);
-    if ("ok" in r1) return r1;
-    const body = parseJson(r1.text);
-    const def = isRecord(body) ? body.default_branch : undefined;
-    if (typeof def !== "string" || def === "") {
-      return failure("bad-response", 200, "GitHub's answer for the repo had no default branch.");
-    }
-    branch = def;
-    defaultBranch = def;
+    const r1 = await readDefaultBranch(ref, fetcher, token);
+    if (!r1.ok) return r1;
+    branch = r1.branch;
+    defaultBranch = r1.branch;
   }
 
   const r2 = await get(`${api}/git/trees/${encodeURIComponent(branch)}?recursive=1`, true);
@@ -432,4 +455,68 @@ export async function listBranches(
     pagesRead: pages.length,
     failure,
   };
+}
+
+/** What `/users/<owner>` says the owner is (3.1, "Guided opening"). */
+export type OwnerType = "User" | "Organization";
+
+/** Which request lists an owner's repos: an organisation's, the token's own user, or a user's public repos. */
+export type RepoListKind = "org" | "user-token" | "user";
+
+/**
+ * "Get a user", `GET /users/<owner>`, for whether the owner is a user or
+ * an organisation (3.1, "Guided opening"). A 404 is "GitHub has no account
+ * named <owner>.", with a token or without; an answer that is not an
+ * object, or whose `type` is neither "User" nor "Organization", is not
+ * understood. Through the same request code as a load, with the token given.
+ * `owner` goes into the URL as written: callers pass only a name that passes
+ * `isName` (3.1's name rule), as src/guide.ts's reading of the field does.
+ */
+export async function getOwnerKind(
+  owner: string,
+  fetcher: Fetcher,
+  token: string | null = null,
+): Promise<{ ok: true; type: OwnerType } | LoadFailure> {
+  const answer = await makeGet(
+    owner,
+    fetcher,
+    token,
+  )(`https://api.github.com/users/${owner}`, false);
+  if ("ok" in answer) {
+    return answer.status === 404
+      ? failure("not-found", 404, `GitHub has no account named ${owner}.`)
+      : answer;
+  }
+  const body = parseJson(answer.text);
+  const type = isRecord(body) && !Array.isArray(body) ? body.type : undefined;
+  if (type !== "User" && type !== "Organization") {
+    return failure("bad-response", 200, `GitHub's answer for ${owner} was not understood.`);
+  }
+  return { ok: true, type };
+}
+
+/**
+ * One page of an owner's repos, 100 per page (3.1, "Guided opening"):
+ * an organisation's `/orgs/<owner>/repos?type=all`, the token's user's
+ * `/user/repos?affiliation=owner`, or a user's public
+ * `/users/<owner>/repos?type=owner`, each sorted by full name. Returns the
+ * answer's text; src/guide.ts reads it. A 404 is read as a request that is
+ * not request 1 or 2. As for getOwnerKind, `owner` must pass `isName`.
+ */
+export async function listRepos(
+  owner: string,
+  kind: RepoListKind,
+  page: number,
+  fetcher: Fetcher,
+  token: string | null = null,
+): Promise<{ ok: true; text: string } | LoadFailure> {
+  const query = `sort=full_name&per_page=100&page=${page}`;
+  const url =
+    kind === "org"
+      ? `https://api.github.com/orgs/${owner}/repos?type=all&${query}`
+      : kind === "user-token"
+        ? `https://api.github.com/user/repos?affiliation=owner&${query}`
+        : `https://api.github.com/users/${owner}/repos?type=owner&${query}`;
+  const answer = await makeGet(owner, fetcher, token)(url, false);
+  return "ok" in answer ? answer : { ok: true, text: answer.text };
 }
