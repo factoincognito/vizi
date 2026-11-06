@@ -4107,22 +4107,24 @@ spaces, `-->`, and nothing else: the pattern
 `^<!-- +vizi:include +([^ ]+) +-->$`, where the path holds no `-->`
 (R9 closes the comment at the first `-->`, so a path that holds one
 leaves text after the comment: such a line looks like an include, I2).
-The keyword is written in lower case, exactly. The include line is read in the same first pass that
-finds fences and comments (R7, R9), and is then dropped as any comment
-is, so the file's other lines are read as if it were not there (a
-dropped comment leaves a blank line, which ends no description, R4).
+The keyword is written in lower case, exactly. The include line is read
+in the same first pass that finds fences and comments (R7, R9), and is
+then dropped as any comment is, so the file's other lines are read as
+if it were not there (a dropped comment leaves a blank line, which ends
+no description, R4).
 
 **I2. A line that looks like an include** but is not one by I1 is not
 followed, and is reported (not read): a comment (R9) whose text, after
-the `<!--` and any spaces, starts with `vizi:include` followed by a
-space, by `-->` or by the end of the line, and that is not an include
-line by I1: for example one that is indented, has text after its
-`-->`, has no path or more than one word between the keyword and the
-`-->`, has no space before the `-->`, or does not close on its line. A
-comment that starts in any other way (`<!-- vizi:Include x -->`,
-`<!-- vizi x -->`) is an ordinary comment: dropped, and not reported. Text that R9 does
-not read as a comment, such as a `<!--` after other text on an entry's
-line, is never an include and is not reported.
+the `<!--` and any spaces or tabs, starts with `vizi:include` followed
+by a space, a tab, `-->` or the end of the line, and that is not an
+include line by I1: for example one that is indented, has text after
+its `-->`, has no path or more than one word between the keyword and
+the `-->`, has no space before the `-->`, has a tab where I1 has
+spaces, or does not close on its line. A comment that starts in any
+other way (`<!-- vizi:Include x -->`, `<!-- vizi x -->`) is an ordinary
+comment: dropped, and not reported. Text that R9 does not read as a
+comment, such as a `<!--` after other text on an entry's line, is never
+an include and is not reported.
 
 **I3. The path.** One or more segments joined by single `/`s, each
 segment made of letters A to Z and a to z, digits, `.`, `_` and `-`,
@@ -4149,9 +4151,12 @@ is not followed and is reported (not read); no request is made for it.
 
 **I5. Itself and twice.** An include whose resolved path is the backlog
 file's own is not followed, and is read with a warning. An include
-whose resolved path an earlier include line of the file already named is
-not followed again, and is read with a warning: the file is read once,
-at its first include line.
+whose resolved path an earlier include line of the file named and
+followed is not followed again, and is read with a warning: the file is
+read once, at its first include line. The checks are made in the order
+I2, I3, I5, I4, I7, and a line gets the first that applies, so a path
+the file list lacks, or one past the cap, is reported by I4 or I7 each
+time it is named.
 
 **I6. One level.** In an included file, a comment that is an include
 line by I1 or looks like one by I2 is not followed, and is reported
@@ -4215,11 +4220,12 @@ is read as four entries, in this order: AB-3 (`BACKLOG.md` line 3),
 AB-1 and AB-3 (`BACKLOG-DONE.md` lines 3 and 4), AB-4 (`BACKLOG.md`
 line 6). AB-1 and the second AB-3 name `BACKLOG-DONE.md`; their group is
 "Open" of `BACKLOG-DONE.md`, and the link in AB-1 goes to
-`notes/data.md` beside `BACKLOG-DONE.md`. The report holds:
-`BACKLOG.md` line 5, not read: the path leaves the project (I3);
-`BACKLOG-DONE.md` line 4, read with a warning: the ID AB-3 is also used
-in `BACKLOG.md` line 3 (I10); `BACKLOG-DONE.md` line 5, not read: an
-included file cannot include (I6). `MORE.md` is not read, whether or not
+`notes/data.md` beside `BACKLOG-DONE.md`. The report holds, in the
+order the Report tab lists them: under Not read, `BACKLOG.md` line 5,
+the path leaves the project (I3), and `BACKLOG-DONE.md` line 5, an
+included file cannot include (I6); under Read with a warning,
+`BACKLOG-DONE.md` line 4, the ID AB-3 is also used in `BACKLOG.md` line
+3 (I10). `MORE.md` is not read, whether or not
 it exists. The list (3.2, "What the page shows" below) shows the groups
 "Open" (AB-3), "Open — `BACKLOG-DONE.md`" (AB-1, AB-3) and "Open"
 again (AB-4).
@@ -4493,7 +4499,8 @@ that ran (test first, 2.2; GitHub stubbed; made-up files only):
     opened on an earlier line, is not an include and is not reported;
   - I2, reported as not read: the line indented; with text after
     `-->`; `<!-- vizi:include -->`; `<!-- vizi:include a.md b.md -->`;
-    `<!-- vizi:include a.md-->`; `<!-- vizi:include a.md` with the
+    `<!-- vizi:include a.md-->`; a tab in place of either space around
+    `vizi:include`; `<!-- vizi:include a.md` with the
     `-->` on a later line; not
     reported: `<!-- vizi:Include a.md -->`, `<!-- vizi a.md -->`, and
     `- **[NOW] AB-1** — Text <!-- vizi:include a.md -->`, which stays the
@@ -4508,7 +4515,9 @@ that ran (test first, 2.2; GitHub stubbed; made-up files only):
   - I4: a path not in the file list is reported with no request asked
     for, with and without the truncation sentence;
   - I5: the file itself, and the same file twice (also as `DONE.md` and
-    `./DONE.md`), each a warning, the file read once;
+    `./DONE.md`), each a warning, the file read once; a path the file
+    list lacks, named twice, reported by I4 both times, and a path past
+    the cap, named twice, by I7 both times;
   - I6: an include line, and a line that looks like one, in an included
     file: reported on that file's line, not followed;
   - I7: six include lines of six files in the file list: the first five
@@ -4555,13 +4564,9 @@ that ran (test first, 2.2; GitHub stubbed; made-up files only):
     file under `docs/`, goes to the github.com page of the file beside
     it;
   - the Report tab lists every item of the example above, word for
-    word, with its file and line, and its count, in the order of "What
-    the page shows", Report: by kind first (Not read, Read with a
-    warning, Info, as 3.5), then within a kind the backlog file's items,
-    then each included file's; so `BACKLOG.md` line 5 and
-    `BACKLOG-DONE.md` line 5 under Not read, `BACKLOG-DONE.md` line 4
-    under Read with a warning (the example lists them by file and line,
-    not in that order);
+    word, with its file and line, and its count, in the order the
+    example gives (by kind, as 3.5, then by file as "What the page
+    shows", Report, sets out);
   - an include of a missing file: the load succeeds, `#message` adds its
     line, and the report says why; an include that is only a warning
     adds no line to `#message`;
