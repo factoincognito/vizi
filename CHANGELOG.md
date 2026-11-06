@@ -91,6 +91,9 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Cutover to the product office's Rules and Processes (PO-72): `RULES.md` with the sign-off and vizi's local rules; `CLAUDE.md` a short entry point; `docs/CROG_ONBOARDING.md` and `memory/roles.md` removed; restated rules stripped from the docs (#88).
 - CI review: the reviewer reads `RULES.md` as a fourth review document (`.github/reviewer/review.mjs`) (#89).
 - NEXT_SESSION: entry 2 (a) wording, and a note on #85's base after #89 (#90).
+- PBI-1.19: the guided opening, which reads an owner's repos and a repo's branches as the Repository field is typed or left, and offers them in a select (#85).
+- Backlog: the findings of the product office's audit of 2026-11-06 filed as PBI-1.20 to PBI-1.33 (#91).
+- Audit fixes (PBI-1.21 to PBI-1.27, PBI-1.29, PBI-1.30): restated global rules cut to pointers to the product office's Rules; the CI reviewer's instructions gain the review checks it can no longer read in `memory/standards.md`; changelog lines for #87 to #90 (#92).
 
 ## Project created
 
