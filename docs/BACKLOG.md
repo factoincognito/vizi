@@ -174,6 +174,25 @@ Build order: Clead's proposal, from the design the spec is taken from.
 
 ---
 
+## Audit findings (2026-11-06)
+
+The findings of the product office's audit of this project (Process P-6 § 8 (2)). Adam's decision: conditional accept, 2026-11-06.
+
+- **[DONE] PBI-1.20** (done 2026-11-06: product-office #562; audit of 2026-11-06, finding F1, record `audits/vizi.md` in the product office; Adam's conditional accept, 2026-11-06) — (§ 3 sign-off): product-office `PROJECTS.md` line 49 names vizi's sign-off by PR and commit as plain text, not as a link.
+- **[NEXT] PBI-1.21** (audit of 2026-11-06, finding F2, record `audits/vizi.md` in the product office; Adam's conditional accept, 2026-11-06; due 2026-11-20) — (§ 4 no global rule restated): `memory/standards.md` restates P-3 §§ 2, 3, 4 and 6, P-2 § 3 (2) and `RULES.md` § 13 (2).
+- **[NEXT] PBI-1.22** (audit of 2026-11-06, finding F3, record `audits/vizi.md` in the product office; Adam's conditional accept, 2026-11-06; due 2026-11-20) — (§ 4): `docs/decisions/0001-rebuild-workflow.md`, marked adopted and not superseded and named as founding decisions by `memory/decisions.md`, restates §§ 6, 16, 34 (4) and 36 (4) and states merge rules that § 10 (2) and P-4 § 2 (1) replace.
+- **[NEXT] PBI-1.23** (audit of 2026-11-06, finding F4, record `audits/vizi.md` in the product office; Adam's conditional accept, 2026-11-06; due 2026-11-20) — (§ 4): `.github/PULL_REQUEST_TEMPLATE.md` lines 11 to 12 and 20 to 23 restate P-2 § 3 (2) and `RULES.md` § 30 (3), (4).
+- **[NEXT] PBI-1.24** (audit of 2026-11-06, finding F5, record `audits/vizi.md` in the product office; Adam's conditional accept, 2026-11-06; due 2026-11-20) — (§ 4): `STATUS.md` lines 1 to 8 restate P-9 § 6 (2) to (4).
+- **[NEXT] PBI-1.25** (audit of 2026-11-06, finding F6, record `audits/vizi.md` in the product office; Adam's conditional accept, 2026-11-06; due 2026-11-20) — (§ 4): `docs/DEV_INFRASTRUCTURE.md` lines 15 to 23 and 61 to 70 restate P-11 § 4 (1) and § 3 (3).
+- **[NEXT] PBI-1.26** (audit of 2026-11-06, finding F7, record `audits/vizi.md` in the product office; Adam's conditional accept, 2026-11-06; due 2026-11-20) — (§ 4): `languages/web/code-standards.md` line 12 and lines 92 to 94 restate `RULES.md` § 30 (1), (4) and P-11 § 2 (3).
+- **[NEXT] PBI-1.27** (audit of 2026-11-06, finding F8, record `audits/vizi.md` in the product office; Adam's conditional accept, 2026-11-06; due 2026-11-20) — (§ 4): `CLAUDE.md` lines 9 to 15 restate P-1 § 1 (1) and `RULES.md` § 1 (2).
+- **[NEXT] PBI-1.28** (audit of 2026-11-06, finding F9, record `audits/vizi.md` in the product office; Adam's conditional accept, 2026-11-06; due 2026-11-20) — (§ 5 overrides): L § 4 (1) makes a CI workflow Crog, against `RULES.md` § 34 (2), without citing it as overridden.
+- **[NEXT] PBI-1.29** (audit of 2026-11-06, finding F10, record `audits/vizi.md` in the product office; Adam's conditional accept, 2026-11-06; due 2026-11-20) — (§ 5): `docs/BACKLOG.md` lines 10 to 18 list markers `[IDEA]` and `[SUPERSEDED]` beyond P-9 § 2 (2), with no local rule citing it; not itself a local rule.
+- **[NEXT] PBI-1.30** (audit of 2026-11-06, finding F11, record `audits/vizi.md` in the product office; Adam's conditional accept, 2026-11-06; due 2026-11-20) — (§ 7 practice): `CHANGELOG.md` lacks #87 to #90, and no changelog PR was open (P-4 § 5 (1)).
+- **[LATER] PBI-1.31** (audit of 2026-11-06, finding F12, record `audits/vizi.md` in the product office; Adam's conditional accept, 2026-11-06; past practice, re-checked at the next audit) — (§ 7): the required manual review of #89 used the PR description and the product office's Rules, which L § 3 (1) withholds; pre-cutover reviews of #73, #78, #79 and #88 also read beyond their restricted inputs.
+- **[LATER] PBI-1.32** (audit of 2026-11-06, finding F13, record `audits/vizi.md` in the product office; Adam's conditional accept, 2026-11-06; past practice, re-checked at the next audit) — (§ 7): #90 and eight pre-cutover PRs were opened with their whole change, with no claim beforehand (P-2 § 4 (1), (3)).
+- **[LATER] PBI-1.33** (audit of 2026-11-06, finding F14, record `audits/vizi.md` in the product office; Adam's conditional accept, 2026-11-06; past practice, re-checked at the next audit) — (§ 7): #82 went through nine CHANGES NEEDED verdicts (seven in a row) before it was parked for Adam, without the escalation message of `memory/standards.md` § 6 (pre-cutover).
+
 ## Explicitly out of scope
 
 - Editing a backlog, moving or reordering cards included: vizi only
