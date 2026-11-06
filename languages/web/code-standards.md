@@ -9,7 +9,7 @@ Everything in the Node/TypeScript standards applies, plus the web rules below.
 - **Global types are listed** — TypeScript 6 no longer loads every installed `@types` package, so `tsconfig.json` lists them in `types` (`jest` by default). Add any you install, e.g. `node` after `npm install -D @types/node`.
 - **Jest + ts-jest** for unit tests — minimum 80% line coverage enforced in CI
 - **Playwright** for browser tests — they run against the built file, not the dev server
-- **Test first** — write the failing test (`src/*.test.ts`, or a browser test in `e2e/`) and run it red before the code; `build` fails a pull request that changes `src/` or `index.html` without changing a test (product-office `RULES.md` § 30).
+- **Test first** — product-office `RULES.md` § 30 (1) and Process P-11 § 2 (3). In this pack the failing test is a unit test (`src/*.test.ts`) or a browser test (`e2e/`), and the test-change check is set out under "Test-first check in CI" below.
 - **No hardcoded values** — everything configurable via constants or config files
 - **Error handling** — always type-narrow errors; never `catch (e: any)`
 - **Imports** — relative imports within the project; no barrel files unless justified
@@ -89,9 +89,9 @@ exits 2 outside CI without it):
 git fetch origin && TEST_FIRST_BASE=origin/main bash .github/scripts/require-test-change.sh --code 'src/*' 'index.html' --test 'src/*.test.ts' 'src/*.spec.ts' 'src/*__tests__/*' 'e2e/*'
 ```
 
-A change no test can check carries a `Test-exempt: <reason>` commit
-trailer; the failing check prints the exact command. The check sees file
-names only: whether a test exercises the code is for review.
+A change no test can check: product-office `RULES.md` § 30 (4); the
+failing check prints the exact command. What the check sees, and what
+is left to review: Process P-11 § 2 (3).
 
 ### Deploying (Cloudflare)
 
