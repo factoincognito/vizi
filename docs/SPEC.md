@@ -200,7 +200,9 @@ Points that come from the approved summary are marked **(approved)**.
 
 **Not decided.** Marked "not decided" where they appear: a lint mode
 beyond the page's report (section 1), and a change to the template's own
-wording of the external-requests rule (section 4, item 8).
+wording of the external-requests rule (section 4, item 8). The include
+keyword of 3.15 is a draft, awaiting the product owner's intent
+approval; nothing in it is decided.
 
 ---
 
@@ -4046,6 +4048,502 @@ Test first (2.2), with GitHub stubbed and synthetic data.
   - the CSP test of `e2e/csp.e2e.ts` passes with entries shown, with no
     violation and no console error.
 
+### 3.15 The include keyword (PO-105)
+
+**Status: a draft, awaiting the product owner's intent approval**
+(product-office `RULES.md` § 29). Nothing in this section is in effect
+or built until he approves it; his approval is then recorded as a
+comment on the PR, as for the sections above, and this line changes.
+Until then, 3.1 to 3.14 and `docs/BACKLOG-FORMAT.md` stand as they are.
+
+**What the product owner asked for** (2026-11-06, 12:38, in chat;
+recorded in the product office's `DECISIONS.md` and as its backlog item
+PO-105; put in the unattended batch at 12:42): a file vizi reads can, by
+a keyword, make an inline reference to another file, and vizi then loads
+that file as well. First use: the product office's `BACKLOG.md` refers
+to its `BACKLOG-DONE.md`, so the finished entries show in vizi's folded
+`DONE` column again. Since the product office moved its `DONE` entries
+to that file (product-office #520), vizi does not show them: it reads
+only `BACKLOG.md`, `docs/BACKLOG.md` and `docs/PRODUCT_BACKLOG.md`
+(`BACKLOG_PATHS` in `src/github.ts`, read at `main` `58b6e17`) and
+follows no reference in a backlog file (3.1, 3.4). When it is built is
+not decided.
+
+**Clead's proposals, shown to the product owner at 12:39 and not
+decided by him.** Each is for his approval:
+
+1. **The keyword** is an HTML comment, `<!-- vizi:include <path> -->`,
+   on a line of its own. A comment is not shown where GitHub renders the
+   file (not checked here; section 4, item 32), and vizi already drops
+   comments before reading (`docs/BACKLOG-FORMAT.md`, R9), so the line
+   changes nothing else in the file's reading.
+2. **The path** is relative to the including file, in the same repo and
+   on the same branch.
+3. **Only backlog files include,** at first: the backlog file vizi reads
+   (3.1), not `STATUS.md` or `PROJECTS.md`.
+4. **One level only:** an include inside an included file is not
+   followed, and is listed on the Report tab, as is a missing file.
+5. **Included entries show on the board and in the list** like the
+   file's own entries, each naming its file.
+
+Everything else below is Clead's design within those proposals; the
+points that are choices the proposals leave open are marked "Clead's
+proposal", and those that need the product owner are listed under "Open
+questions".
+
+#### The rules (for `docs/BACKLOG-FORMAT.md`, new section 6)
+
+Word for word as they go into `docs/BACKLOG-FORMAT.md` at the build
+(below, "What changes in `docs/BACKLOG-FORMAT.md`"). "The backlog file"
+is the one file of the three paths that vizi reads (section 1 there).
+
+**I1. Include line.** A line of the backlog file, at column 0, outside
+a fence (R7) and outside a comment that opened on an earlier line (R9),
+whose text, without trailing spaces, is exactly `<!--`, one or more
+spaces, `vizi:include`, one or more spaces, the path, one or more
+spaces, `-->`, and nothing else: the pattern
+`^<!-- +vizi:include +([^ ]+) +-->$`. The keyword is written in lower
+case, exactly. The include line is read in the same first pass that
+finds fences and comments (R7, R9), and is then dropped as any comment
+is, so the file's other lines are read as if it were not there (a
+dropped comment leaves a blank line, which ends no description, R4).
+
+**I2. A line that looks like an include** but is not one by I1 is not
+followed, and is reported (not read): a comment (R9) whose text, after
+the `<!--` and any spaces, starts with `vizi:include` followed by a
+space, by `-->` or by the end of the line, and that is not an include
+line by I1: for example one that is indented, has text after its
+`-->`, has no path or more than one word between the keyword and the
+`-->`, has no space before the `-->`, or does not close on its line. A
+comment that starts in any other way (`<!-- vizi:Include x -->`,
+`<!-- vizi x -->`) is an ordinary comment: dropped, and not reported. Text that R9 does
+not read as a comment, such as a `<!--` after other text on an entry's
+line, is never an include and is not reported.
+
+**I3. The path.** One or more segments joined by single `/`s, each
+segment made of letters A to Z and a to z, digits, `.`, `_` and `-`,
+the last ending in `.md` (lower case, as 3.4 reads `.md`). It is read
+relative to the folder of the backlog file: from `BACKLOG.md`, the
+project's root; from `docs/BACKLOG.md` or `docs/PRODUCT_BACKLOG.md`,
+`docs/`. A `.` segment is dropped and a `..` segment removes the segment
+before it, as 3.7 item 4 resolves a relative link. The path is not
+followed, and is reported (not read), when it:
+- starts with `/` (an absolute path);
+- holds any other character, such as `:` (so a URL, `https://…`, is
+  refused), `\`, `%`, a space or a letter outside A to Z;
+- has an empty segment (`a//b.md`) or ends with `/`;
+- leaves the project's root once `.` and `..` are resolved
+  (`../x.md` from `BACKLOG.md`, `../../x.md` from `docs/BACKLOG.md`);
+- does not end in `.md`.
+
+**I4. The included file** is the path resolved by I3, in the same repo,
+at the same branch as the backlog file. It is followed only when the
+file list (3.1, request 2) holds it. A path the file list does not hold
+is not followed and is reported (not read); no request is made for it.
+
+**I5. Itself and twice.** An include whose resolved path is the backlog
+file's own is not followed, and is read with a warning. An include
+whose resolved path an earlier include line of the file already named is
+not followed again, and is read with a warning: the file is read once,
+at its first include line.
+
+**I6. One level.** In an included file, a comment that is an include
+line by I1 or looks like one by I2 is not followed, and is reported
+(not read), on the included file's line. Nothing an included file names
+is read.
+
+**I7. At most five.** At most five included files are read for one
+backlog file (Clead's proposal). An include line after the fifth one
+followed is not followed and is reported (not read). Lines refused by
+I2 to I5 do not count towards the five.
+
+**I8. Reading an included file.** An included file is read on its own
+with every rule of sections 2 and 3, as a backlog file is: its own line
+numbers (R8), its own headings and groups (R5, R6; an entry above its
+first heading has no group, whatever heading of the backlog file stands
+above the include line), its own fences and comments, and its own
+report. Every entry it gives is an entry of the backlog, and knows the
+file it came from.
+
+**I9. Where its entries go** (Clead's proposal). In the backlog's order
+of entries, which the board's columns and the list keep (3.2), an
+included file's entries stand where its include line stands: after the
+backlog file's entries above that line, and before those below it.
+
+**I10. The same ID in two files.** An entry whose ID an entry of another
+file of the same backlog has, earlier in the order of I9, is read with
+a warning (both are read; the later one gets it), as an entry with the
+same ID as an earlier entry of its own file is (section 3). It is a
+separate warning, naming the other file and its line.
+
+**I11. Other files.** An include line by I1 in `STATUS.md` (the
+project's own, or a folder pointer's, 3.9) or in `PROJECTS.md` is not
+followed and is reported (info) (Clead's proposal: so a writer sees why
+nothing came of it). An include line in a fence is never an include, so
+a format file can show one, as this one does.
+
+Example (made up). This `BACKLOG.md`:
+
+```markdown
+## Open
+
+- **[NOW] AB-3** — Draw the chart.
+<!-- vizi:include BACKLOG-DONE.md -->
+<!-- vizi:include ../OLD.md -->
+- **[NEXT] AB-4** — Export the chart.
+```
+
+with this `BACKLOG-DONE.md` next to it:
+
+```markdown
+## Open
+
+- **[DONE] AB-1** — Read the data. See [the notes](notes/data.md).
+- **[DONE] AB-3** — Draw a first chart.
+<!-- vizi:include MORE.md -->
+```
+
+is read as four entries, in this order: AB-3 (`BACKLOG.md` line 3),
+AB-1 and AB-3 (`BACKLOG-DONE.md` lines 3 and 4), AB-4 (`BACKLOG.md`
+line 6). AB-1 and the second AB-3 name `BACKLOG-DONE.md`; their group is
+"Open" of `BACKLOG-DONE.md`, and the link in AB-1 goes to
+`notes/data.md` beside `BACKLOG-DONE.md`. The report holds:
+`BACKLOG.md` line 5, not read: the path leaves the project (I3);
+`BACKLOG-DONE.md` line 4, read with a warning: the ID AB-3 is also used
+in `BACKLOG.md` line 3 (I10); `BACKLOG-DONE.md` line 5, not read: an
+included file cannot include (I6). `MORE.md` is not read, whether or not
+it exists. The list (3.2, "What the page shows" below) shows the groups
+"Open" (AB-3), "Open — `BACKLOG-DONE.md`" (AB-1, AB-3) and "Open"
+again (AB-4).
+
+#### Requests
+
+- **Which, and in what order.** A load (3.1, 3.8) reads the backlog file
+  with request 3, finds its include lines (I1 to I7), and then reads each
+  included file with one more request 3, in the order of their include
+  lines, one after another, before `STATUS.md` and `PROJECTS.md`, which
+  follow as today. So the order of a load's requests 3 is: the backlog
+  file, the included files, `STATUS.md`, `PROJECTS.md`, each only when
+  the file list holds it.
+- **How.** An included file's request is request 3 as 3.1 and 3.8 make
+  it, with the load's branch and token: without a token,
+  `GET https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>`,
+  the path as written (I3 allows only characters that need no encoding);
+  with a token, the contents API on `api.github.com`, each segment
+  percent-encoded, with the token in the `Authorization` header,
+  `credentials: "omit"` and `cache: "no-store"`. A load keeps the token it
+  started with for all its requests, these included, and a load replaced
+  by a newer one makes no further request (3.8, "Which token a load
+  uses").
+- **How many.** Without an include line, a load makes the requests it
+  makes today. With included files, one more request 3 for each file
+  read, at most five (I7): a load makes two to ten requests, not two to
+  five. A path the file list does not hold, and every include refused by
+  I2 to I7, costs no request. The branch list of 3.13 and the opening
+  guide of 3.1 do not change.
+- **A failed read of an included file** (Clead's proposal):
+  - **401 with a token:** as 3.8, for any request of the load: the token
+    is forgotten if it is still the one held for the owner, and the load
+    fails with 3.8's 401 message.
+  - **Any other failure** (a 404, a file deleted since request 2, a 403,
+    the rate limit, any other status, a network failure): the load does
+    not fail. The backlog file's entries and the other included files'
+    entries are shown, and the include is reported (not read), on its
+    include line: "Not read: `<path>` could not be read: `<message>`",
+    `<message>` being 3.1's or 3.8's for that request. The later
+    included files, `STATUS.md` and `PROJECTS.md` are still read.
+- **A private repo.** Without a token held for the owner, requests 1 or
+  2 already answer 404 and the load stops with 3.1's message, before any
+  include is read. With one, the included files are read with that
+  token, as the backlog file is; a token that can read the backlog file
+  can read the repo's other files (3.8's "Contents: read" covers the
+  repo), so 3.8 and the token guide of 3.12 do not change. "Forget",
+  "Forget all" and a 401 hide the included entries with the rest of the
+  results (3.8).
+- **The Content-Security-Policy (2.3) does not change:** the requests go
+  to `raw.githubusercontent.com` or `api.github.com`, as request 3 does.
+  Content still makes no request of its own (3.7): an include line is the
+  backlog file's own, read by the page's reader, not rendered content.
+
+#### What the page shows
+
+- **Board.** Included entries are in the columns of their markers with
+  the backlog file's own (3.2), in the order of I9; the column counts
+  count them. So an included file's `DONE` entries are in the folded
+  `DONE` column, which is there whenever any file of the backlog has a
+  `DONE` entry. The marker filter offers the columns of all of them.
+- **A card or a row** of an included entry shows what one of the backlog
+  file's own shows (3.2), and, on a line of its own under the title, the
+  included file's path, such as `BACKLOG-DONE.md`, as text (Clead's
+  proposal: `<span class="entry-file">`, 13 px, `--muted`, set with
+  `textContent`, 3.7; not a link). The backlog file's own entries show no
+  path, as today (open question 2).
+- **List.** Entries are grouped by heading as 3.2 sets out, with one
+  change (Clead's proposal): consecutive entries share a group only when
+  they have the same heading and come from the same file, so an included
+  file's "Open" is never merged with the backlog file's "Open". A group
+  of an included file is headed "`<heading>` — `<path>`" ("(no heading) —
+  `<path>`" for its entries above its first heading), the path in its
+  own `<span class="entry-file">`.
+- **Search** matches as 3.2 says (ID, notes, title, description); it
+  does not match the file's path (Clead's proposal).
+- **Links in an included entry** resolve against the included file
+  (3.7 item 4: "resolved against the file it appears in"), not the
+  backlog file. Code-span links (3.4) are as today: a code span names a
+  file only when its text is a path in the file list.
+- **The documentation list** (3.4) does not change: an included file
+  under `docs/` is listed already, and one at the root is not.
+- **Report** (3.5). An include item is the backlog file's, on its include
+  line: "`<backlog file>` line `<n>`: `<message>`". An included file's own
+  items are listed as "`<path>` line `<n>`: `<message>`". Within each
+  kind the items come in this order: the input notes (3.1), the backlog
+  file's items, each included file's items in the order of I9,
+  `STATUS.md`'s, `PROJECTS.md`'s. The tab's count counts them all. The
+  messages, word for word (Clead's proposal):
+  - I2: "Not followed: an include is `<!-- vizi:include <path> -->`
+    alone on its line, at column 0." (not read);
+  - I3: "Not followed: `<path>` is not a path vizi includes: it must be
+    relative, made of letters, digits, `.`, `_`, `-` and `/`, and end in
+    `.md`." (not read);
+  - I3, outside the project: "Not followed: `<path>` leaves the
+    project." (not read);
+  - I4: "Not followed: `<path>` is not in the repo on this branch." (not
+    read). When the file list was truncated (3.1, "As built"), the
+    message adds " GitHub's file list was truncated, so the file may
+    exist.";
+  - I5, itself: "Not followed: the file includes itself." (warning);
+  - I5, twice: "Not followed: `<path>` is already included on line
+    `<n>`." (warning);
+  - I6: "Not followed: an included file cannot include another file."
+    (not read; on the included file's line);
+  - I7: "Not followed: vizi reads at most five included files." (not
+    read);
+  - a failed read: "Not read: `<path>` could not be read: `<message>`"
+    (not read);
+  - I8, an included file that gives no entry: "`<path>` holds no
+    backlog entry." (info, no line; listed with that file's items);
+  - I10: "The ID `<id>` is also used in `<file>` line `<n>`." (warning,
+    on the later entry's file and line);
+  - I11: "Not followed: only the backlog file can include another
+    file." (info, on `STATUS.md`'s or `PROJECTS.md`'s line; for a folder
+    pointer's `STATUS.md`, under "What could not be read" in its panel,
+    3.9).
+
+  `<path>` is the path as resolved by I3 where it resolves, otherwise as
+  written; every path and message is set as text (3.7).
+- **The message line** `#message` (Clead's proposal): after a load in
+  which an include was not followed or not read (any "not read" item of
+  I2 to I7 or a failed read), it adds the line "Not every included file
+  could be read; the Report tab lists why." Warnings and info items add
+  nothing to it.
+- **No include line:** the page is exactly as today, the requests, the
+  board, the list, the cards and the report included.
+
+#### Edge cases (Clead's design, each within the proposals)
+
+| Case | What happens |
+|---|---|
+| A missing file (not in the file list) | Not followed, no request; reported, not read (I4) |
+| A missing file with a truncated file list | The same, and the message says the file may exist (I4) |
+| A file deleted after request 2 (request 3 answers 404) | The load goes on; reported, not read, with the 404 message ("A failed read") |
+| An include in an included file | Not followed; reported, not read, on the included file's line (I6) |
+| The same file included twice | Read once, at its first include line; the later line read with a warning (I5) |
+| Two paths that resolve to one file (`DONE.md`, `./DONE.md`) | As included twice (I5) |
+| A file including itself | Not followed; read with a warning (I5) |
+| A path outside the repo (`../x.md` from the root) | Not followed; reported, not read (I3) |
+| `..` that stays inside (`../DONE.md` from `docs/BACKLOG.md`) | Followed, as `DONE.md` at the root (I3) |
+| An absolute path (`/DONE.md`) | Not followed; reported, not read (I3) |
+| A URL (`https://github.com/…/DONE.md`), or a path with `\`, `%` or a space | Not followed; reported, not read (I3, I2 for a space) |
+| A path not ending in `.md` (`DONE.txt`, `DONE.MD`) | Not followed; reported, not read (I3) |
+| An include in `STATUS.md` or `PROJECTS.md` | Not followed; reported, info (I11) |
+| An included file that is not a backlog (`README.md`) | Read as a backlog file (I8): its marked entries, if any, are shown, and what it holds besides is reported as for a backlog file; an `.md` file with no entry gets the info item of I8 |
+| A sixth include | Not followed; reported, not read (I7) |
+| A public repo, no token | Included files read from `raw.githubusercontent.com` |
+| A private repo, no token for its owner | The load stops at request 1 or 2 with 3.1's 404 message; nothing is included |
+| A private repo, with a token | Included files read through the contents API with the load's token; a 401 fails the load as 3.8 says; a 403 or other failure is reported, and the load goes on |
+| A pick of another branch (3.13) | A new load: the includes are read again on that branch, from its own file list |
+| A load replaced while its includes are read | No further request (3.8); its answers are dropped (3.1, "Two loads at once") |
+
+#### First use: the product office
+
+The product office's `BACKLOG.md` is at its root, so the line
+`<!-- vizi:include BACKLOG-DONE.md -->` there names its root
+`BACKLOG-DONE.md`. Both files keep the same section headings, so the list
+shows each heading once for `BACKLOG.md` and, for the finished entries,
+once as "`<heading>` — `BACKLOG-DONE.md`"; the board's folded `DONE`
+column holds the finished entries. Under I9 they follow the open entries
+when the line stands at the end of `BACKLOG.md`. Adding the line there is
+step 3 of PO-105, after the build, in the product office. The product
+office's files are never copied into this repo, also not as test
+fixtures (2.2); the tests use made-up files.
+
+#### What changes in `docs/BACKLOG-FORMAT.md`
+
+At the build, in the same PR as the code, and not before the product
+owner's approval:
+
+- a new section **6. Includes (`vizi:include`)**: the approved intent,
+  marked **(approved)**, the rules I1 to I11 and the example above, word
+  for word;
+- **"What is decided, and what is Clead's design":** the approval added
+  to the decided points; I1 to I11 added to Clead's design;
+- **R9:** one sentence at its end: "A comment that is an include line
+  (section 6, I1) is read before it is dropped.";
+- **section 3**, the report kinds: under "Not read", the include not
+  followed or not read (I2 to I4, I6, I7, a failed read); under "Read
+  with a warning", an include of the file itself or of a file already
+  included (I5) and an ID used in another file (I10); under "Info", an
+  included file with no entry (I8) and an include outside a backlog file
+  (I11);
+- **section 1** gains one sentence: "The backlog file can include other
+  files (section 6)."
+
+`docs/BACKLOG-FORMAT.md` is not changed by this draft: it is in effect,
+and the rules above are not.
+
+#### What changes in `src/` (no code here)
+
+- `src/scan.ts`: the first pass also returns, for each comment, its line
+  and the text from its `<!--`, so that include lines are found in the
+  same pass as fences and comments (I1, I2); the lines it returns are as
+  today.
+- `src/include.ts` (new, pure): reading an include line (I1, I2), the
+  path and its resolution (I3), the checks against the file list, itself,
+  twice and the cap (I4, I5, I7), the nested check (I6), the order of
+  I9, the cross-file ID check (I10), and the report items and messages.
+- `src/backlog.ts`: an entry knows its file (I8); its parse of one file
+  does not change otherwise.
+- `src/github.ts`: `loadRepo` reads the included files after the backlog
+  file and before `STATUS.md`, through the same `file` request, and
+  returns each one's path and text, or its failure; a 401 fails the load.
+- `src/board.ts`: `listSections` groups by file and heading.
+- `src/status.ts`, `src/projects.ts`: the info item of I11.
+- `src/main.ts`: the file path on cards and rows and in list headings,
+  the base path for links per entry, the report's order, the message
+  line.
+- `src/style.css`: `.entry-file`.
+
+#### Acceptance criteria
+
+The build is done when every point below holds, each checked by a test
+that ran (test first, 2.2; GitHub stubbed; made-up files only):
+
+- unit, `src/include.test.ts`:
+  - I1: `<!-- vizi:include BACKLOG-DONE.md -->` at column 0 is an include
+    of `BACKLOG-DONE.md`, also with two spaces where one stands and with
+    trailing spaces; the same line inside a fence, and inside a comment
+    opened on an earlier line, is not an include and is not reported;
+  - I2, reported as not read: the line indented; with text after
+    `-->`; `<!-- vizi:include -->`; `<!-- vizi:include a.md b.md -->`;
+    `<!-- vizi:include a.md-->`; `<!-- vizi:include a.md` with the
+    `-->` on a later line; not
+    reported: `<!-- vizi:Include a.md -->`, `<!-- vizi a.md -->`, and
+    `- **[NOW] AB-1** — Text <!-- vizi:include a.md -->`, which stays the
+    entry's text;
+  - I3, from `BACKLOG.md`: `DONE.md` → `DONE.md`; `./DONE.md` →
+    `DONE.md`; `old/DONE.md` → `old/DONE.md`; `old/../DONE.md` →
+    `DONE.md`; refused: `../DONE.md`, `/DONE.md`,
+    `https://github.com/acme/widgets/blob/main/DONE.md`, `C:\DONE.md`,
+    `a%20b.md`, `a//b.md`, `old/`, `DONE.txt`, `DONE.MD`, `ÄNDRAT.md`;
+    from `docs/BACKLOG.md`: `DONE.md` → `docs/DONE.md`; `../DONE.md` →
+    `DONE.md`; `../../DONE.md` refused;
+  - I4: a path not in the file list is reported with no request asked
+    for, with and without the truncation sentence;
+  - I5: the file itself, and the same file twice (also as `DONE.md` and
+    `./DONE.md`), each a warning, the file read once;
+  - I6: an include line, and a line that looks like one, in an included
+    file: reported on that file's line, not followed;
+  - I7: six include lines of six files in the file list: the first five
+    read, the sixth reported; refused lines before them do not count;
+  - I8: an included file's entries keep their own lines and groups, an
+    entry above its first heading has no group, and a file with no entry
+    gives the info item;
+  - I9: the order of the example above;
+  - I10: the warning on the later entry, naming the earlier file and
+    line; IDs repeated within one file keep their own warning;
+  - every message above, word for word;
+  - a backlog file with no include line gives exactly what `parse`
+    gives today, and no file to read;
+- unit, `src/github.test.ts`:
+  - the requests 3 of a load with two included files: the backlog file,
+    the two in their order, `STATUS.md`, `PROJECTS.md`, one after
+    another; without a token from `raw.githubusercontent.com` with the
+    path as written, with one through the contents API with each segment
+    encoded, the header, `credentials: "omit"` and `cache: "no-store"`,
+    and no token in any URL;
+  - an included file the file list does not hold: no request;
+  - an included file answered 404, 403 (rate limit and other), 500 and a
+    network failure: the load succeeds, the failure is returned for that
+    file with 3.1's or 3.8's message, and `STATUS.md` and `PROJECTS.md`
+    are still read;
+  - 401 on an included file with a token: the load fails as
+    `token-refused`;
+  - a load replaced while an included file is read makes no further
+    request;
+  - no include line: the same requests as today;
+- unit, `src/board.test.ts`: two groups named "Open" from two files are
+  two list sections; `boardColumns` holds both files' entries in the
+  order of I9;
+- unit, `src/status.test.ts` and `src/projects.test.ts`: an include line
+  gives the info item of I11 and is not followed;
+- browser (`e2e/`, light and dark, 375 px and 1280 px):
+  - a backlog with `NOW` entries and an include of a file of `DONE`
+    entries: the `DONE` column is folded, its count counts the included
+    entries, and opening it shows them, each card naming the included
+    file; the backlog file's own cards name no file;
+  - the list shows the included file's groups as "`<heading>` —
+    `<path>`", apart from the backlog file's groups of the same name;
+  - a relative link in an included entry's description, the included
+    file under `docs/`, goes to the github.com page of the file beside
+    it;
+  - the Report tab lists every item of the example above, word for
+    word, with its file and line, in the order set out, and its count;
+  - an include of a missing file: the load succeeds, `#message` adds its
+    line, and the report says why; an include that is only a warning
+    adds no line to `#message`;
+  - with a token held for the owner, every request goes to
+    `api.github.com` with the header and none to
+    `raw.githubusercontent.com`; a 401 on the included file forgets the
+    token and hides the results; "Forget" hides the included entries
+    with the rest;
+  - a private repo without a token: 3.1's 404 message and no request for
+    an included file;
+  - a pick of another branch (3.13) reads the includes of that branch;
+  - a backlog file of 1500 lines including one of 1500 lines loads and
+    renders in under 8 seconds, as item 6 of section 4 does for one file;
+  - the CSP test of `e2e/csp.e2e.ts` passes with included entries shown,
+    with no violation and no console error, and an included description
+    holding `<script>` and `<img src=x onerror=…>` shows them as text
+    (3.7);
+  - without an include line, the existing tests pass unchanged.
+
+#### Open questions for the product owner
+
+Each is a WHAT (product-office `RULES.md` § 7 (2)); Clead's proposal is
+given with each, and the draft is written to it:
+
+1. **The five proposals above** (the keyword, the path, backlog files
+   only, one level, entries shown like the file's own and naming their
+   file): approve, change or drop each.
+2. **Which entries name their file.** Clead's proposal: only included
+   entries, so a backlog without includes looks as today. The other
+   choice: every entry names its file once a backlog has an include.
+3. **Where included entries go.** Clead's proposal: where the include
+   line stands (I9), which the word "inline" suggests. The other choice:
+   always after the backlog file's own entries, wherever the line is.
+4. **A failed read of an included file.** Clead's proposal: the load
+   goes on, the report and `#message` say what is missing; only a 401
+   fails it, as 3.8 does for every request. The other choice: any failed
+   include fails the whole load, as a failed backlog file does (3.1).
+5. **The cap.** Clead's proposal: at most five included files a load
+   (I7), to keep a load's requests bounded (section 4, item 3). Another
+   number, or none.
+6. **The help view.** Its five steps were approved as they are (3.10),
+   so this draft does not add the include to it. Clead's proposal: leave
+   the help view as it is and document the include in
+   `docs/BACKLOG-FORMAT.md`, which the help view links to. The other
+   choice: a sentence in step 1 or 2 of the help view.
+
 ---
 
 ## 4. Known unknowns
@@ -4280,3 +4778,14 @@ Items 29 to 31 are PBI-1.19's (3.1, "Guided opening"):
     `/users/<owner>` for an organisation with `"type": "Organization"`
     as the documentation's schema suggests; the documentation's example
     is a user. Not checked.
+
+Item 32 is the draft of 3.15's:
+
+32. **Open; 3.15 (a draft).** That an include line,
+    `<!-- vizi:include <path> -->`, is not shown where GitHub renders a
+    Markdown file, as 3.15's proposal 1 says. Not checked: GitHub's
+    Markdown API was refused to this session (2026-11-06, "sessions are
+    bound to their configured repositories"). It is checked at the
+    build, or by the product owner on any file that holds a comment,
+    such as the template's `STATUS.md`, which starts with one
+    (`docs/BACKLOG-FORMAT.md`, S1).
