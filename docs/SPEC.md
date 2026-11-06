@@ -711,8 +711,11 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
   - browser: the label "Repository" for `#url-input` and the placeholder
     "<owner>/<repo>"; the refusal and `.git` messages word for word,
     with `<owner>/<repo>`; `acme/widgets`, `github.com/acme/widgets` and
-    `https://github.com/acme/widgets` make the same requests; the short
-    form with `/tree/<branch>` makes no request 1; a refused text makes
+    `https://github.com/acme/widgets` load the same way: submitted with
+    Enter they make the same requests (from PBI-1.19 a click on "Open"
+    first blurs the field, which for the short form adds the opening
+    guide's request 1, "Guided opening"; Clead, 2026-11-05, #85); the
+    short form with `/tree/<branch>` makes no request 1; a refused text makes
     no request and shows the message; `acme/widgets/tree/fix-%C3%A5`
     makes request 2 for the branch `fix-å` (sent encoded once, as
     `fix-%C3%A5`) and the heading reads `acme/widgets (fix-å)`;
@@ -925,7 +928,10 @@ changes none of its reading rules, with one exception, an owner alone
   writes it into the field, which is then an owner and a repo. The
   datalist holds only the current owner's repos: when the field's owner
   changes, it is emptied at once, and filled when that owner's list is
-  read or kept. No custom listbox or combobox is built; the field keeps
+  read or kept. A text that is not guided (such as
+  `acme/widgets/tree/main`) has no owner for the opening guide, which
+  counts as an owner change: the datalist is emptied (Clead, 2026-11-05,
+  #85). No custom listbox or combobox is built; the field keeps
   its label "Repository" and its role.
 - **Leaving the field** (`blur`), and Open, for guided text. Every blur
   of the field acts as below, wherever the focus goes, Tab to "Open" and
@@ -934,7 +940,13 @@ changes none of its reading rules, with one exception, an owner alone
   into the select (the event's `relatedTarget`) while the select already
   shows the field's text (that owner's repos, or that owner and repo's
   branches) does nothing, so the select does not change under the user
-  arriving on it. The opening guide shows its result in one native
+  arriving on it. The owner's repo list shows the field's text only
+  while the field holds that owner alone; with `acme/widgets` in the
+  field the select shows its text only once it shows that repo's
+  branches, so the field's blur into a select still showing `acme`'s
+  repos starts a fresh branch read that replaces the select's own
+  (newest wins) (Clead, 2026-11-05, #85). The opening guide shows its
+  result in one native
   `<select id="guide-select">` with its `<label>`, placed in the address
   row between the field and "Open" (on desktop on the same row, the
   field shrinking, at most 260 px wide; on a phone, under the field and
@@ -1023,17 +1035,31 @@ changes none of its reading rules, with one exception, an owner alone
   Open with an owner alone, for the field's text at that moment, never
   while the user types. Any input by the user in the field (an `input`
   event) that changes the field's owner, or its repo, hides the select
-  at once. The opening guide's own write (a repo chosen in its select,
+  at once, and clears `#guide-message` with it (Clead, 2026-11-05, #85).
+  The opening guide's own write (a repo chosen in its select,
   which sets the field's value and fires no `input` event) does not hide
   it; it updates the Owner prefill itself ("Where other parts set or
   read the field"). Every other load (an entry of 3.14, "Open in vizi"
   or a pick of 3.13) also hides the select and `#guide-message`, and
   stops a running branch read, as Open does.
 - **The opening guide's message line** `#guide-message`
-  (`role="status"`, 14 px, muted, under the row, taking no space while
-  empty) says "Reading `<owner>`'s repos…" or "Reading the branches…"
+  (`role="status"`, 14 px, muted, under the row) takes one line's
+  height, empty or not, from the `input` event at which the field's text
+  becomes guided (an owner, `<owner>/` or `<owner>/<repo>`, as read
+  above), and no space while the field is empty or holds text that is
+  not guided. The space is added or removed only on `input` events and
+  on the page's own writes of the field (a repo chosen in the opening
+  guide's select, "Open in vizi"), by the same rule, never on a blur, a
+  focus, a read starting or a read answering, so a blur that writes a
+  one-line message, such as "Reading…" or "Choose one…", moves nothing
+  below the address row; a longer outcome may move content when it
+  arrives; no delay or timer (Clead, 2026-11-05, #85). It says "Reading
+  `<owner>`'s repos…" or "Reading the branches…"
   while a read is running, and the opening guide's outcomes. Load
-  messages stay in `#message`.
+  messages stay in `#message`. Both are shown also before any blur: for
+  `acme/` typed, "Reading `<owner>`'s repos…" while the read runs and
+  the outcome's message when it answers; "Choose one…" and the select
+  come only after a blur or Open (Clead, 2026-11-05, #85).
 - **Edge cases** (Clead's design):
   - **404 on `/users/<owner>`:** "GitHub has no account named
     `<owner>`." in `#guide-message`. No list, no select.
@@ -1051,7 +1077,14 @@ changes none of its reading rules, with one exception, an owner alone
     list, "The branch list could not be read: `<message>`". `<message>`
     is 3.1's or 3.8's (3.8's 403 text speaks of "this repo"; for a list
     it is shown as GitHub's refusal, as written, on purpose, so one
-    message names one cause wherever it appears).
+    message names one cause wherever it appears). These two lines are
+    the frame for every message of their requests that "Which requests"
+    and "An owner and a repo" give, so "GitHub's answer for `<owner>`
+    was not understood." is shown as "The repo list could not be read:
+    GitHub's answer for `<owner>` was not understood.", and a repo answer
+    without a default branch as "The branch list could not be read:
+    GitHub's answer for the repo had no default branch." (Clead,
+    2026-11-05, #85).
   - **A partly read list:** when a page after the first fails, the
     names read are shown and the line says "The repo list is
     incomplete: `<message>`" (or "The branch list is incomplete: …"), as
@@ -1074,8 +1107,10 @@ changes none of its reading rules, with one exception, an owner alone
   native, with a `<label for="guide-select">` whose text changes with
   its use; changing a label does not move the focus. The opening guide
   never moves the focus, with one exception: when the select is hidden
-  while it has the focus (a token change, also from another tab), the
-  focus moves to the Repository field. `#guide-message` is a
+  while it has the focus, for any reason (a token change, also from
+  another tab; a branch read or an owner's list that ends with no
+  select; a load), the focus moves to the Repository field (Clead,
+  2026-11-05, #85). `#guide-message` is a
   `role="status"` line, so its outcomes are announced, the select's
   "Choose one" line included. Sizes, colours, the focus ring and
   contrast are 3.12's (the select 48 px high on desktop, as the field,
@@ -2587,7 +2622,10 @@ needs it.
   their owner. All access is read-only: vizi never changes anything on
   GitHub."
 - The section's parts are 10 px apart; the start column's sections are
-  28 px apart, with 72 px above the first on desktop.
+  28 px apart, with 72 px above the first on desktop. While the opening
+  guide is in use, its message line `#guide-message` sits between the
+  address row and the access line, as its select sits in the row under
+  the decision of 22:47 (3.1, "Guided opening"; Clead, 2026-11-05, #85).
 - The message line `#message` (`role="status"`, as today) follows the
   section and takes no space while it is empty.
 
@@ -4224,7 +4262,20 @@ Items 29 to 31 are PBI-1.19's (3.1, "Guided opening"):
     `<option>` values (3.1); trying it in the browsers is PBI-1.4's.
     Also not checked: whether, on a phone, the select shown on the
     field's blur (at once for an owner whose list is kept) can move
-    "Open" under a tap that is landing on it.
+    "Open" under a tap that is landing on it. The message line
+    `#guide-message` does not move anything on a blur with a one-line
+    message: it takes its one line's height on the `input`, or the
+    page's own write of the field, that makes the field's text guided,
+    and gives it back only on one that makes it not guided (3.1), so the
+    idle start page keeps 3.12's spacing; a longer outcome may move
+    content when it arrives. The build's browser tests
+    check, on all four projects, that a click on a token's "Forget" and
+    on the "Private repos" toggle, made with an owner typed in the field
+    and no blur before it, registers, and that the element is where it
+    was before the blur; and that the row-to-access-line gap is 3.12's
+    with an empty field and with a full address (Clead, 2026-11-05,
+    #85). The select's own appearance above
+    "Open" on a phone stays as said above.
 31. **Open; PBI-1.19.** Whether `api.github.com` answers
     `/users/<owner>` for an organisation with `"type": "Organization"`
     as the documentation's schema suggests; the documentation's example

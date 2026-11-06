@@ -231,7 +231,65 @@ main {
 
 .url-row {
   display: flex;
+  /* The field, the opening guide's select under its label, and "Open" line up at their bottom (3.1). */
+  align-items: flex-end;
   gap: 8px;
+}
+
+/* The opening guide's select and its label (3.1, "Guided opening"): between the field and "Open". */
+#guide:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 260px;
+  min-width: 0;
+  max-width: 260px;
+  position: relative;
+}
+
+/* On desktop the select's label sits above it, beside the field's own label, so the row does not grow when the select appears. */
+@media (min-width: 800px) {
+  #url-form #guide-label {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+#guide-select {
+  width: 100%;
+  min-width: 0;
+  height: 48px;
+  padding: 0 10px;
+  font-size: 16px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--bg);
+  /* A long name is cut by the select itself, not wrapped. */
+  text-overflow: ellipsis;
+}
+
+/*
+ * The opening guide's message line takes no space while the guide is idle
+ * (3.12's spacing). From the input at which the field's text becomes guided
+ * it takes one line's height, empty or not, so a blur that writes
+ * "Reading…" or "Choose one…" moves nothing below the row; the space goes
+ * only on an input that leaves the text not guided (3.1, Clead, 2026-11-05,
+ * #85).
+ */
+#guide-message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--muted);
+}
+
+#guide-message.reserved {
+  margin-top: 6px;
+  min-height: 20px;
 }
 
 #url-input {
@@ -840,6 +898,17 @@ footer {
 
   .url-row {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  #guide:not([hidden]) {
+    flex: none;
+    width: 100%;
+    max-width: none;
+  }
+
+  #guide-select {
+    height: 44px;
   }
 
   #url-input {

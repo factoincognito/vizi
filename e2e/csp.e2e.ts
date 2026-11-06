@@ -212,6 +212,36 @@ test.describe("the browser enforces it", () => {
     expect(problems).toEqual([]);
   });
 
+  test("the opening guide's datalist and select shown: no violation and no console error (3.1, PBI-1.19)", async ({
+    page,
+  }) => {
+    const problems: string[] = [];
+    page.on("console", (m) => m.type() === "error" && problems.push(m.text()));
+    page.on("pageerror", (e) => problems.push(e.message));
+    const violations = await watchViolations(page);
+    const cors = { "access-control-allow-origin": "*" };
+    await page.route(/^https:\/\/(api\.github\.com|raw\.githubusercontent\.com)\//, (route) => {
+      const url = route.request().url();
+      if (url === "https://api.github.com/users/acme")
+        return route.fulfill({ status: 200, headers: cors, body: '{"type":"Organization"}' });
+      if (url.startsWith("https://api.github.com/orgs/acme/repos?"))
+        return route.fulfill({
+          status: 200,
+          headers: cors,
+          body: '[{"name":"widgets"},{"name":"gadgets"}]',
+        });
+      return route.fulfill({ status: 404, headers: cors, body: "" });
+    });
+    await page.goto("/");
+    await page.locator("#url-input").pressSequentially("acme/");
+    await expect(page.locator("#repo-list option")).toHaveCount(2);
+    await page.locator("#url-input").fill("acme");
+    await page.locator("#access-line").click();
+    await expect(page.locator("#guide-select")).toBeVisible();
+    expect(await violations()).toEqual([]);
+    expect(problems).toEqual([]);
+  });
+
   test("the Umbrella tab open with its help text: no violation and no console error (3.9, PBI-1.18)", async ({
     page,
   }) => {

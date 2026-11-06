@@ -89,6 +89,16 @@ async function open(page: Page, text: string) {
   await page.locator("#open-url").click();
 }
 
+/**
+ * Opens with Enter in the field: no blur, so for `owner/repo` the opening
+ * guide makes no read of its own (3.1, "Guided opening"), and the requests
+ * seen are the load's alone.
+ */
+async function openWithEnter(page: Page, text: string) {
+  await page.locator("#url-input").fill(text);
+  await page.locator("#url-input").press("Enter");
+}
+
 /** Gives the page time to make any request it would make (in the page, so no test clock is involved). */
 const settle = (page: Page) => page.evaluate(() => new Promise<void>((r) => setTimeout(r, 200)));
 
@@ -127,7 +137,7 @@ test.describe("the Repository field (3.1)", () => {
       await openPanel(page);
       await expect(page.locator("#results")).toBeHidden();
       const mark = seen.length;
-      await open(page, text);
+      await openWithEnter(page, text);
       await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
       await expect(page.getByTestId("column").first()).toBeVisible();
       await branchListRead(page);
@@ -175,7 +185,7 @@ test.describe("the Repository field (3.1)", () => {
 
   for (const [text, message] of [
     ["", FIELD_MESSAGE],
-    ["acme", FIELD_MESSAGE],
+    // From PBI-1.19 an owner alone is guided, not refused (3.1, "Guided opening"; e2e/guide.e2e.ts).
     ["http://github.com/acme/widgets", FIELD_MESSAGE],
     ["gist.github.com/acme/widgets", FIELD_MESSAGE],
     ["acme/widgets/tree/a%23b", BRANCH_MESSAGE],
