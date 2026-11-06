@@ -22,7 +22,8 @@ under what it did not check (L § 3 (2)). What a green test-change
 check proves: P-11 § 2 (3).
 - Coverage percentage and test count are necessary but not sufficient.
 - For every error path, is there a test verifying correct recovery —
-  not just that a warning was logged?
+  not just that a warning was logged? (Kept beside the pointer because
+  the CI reviewer cannot read P-3.)
 
 ## 5. What I did not check
 P-3 § 3 (6); what counts as a check: §§ 12 (2) and 13 (2), (3).
