@@ -4059,7 +4059,7 @@ Until then, 3.1 to 3.14 and `docs/BACKLOG-FORMAT.md` stand as they are.
 
 **What the product owner asked for** (2026-11-06, 12:38, in chat;
 recorded in the product office's `DECISIONS.md` and as its backlog item
-PO-105; put in the unattended batch at 12:42): a file vizi reads can, by
+PO-105): a file vizi reads can, by
 a keyword, make an inline reference to another file, and vizi then loads
 that file as well. First use: the product office's `BACKLOG.md` refers
 to its `BACKLOG-DONE.md`, so the finished entries show in vizi's folded
@@ -4067,8 +4067,9 @@ to its `BACKLOG-DONE.md`, so the finished entries show in vizi's folded
 to that file (product-office #520), vizi does not show them: it reads
 only `BACKLOG.md`, `docs/BACKLOG.md` and `docs/PRODUCT_BACKLOG.md`
 (`BACKLOG_PATHS` in `src/github.ts`, read at `main` `58b6e17`) and
-follows no reference in a backlog file (3.1, 3.4). When it is built is
-not decided.
+follows no reference in a backlog file (3.1, 3.4). At 12:42 he put it
+in the unattended batch (recorded in the same file): it is built there
+once he has approved this spec, not before.
 
 **Clead's proposals, shown to the product owner at 12:39 and not
 decided by him.** Each is for his approval:
@@ -4103,8 +4104,10 @@ a fence (R7) and outside a comment that opened on an earlier line (R9),
 whose text, without trailing spaces, is exactly `<!--`, one or more
 spaces, `vizi:include`, one or more spaces, the path, one or more
 spaces, `-->`, and nothing else: the pattern
-`^<!-- +vizi:include +([^ ]+) +-->$`. The keyword is written in lower
-case, exactly. The include line is read in the same first pass that
+`^<!-- +vizi:include +([^ ]+) +-->$`, where the path holds no `-->`
+(R9 closes the comment at the first `-->`, so a path that holds one
+leaves text after the comment: such a line looks like an include, I2).
+The keyword is written in lower case, exactly. The include line is read in the same first pass that
 finds fences and comments (R7, R9), and is then dropped as any comment
 is, so the file's other lines are read as if it were not there (a
 dropped comment leaves a blank line, which ends no description, R4).
@@ -4157,8 +4160,10 @@ is read.
 
 **I7. At most five.** At most five included files are read for one
 backlog file (Clead's proposal). An include line after the fifth one
-followed is not followed and is reported (not read). Lines refused by
-I2 to I5 do not count towards the five.
+followed is not followed and is reported (not read). An include that
+is followed counts towards the five whether its read succeeds or fails
+("A failed read of an included file"); lines refused by I2 to I5 do not
+count.
 
 **I8. Reading an included file.** An included file is read on its own
 with every rule of sections 2 and 3, as a backlog file is: its own line
@@ -4440,6 +4445,11 @@ At the build, in the same PR as the code, besides
   included files;
 - **3.1 and 3.8:** the counts of a load's requests ("two to five") gain
   the included files: two to ten;
+- **3.2, "As built":** "consecutive entries under the same heading share
+  a group" gains "and from the same file", with the heading of an
+  included file's group as 3.15 sets out;
+- **3.5:** the report gains the included files' items and the include
+  items, and the order 3.15 sets out;
 - **section 4, item 3:** the rate-limit item gains one request 3 per
   included file, at most five a load;
 - **`RULES.md` L § 5 (1):** "Content the page shows never makes a
@@ -4545,7 +4555,13 @@ that ran (test first, 2.2; GitHub stubbed; made-up files only):
     file under `docs/`, goes to the github.com page of the file beside
     it;
   - the Report tab lists every item of the example above, word for
-    word, with its file and line, in the order set out, and its count;
+    word, with its file and line, and its count, in the order of "What
+    the page shows", Report: by kind first (Not read, Read with a
+    warning, Info, as 3.5), then within a kind the backlog file's items,
+    then each included file's; so `BACKLOG.md` line 5 and
+    `BACKLOG-DONE.md` line 5 under Not read, `BACKLOG-DONE.md` line 4
+    under Read with a warning (the example lists them by file and line,
+    not in that order);
   - an include of a missing file: the load succeeds, `#message` adds its
     line, and the report says why; an include that is only a warning
     adds no line to `#message`;
