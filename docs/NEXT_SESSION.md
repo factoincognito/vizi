@@ -136,14 +136,17 @@ same repo and branch, backlog files only, one level, included entries on the
 board and in the list naming their file, with rules I1 to I11 for
 `docs/BACKLOG-FORMAT.md`, the requests, the report messages, the edge cases
 and the acceptance criteria. It is a draft: none of Clead's proposals in it is
-decided, and 3.15 lists six open questions for him.
+decided, and 3.15 lists seven open questions for him, one of them (7) a
+conflict with the approved reading of the external-requests rule
+(`docs/SPEC.md` 2.3, 3.7 item 5, `RULES.md` L § 5 (1)).
 **Impact on plan:** once approved, a build item (tests first) carries it out,
 and `docs/BACKLOG-FORMAT.md` gains its section 6 in that build's PR; then the
 product office adds the include line to its `BACKLOG.md` (PO-105 step 3).
 Nothing is built before the approval (product-office `RULES.md` § 29).
 **Action:** Clead puts 3.15's summary and its open questions to the product
-owner in chat; his intent approval is recorded as a comment on PR #93, and
-3.15's status line changes in the same PR. Then this entry is removed.
+owner in chat. PR #93 stays open until he decides: his intent approval is
+recorded as a comment on it, and 3.15's status line and this entry change in
+#93 before it merges.
 
 ---
 

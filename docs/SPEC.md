@@ -4052,8 +4052,9 @@ Test first (2.2), with GitHub stubbed and synthetic data.
 
 **Status: a draft, awaiting the product owner's intent approval**
 (product-office `RULES.md` § 29). Nothing in this section is in effect
-or built until he approves it; his approval is then recorded as a
-comment on the PR, as for the sections above, and this line changes.
+or built until he approves it. Its PR (#93) stays open until then: his
+approval is recorded as a comment on it, as for the sections above, and
+this line changes in that PR before it merges.
 Until then, 3.1 to 3.14 and `docs/BACKLOG-FORMAT.md` stand as they are.
 
 **What the product owner asked for** (2026-11-06, 12:38, in chat;
@@ -4130,7 +4131,9 @@ before it, as 3.7 item 4 resolves a relative link. The path is not
 followed, and is reported (not read), when it:
 - starts with `/` (an absolute path);
 - holds any other character, such as `:` (so a URL, `https://…`, is
-  refused), `\`, `%`, a space or a letter outside A to Z;
+  refused), `\`, `%` or a letter outside A to Z and a to z (a
+  space never reaches I3: I1 reads the path up to the first space, and
+  a path with a space is more than one word, I2);
 - has an empty segment (`a//b.md`) or ends with `/`;
 - leaves the project's root once `.` and `..` are resolved
   (`../x.md` from `BACKLOG.md`, `../../x.md` from `docs/BACKLOG.md`);
@@ -4262,8 +4265,27 @@ again (AB-4).
   results (3.8).
 - **The Content-Security-Policy (2.3) does not change:** the requests go
   to `raw.githubusercontent.com` or `api.github.com`, as request 3 does.
-  Content still makes no request of its own (3.7): an include line is the
-  backlog file's own, read by the page's reader, not rendered content.
+- **A conflict with the approved reading of the external-requests rule**
+  (product-office `RULES.md` § 31 (2); open question 7). An included
+  file's request is named by text in a fetched file, not by anything the
+  user typed. Three texts in effect say otherwise:
+  - 2.3, whose reading is **(approved)**: "every such request follows
+    something the user typed", and its list of "the only requests the
+    page ever makes";
+  - 3.7 item 5: "Nothing in the content makes the page request
+    anything", and its list of the page's only requests;
+  - this repo's `RULES.md` L § 5 (1), which rests on that approval:
+    "Content the page shows never makes a request of its own".
+
+  Clead's proposal, for the product owner to decide: an include line is
+  read as an instruction to vizi's reader, as the three backlog paths
+  are, and not as content the page shows (an include line is never
+  shown, I1); its requests belong to the load the user started by typing
+  an address, go only to the same repo and branch on the same two hosts,
+  and are at most five (I7). That is a new reading of an approved point,
+  not a consequence of it, so it is his decision; until he makes it, the
+  three texts stand. If he approves it, the build changes them as
+  "What changes elsewhere" below sets out.
 
 #### What the page shows
 
@@ -4303,8 +4325,8 @@ again (AB-4).
   - I2: "Not followed: an include is `<!-- vizi:include <path> -->`
     alone on its line, at column 0." (not read);
   - I3: "Not followed: `<path>` is not a path vizi includes: it must be
-    relative, made of letters, digits, `.`, `_`, `-` and `/`, and end in
-    `.md`." (not read);
+    relative, made of the letters A to Z and a to z, digits, `.`, `_`,
+    `-` and `/`, and end in `.md`." (not read);
   - I3, outside the project: "Not followed: `<path>` leaves the
     project." (not read);
   - I4: "Not followed: `<path>` is not in the repo on this branch." (not
@@ -4331,11 +4353,14 @@ again (AB-4).
 
   `<path>` is the path as resolved by I3 where it resolves, otherwise as
   written; every path and message is set as text (3.7).
-- **The message line** `#message` (Clead's proposal): after a load in
-  which an include was not followed or not read (any "not read" item of
-  I2 to I7 or a failed read), it adds the line "Not every included file
-  could be read; the Report tab lists why." Warnings and info items add
-  nothing to it.
+- **The message line** `#message` (Clead's proposal). After a
+  successful load with a backlog file, `#message` is empty today, or
+  holds the truncation note when the file list was truncated (3.1, "As
+  built"). After a load in which an include was not followed or not read
+  (any "not read" item of I2 to I7 or a failed read), it also holds the
+  line "Not every included file could be read; the Report tab lists
+  why.", after the truncation note when there is one. Warnings and info
+  items put nothing there.
 - **No include line:** the page is exactly as today, the requests, the
   board, the list, the cards and the report included.
 
@@ -4400,6 +4425,29 @@ owner's approval:
 
 `docs/BACKLOG-FORMAT.md` is not changed by this draft: it is in effect,
 and the rules above are not.
+
+#### What changes elsewhere, if the product owner approves
+
+At the build, in the same PR as the code, besides
+`docs/BACKLOG-FORMAT.md`:
+
+- **2.3:** the list of the page's requests gains the included files'
+  requests 3, and "every such request follows something the user typed"
+  gains: "or is named by an include line of the backlog file that load
+  read (3.15)";
+- **3.7 item 5:** "Nothing in the content makes the page request
+  anything" gains the same exception, and its list of requests the
+  included files;
+- **3.1 and 3.8:** the counts of a load's requests ("two to five") gain
+  the included files: two to ten;
+- **section 4, item 3:** the rate-limit item gains one request 3 per
+  included file, at most five a load;
+- **`RULES.md` L § 5 (1):** "Content the page shows never makes a
+  request of its own" gains the same exception, with its "Adopted:" line
+  naming his decision. That is a change of a local rule, through a
+  reviewed PR (product-office `RULES.md` § 3 (2)); it carries a WHAT,
+  so it needs his decision in chat (§ 3 (3)), which open question 7
+  asks for.
 
 #### What changes in `src/` (no code here)
 
@@ -4543,6 +4591,14 @@ given with each, and the draft is written to it:
    the help view as it is and document the include in
    `docs/BACKLOG-FORMAT.md`, which the help view links to. The other
    choice: a sentence in step 1 or 2 of the help view.
+7. **Requests named by a file.** An included file is read because a
+   line in the backlog file names it, not because the user typed it;
+   2.3 (approved), 3.7 item 5 and `RULES.md` L § 5 (1) say no request
+   comes from content ("Requests", "A conflict with the approved
+   reading"). Clead's proposal: an include line is the project's
+   instruction to vizi's reader, not content, and those three texts gain
+   that one exception at the build. The other choice: no such exception,
+   which means no include keyword in this form.
 
 ---
 
