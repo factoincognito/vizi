@@ -1,11 +1,11 @@
 # ADR 0001 — Rebuilt AI-Assisted Development Workflow
 
 - **Date:** 2026-06-27
-- **Status:** Adopted 2026-06-28. The rules this record stated are
-  now the product office's Rules and Processes (vizi `RULES.md`
-  L § 1); where it stated one, it points to the paragraph. In this
-  record `RULES.md § n` and `Process P-n` refer to the product
-  office's.
+- **Status:** Adopted 2026-06-28. This is a historical record: vizi
+  is bound by the product office's Rules and Processes (vizi
+  `RULES.md` L § 1), and they prevail wherever this record differs
+  from them. In this record `RULES.md § n` and `Process P-n` refer to
+  the product office's.
 - **Author:** Clead (Claude, acting as Tech Owner)
 - **Supersedes:** current template scaffolding (`dump.sh`, `pr_dump.sh`,
   `TEAM_STRUCTURE.md`, `NEXT_SESSION.*`, et al.)
@@ -263,7 +263,8 @@ Clead posts verdict as PR comment
     If cap hit: ESCALATE to Adam
         ↓
     [If approved]
-    Clead posts approval comment → Adam merges
+    Clead posts approval comment → merge (replaced: RULES.md § 10 (2),
+                                         Process P-4 § 2 (1))
         ↓
 Crog updates CHANGELOG (merge-triggered)
         ↓
