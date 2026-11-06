@@ -87,6 +87,10 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Spec: guided opening from the Repository field (PBI-1.19) (#82).
 - NEXT_SESSION: the PBI-1.19 spec parked for the product owner (#83).
 - PBI-1.18: the umbrella help text, which explains umbrellas and pre-projects in the umbrella view (#84).
+- Backlog: the remaining review follow-ups under PBI-1.10 (#87).
+- Cutover to the product office's Rules and Processes (PO-72): `RULES.md` with the sign-off and vizi's local rules; `CLAUDE.md` a short entry point; `docs/CROG_ONBOARDING.md` and `memory/roles.md` removed; restated rules stripped from the docs (#88).
+- CI review: the reviewer reads `RULES.md` as a fourth review document (`.github/reviewer/review.mjs`) (#89).
+- NEXT_SESSION: entry 2 (a) wording, and a note on #85's base after #89 (#90).
 
 ## Project created
 
