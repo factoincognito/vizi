@@ -71,7 +71,7 @@ On the other computer, once:
 
    To work on the copy in VS Code, this computer also needs what the
    project's kind of code runs on, and its first-time setup:
-   `docs/DEV_INFRASTRUCTURE.md`, "New machine setup", steps 2 and 4.
+   `docs/DEV_INFRASTRUCTURE.md`, "New machine setup".
 
 4. In the Claude app, sign in with the same Claude account and open
    the product office's Claude Project, as on your first computer. The
