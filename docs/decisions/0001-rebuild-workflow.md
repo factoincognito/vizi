@@ -1,7 +1,11 @@
 # ADR 0001 — Rebuilt AI-Assisted Development Workflow
 
 - **Date:** 2026-06-27
-- **Status:** Adopted 2026-06-28
+- **Status:** Adopted 2026-06-28. This is a historical record: vizi
+  is bound by the product office's Rules and Processes (vizi
+  `RULES.md` L § 1), and they prevail wherever this record differs
+  from them. In this record `RULES.md § n` and `Process P-n` refer to
+  the product office's.
 - **Author:** Clead (Claude, acting as Tech Owner)
 - **Supersedes:** current template scaffolding (`dump.sh`, `pr_dump.sh`,
   `TEAM_STRUCTURE.md`, `NEXT_SESSION.*`, et al.)
@@ -52,14 +56,8 @@ in §5 are designed the way they are because of what is written here.
 
 ### The basic split
 
-**The PO owns the WHAT.** Always. Everything the PO brings — at whatever
-level of abstraction or technical depth — is the WHAT. It expresses what
-he wants: outcomes, constraints, intent, and the definition of done.
-
-**Clead owns the HOW.** Everything from the PO's expression to working
-code is Clead's responsibility. The HOW includes architecture, spec detail,
-implementation approach, and review. Clead fills this gap regardless of
-how wide it is.
+The WHAT and the HOW, and who owns each: now `RULES.md` § 4 (7) and
+§ 6 (1) and (2).
 
 **The bridge is joint.** Translating WHAT into something precise enough
 to build is shared work. Adam brings domain knowledge and intent; Clead
@@ -84,40 +82,20 @@ spectrum. It has at least three independent axes:
   architecture, and tooling. This is the axis most commonly assumed to
   define the split, but it is only one of three.
 
-The shape of the gap differs on each axis. Clead reads that shape and fills
-it accordingly, rather than assuming a uniform gap.
+The shape of the gap differs on each axis. How Clead fills it: now
+`RULES.md` § 36 (4).
 
 ### The PO's knowledge changes the gap, not the ownership
 
-A technically experienced or process-strong PO may narrow the gap
-significantly — sometimes bringing requirements that leave Clead very
-little latitude. A PO may also push back on a proposed HOW as
-over-engineered. Both of these are WHAT signals, not HOW incursions.
-
-When Adam says "that's too much, we don't need that" — regardless of
-whether he is speaking from domain, process, or technical knowledge —
-that is a product constraint. Clead does not defend its architectural
-choices against it on grounds of technical superiority. The PO's WHAT
-is authoritative.
-
-Conversely, a PO with deep knowledge who chooses to specify down to
-implementation detail is still doing the WHAT: expressing what he
-wants. Clead turning that into a buildable, reviewable, working system
-is still the HOW.
+Now `RULES.md` § 6 (1) to (3).
 
 ### What this means for the spec gate
 
-Adam's spec approval is not a check on technical correctness. It is a
-confirmation that the spec correctly captures his intent. Clead is
-responsible for technical correctness. Adam is responsible for intent.
-These are different checks and together they cover the real failure modes.
+Now `RULES.md` § 6 (4).
 
 ### What this means for Clead's default posture
 
-Clead does not assume it knows better than Adam on any axis without
-evidence. The default is to fill the gap that exists, not the gap Clead
-expects to find. When Adam pushes back — on architecture, on process,
-on scope — Clead treats it as a WHAT signal and adapts.
+Now `RULES.md` § 36 (4).
 
 ---
 
@@ -131,13 +109,12 @@ Genuine process controls, not workarounds:
   *practice*. (Note: enforced only as far as CI can see it — see §6.)
 - **Branch protection + CI as the hard gate** — nothing merges without
   lint, format, tests, and coverage passing. Enforced at GitHub level.
-- **Adam as sole merge authority** — the one genuine human control.
-  A judgment point, not friction.
+- **Merge authority** — replaced: merges are delegated (`RULES.md`
+  § 10 (2), Process P-4 § 2 (1)).
 - **The Clead Review Standard** — threat-model statement, spec-compliance
   check, error-handling second pass, test-quality check, explicit list
   of what was *not* checked. Kept verbatim.
-- **GitHub as single source of truth** — if it is not in the repo, it
-  does not exist. This rule now governs memory too — see §4.
+- **GitHub as single source of truth** — now `RULES.md` § 16 (1).
 - **One task at a time** — complete, review, merge, then next. No
   accumulating unreviewed changes.
 - **Spec precedes implementation** — a validated spec exists before
@@ -170,22 +147,23 @@ Routine would find Clead amnesiac.
 are committed to the repo. Cowork's working folder is the repo clone, so
 it auto-loads them — but the canonical copy is always in Git.
 
-**Corollary — do not store derivable state.** "Current PBI" is derived
-from repo state (open PRs + `docs/BACKLOG.md`), not written into memory.
-Memory holds only what cannot be derived: project description and goals,
-the Review Standard (verbatim), key architectural decisions, and the
+**Corollary — do not store derivable state.** Now `RULES.md` § 16 (3).
+What memory was to hold then: project description and goals, the
+Review Standard (verbatim), key architectural decisions, and the
 one-page role rules.
 
 ---
 
 ## 5. The New Team
 
-Three roles. No role exists unless it does something another role cannot.
+Three roles. That no role exists without a function of its own: now
+`RULES.md` § 34 (4).
 
 ### Adam — Product Owner
 - Owns the WHAT on all axes (see §2).
 - Approves the spec — confirming intent, not technical correctness.
-- Approves the merge. Always. Never automated.
+- Merges: replaced; merges are delegated (`RULES.md` § 10 (2),
+  Process P-4 § 2 (1)).
 - Overrides any decision.
 - Handles escalations when the review loop cap is hit.
 
@@ -208,7 +186,7 @@ Three roles. No role exists unless it does something another role cannot.
 - Opens PR, posts `pr_done` comment.
 - Picks up Clead's fix prompts from PR comments, implements, pushes.
 - Updates `CHANGELOG.md` as the post-merge step.
-- Never merges.
+- Merges: replaced (`RULES.md` § 10 (2), Process P-4 § 2 (1)).
 
 ---
 
@@ -285,7 +263,8 @@ Clead posts verdict as PR comment
     If cap hit: ESCALATE to Adam
         ↓
     [If approved]
-    Clead posts approval comment → Adam merges
+    Clead posts approval comment → merge (replaced: RULES.md § 10 (2),
+                                         Process P-4 § 2 (1))
         ↓
 Crog updates CHANGELOG (merge-triggered)
         ↓
@@ -367,7 +346,8 @@ be enforced. Everything else is tooling.
 
 - Not removing the review gate. Every PR still goes through Clead.
   The standard is unchanged.
-- Not automating merge authority. Adam merges, always.
+- Merge authority: replaced; merges are delegated (`RULES.md` § 10 (2),
+  Process P-4 § 2 (1)).
 - Not urgent. The current workflow functions on all active projects.
   This applies to new projects and the template. Existing projects
   (`titan-comptracker`, `python-blackjack`, `fomo-f`) migrate only

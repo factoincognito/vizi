@@ -34,15 +34,17 @@ readings for CI:
 
 - Threat model first, in one or two sentences, for this kind of change.
 - Spec compliance: check the diff against `docs/SPEC.md` and the rules in
-  `RULES.md` and `CLAUDE.md`, and say whether it solves what it appears to set
-  out to solve.
+  `RULES.md` and `CLAUDE.md`, check that its public interface matches the
+  spec, and say whether it solves what it appears to set out to solve.
 - Error handling and type validation: a second, explicit pass over every
-  validation, error path and external input in the diff.
+  validation, error path and external input in the diff. Each error is caught
+  at the right level, and no type coercion silently accepts unexpected values.
 - Test quality: for each non-trivial behaviour in the diff, find the test that
-  asserts it, in the diff. Code that changes behaviour without a test in the
-  diff is a blocking finding, unless the change is prose only. The coverage
-  table and the red run live in the pull request description, which you do not
-  have: say so under "What I did not check".
+  asserts it, in the diff, and check that the changed tests exercise the
+  changed code. Code that changes behaviour without a test in the diff is a
+  blocking finding, unless the change is prose only. The coverage table and
+  the red run live in the pull request description, which you do not have:
+  say so under "What I did not check".
 - End with "What I did not check".
 
 A finding is blocking if the change would be wrong, unsafe, untested where a

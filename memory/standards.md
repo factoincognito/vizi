@@ -1,86 +1,43 @@
 # Clead Review Standard
 
 *Kept as the review standard that reviews of vizi PRs are given, the CI
-reviewer's included (`RULES.md` L § 3). It is the template's wording of
-the review standard; for sessions, product-office Process P-3 § 3
-governs.*
-
-Every PR reviewed by Clead must include all of the following,
-without being asked.
+reviewer's included (`RULES.md` L § 3). The standard is product-office
+Process P-3 § 3; the sections below point to it. In this file `§ n`
+and `P-n § m` refer to the product office's `RULES.md` and its
+processes, and `L § n` to this repository's `RULES.md`.*
 
 ## 1. Threat model statement
-State the threat model before findings.
-Example: "Reviewing this as a game engine — primary risks are incorrect
-payout logic, silent state mutation, and non-deterministic test failures."
+P-3 § 3 (1).
 
 ## 2. Spec compliance check
-Check against docs/SPEC.md. Confirm or flag:
-- Does the implementation match what the spec says this component must do?
-- Does the public interface match the spec contract?
-- Does this actually solve the PBI? (First-principles check — distinct
-  from spec compliance. A spec can be complied with and still not solve
-  the PBI if the spec was wrong.)
+P-3 § 3 (2), against `docs/SPEC.md` (L § 2 (2)).
 
 ## 3. Error handling and type validation — second pass
-After the general review, an explicit second pass:
-- Every validation function: edge cases handled correctly?
-- Every error path: exceptions caught at the right level?
-- Every external input: validated before use?
-- Any type coercion that could silently accept unexpected values?
+P-3 § 3 (3).
 
 ## 4. Test quality check
-Coverage percentage and test count are necessary but not sufficient.
-- Does the PR include a test coverage narrative table? If not, request
-  it before approving.
-- For each row: does the named test actually assert what the table claims?
-- Are all non-trivial error paths and recovery behaviours represented?
+P-3 § 3 (4), as L § 3 overrides it: the table, the red run and the
+`Test-exempt:` reasons are not given to the review and are listed
+under what it did not check (L § 3 (2)). What a green test-change
+check proves: P-11 § 2 (3).
+- Coverage percentage and test count are necessary but not sufficient.
 - For every error path, is there a test verifying correct recovery —
-  not just that a warning was logged?
-- Was the red run shown before the implementation? If not, ask for it.
-- A green test-change check only proves some test file changed. Do the
-  changed tests exercise the changed code?
-- Each `Test-exempt:` reason: is it true, and is there really nothing a
-  test could check?
+  not just that a warning was logged? (Kept beside the pointer because
+  the CI reviewer cannot read P-3.)
 
 ## 5. What I did not check
-Every approval must end with an explicit list of what was not verified.
-A claim of "checked" or "confirmed" must come from a check that actually
-verifies the specific claim — not a proxy signal (e.g. a keyword or
-substring match on a page) that can produce false positives. If the
-available check is indirect, either do the direct check instead, or
-state the claim with its real uncertainty rather than asserting it
-flatly. (Real incident, fomo-f, 2026-07-23: claimed a PR review comment
+P-3 § 3 (6); what counts as a check: §§ 12 (2) and 13 (2), (3).
+(Real incident, fomo-f, 2026-07-23: claimed a PR review comment
 existed based on a page-text keyword match; it was a false positive from
 unrelated content elsewhere on the page. Caught only because the user
 asked for clarification — the check itself had not actually confirmed
 anything.)
 
 ## 6. Verdict discipline
-- Verdict posted directly as a PR comment. No relay through Adam.
-- Fix prompts posted directly to the PR for Crog to pick up.
-- After 3 review cycles without resolution: escalate to Adam.
-  This is a safety control, not relay work. The escalation message
-  opens with the reason and gives Adam what he needs to decide:
-  1. Why he is getting it: "Escalated after 3 review rounds on #N
-     without agreement."
-  2. What the reviewer and author disagree on, in plain words.
-  3. Each side's position, one or two lines each.
-  4. The decision needed, as a question he can answer directly.
+P-3 §§ 4 and 6; for a disagreement with a CI verdict, L § 4 (6).
 
 ## 7. Reviewer independence — hard constraint
-The review must run as a separate invocation from the implementation
-conversation. Inputs: {diff, docs/SPEC.md, memory/standards.md,
-CLAUDE.md, RULES.md} only, the four documents as they are on the base
-commit (CLAUDE.md added 2026-11-04, by the product owner, for the CI
-reviewer of the PO-68 pilot; RULES.md added 2026-11-05 18:49, by the
-product owner, product-office DECISIONS.md). The reviewer's own fixed
-instructions are not context.
-Do not load design-time memory or implementation conversation history
-into the review context. This is structural, not conventional.
+P-3 § 2 (1) and (3). The inputs are those of L § 3 (1).
 
-## Test coverage narrative table (required on all code PRs)
-| Behaviour under test | Test name | What it asserts |
-|---|---|---|
-| | | |
-One row per non-trivial behaviour. Error-path rows mandatory.
-Happy-path rows optional.
+## Test coverage narrative table
+P-2 § 3 (2).

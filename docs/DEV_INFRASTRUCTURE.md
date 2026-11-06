@@ -12,15 +12,11 @@ facts of this repository.
 
 ### 1. New machine setup
 
-1. Install git and VS Code. For Crog, install the Claude Code extension
-   in VS Code.
-2. Install the runtime for the project's language pack (Part 2):
-   Node.js 24 for `web`.
-3. Clone the repo and open the folder in VS Code. Accept the
-   recommended extensions when VS Code offers them
-   (`.vscode/extensions.json`, from the pack).
-4. Run the pack's "First-time setup" (Part 2), then its full CI command
-   list once. If everything passes, the machine is ready.
+The steps are product-office Process P-11 § 4 (1). In vizi, the
+language pack's runtime is Node.js 24 (Part 2), the recommended
+extensions are in `.vscode/extensions.json`, from the pack, and the
+pack's "First-time setup" and its full CI command list are in
+`languages/web/code-standards.md`.
 
 No git line-ending settings are needed on any OS: `.gitattributes`
 handles it (section 2).
@@ -53,21 +49,17 @@ protection is available on GitHub's free plan.
 **Turning it on.** The setup script, `bootstrap-project.sh`, protects
 `main` right after it creates the project, and adds `build` as a
 required check once the setup pull request's `build` has passed. It
-then reads the protection back and reports it. The steps below are the
-fallback, for a project set up without the script or whose protection
-was changed by hand (repo owner, once,
-after the first push of the pack's `ci.yml`):
-
-1. Push a branch and let CI run once. The required-checks picker only
-   offers checks that have run in the repo recently.
-2. Settings, Branches, add a branch protection rule for `main`.
-3. Tick "Require a pull request before merging" and set required
-   approvals to 0.
-4. Tick "Require status checks to pass before merging" and add `build`,
-   plus any other check your CI adds that must pass. The pack's
-   `ci.yml` has one job, named `build`, so `build` alone covers it.
-5. Tick "Do not allow bypassing the above settings".
-6. Save.
+then reads the protection back and reports it. For a project set up
+without the script, or whose protection was changed by hand, the
+fallback is product-office Process P-11 § 3 (3), done by the repo
+owner once, after the first push of the pack's `ci.yml`. In GitHub:
+CI runs once first, because the required-checks picker only offers
+checks that have run in the repo recently; the rule for `main` is
+added under Settings, Branches; its settings are "Require a pull
+request before merging" (required approvals 0), "Require status checks
+to pass before merging" and "Do not allow bypassing the above
+settings". The pack's `ci.yml` has one job, named `build`, so `build`
+alone covers the required checks.
 
 **Checking that it works:** product-office Process P-11 § 3 (2).
 
