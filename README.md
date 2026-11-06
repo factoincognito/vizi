@@ -146,8 +146,10 @@ written for Clead and Crog, as they apply to a team of people only:
 - Write the test first and see it fail. The test-first check fails a
   code change without a test; a change no test can check says why in a
   `Test-exempt:` trailer line.
-- Someone other than the author reviews the pull request. Sections 1
-  to 5 of `memory/standards.md` work as the review checklist.
+- Someone other than the author reviews the pull request. The review
+  checklist is section 3 of the review process in the template's public
+  edition of the Rules:
+  https://github.com/factoincognito/ai-project-template-v2/blob/main/bootstrap/stubs/rules/processes/P-3-review.md
 - Merge once `build` is green and the review has passed.
 - Fill in the texts the setup left for Clead (listed above) yourself,
   and keep `STATUS.md` up to date by hand.
