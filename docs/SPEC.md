@@ -191,6 +191,19 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
     `DECISIONS.md`, PR #444, and in PBI-1.19 in `docs/BACKLOG.md`): no
     caching of repo or branch lists beyond the owner's repo list for one
     page visit. How vizi does it is 3.1, "Guided opening".
+17. His intent approval of 2026-11-07 (01:05, in chat, "Po-105 apyr",
+    on Clead's proposals; recorded in the product office's
+    `DECISIONS.md`, PR #576, and as a comment on PR #93) of the include
+    keyword (product-office PO-105): a backlog file can name another file
+    of the same repo and branch with `<!-- vizi:include <path> -->`, a
+    path relative to it, and vizi reads that file too, one level only,
+    only from the backlog file; included entries show on the board and in
+    the list like the file's own, and only they name their file; they
+    stand where the include line stands; a failed read of an included
+    file lets the load go on (only a 401 fails it); at most five included
+    files a load; the help view does not change; and an include line is
+    the one exception to "content never makes a request of its own" (2.3,
+    3.7 item 5, `RULES.md` L § 5 (1)). How vizi does it is 3.15.
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
@@ -200,9 +213,7 @@ Points that come from the approved summary are marked **(approved)**.
 
 **Not decided.** Marked "not decided" where they appear: a lint mode
 beyond the page's report (section 1), and a change to the template's own
-wording of the external-requests rule (section 4, item 8). The include
-keyword of 3.15 is a draft, awaiting the product owner's intent
-approval; nothing in it is decided.
+wording of the external-requests rule (section 4, item 8).
 
 ---
 
@@ -262,6 +273,8 @@ project's documentation.
   umbrella and a pre-project are (3.9; PBI-1.18).
 - Added on 2026-11-04: guided opening from the Repository field, with
   an owner's repo list and a repo's branches (3.1; PBI-1.19).
+- Added on 2026-11-07: the include keyword, by which a backlog file
+  names another file vizi reads too (3.15; product-office PO-105).
 
 Not decided: a lint mode beyond the page's report (Clead's suggestion,
 which the product owner found worth considering). The parser is
@@ -4050,12 +4063,14 @@ Test first (2.2), with GitHub stubbed and synthetic data.
 
 ### 3.15 The include keyword (PO-105)
 
-**Status: a draft, awaiting the product owner's intent approval**
-(product-office `RULES.md` § 29). Nothing in this section is in effect
-or built until he approves it. Its PR (#93) stays open until then: his
-approval is recorded as a comment on it, as for the sections above, and
-this line changes in that PR before it merges.
-Until then, 3.1 to 3.14 and `docs/BACKLOG-FORMAT.md` stand as they are.
+**Status: intent approved, not built.** Intent approval: Adam,
+2026-11-07 01:05, product-office DECISIONS.md (in chat, "Po-105 apyr";
+PR #576 there; recorded as a comment on PR #93; "What is decided", item
+17). The build is the next step (product-office PO-105 step 3). Until it
+is built, 3.1 to 3.14 and `docs/BACKLOG-FORMAT.md` describe the page as
+it is; the changes the build makes to them are listed below ("What
+changes in `docs/BACKLOG-FORMAT.md`", "What changes elsewhere at the
+build").
 
 **What the product owner asked for** (2026-11-06, 12:38, in chat;
 recorded in the product office's `DECISIONS.md` and as its backlog item
@@ -4068,11 +4083,11 @@ to that file (product-office #520), vizi does not show them: it reads
 only `BACKLOG.md`, `docs/BACKLOG.md` and `docs/PRODUCT_BACKLOG.md`
 (`BACKLOG_PATHS` in `src/github.ts`, read at `main` `58b6e17`) and
 follows no reference in a backlog file (3.1, 3.4). At 12:42 he put it
-in the unattended batch (recorded in the same file): it is built there
-once he has approved this spec, not before.
+in the unattended batch (recorded in the same file), to be built there
+once he had approved this spec, which he did at 01:05 on 2026-11-07.
 
-**Clead's proposals, shown to the product owner at 12:39 and not
-decided by him.** Each is for his approval:
+**(approved)** Clead's proposals, shown to the product owner at 12:39,
+and approved by him on 2026-11-07 (01:05, "Po-105 apyr"):
 
 1. **The keyword** is an HTML comment, `<!-- vizi:include <path> -->`,
    on a line of its own. A comment is not shown where GitHub renders the
@@ -4088,23 +4103,27 @@ decided by him.** Each is for his approval:
 5. **Included entries show on the board and in the list** like the
    file's own entries, each naming its file.
 
-Everything else below is Clead's design within those proposals; the
-points that are choices the proposals leave open are marked "Clead's
-proposal", and those that need the product owner are listed under "Open
-questions".
+With them he approved the answers to the seven questions the draft put
+to him, each as Clead proposed it ("Decisions on the open questions",
+at the end of this section). Everything else below is Clead's design
+within those approved points (product-office `RULES.md` § 6 (2) and
+(4)), and changes through a reviewed PR like any spec change.
 
 #### The rules (for `docs/BACKLOG-FORMAT.md`, new section 6)
 
 Word for word as they go into `docs/BACKLOG-FORMAT.md` at the build
-(below, "What changes in `docs/BACKLOG-FORMAT.md`"). "The backlog file"
-is the one file of the three paths that vizi reads (section 1 there).
+(below, "What changes in `docs/BACKLOG-FORMAT.md`"); they carry no
+marker of who decided what, which that file gives in its own way.
+"The backlog file" is the one file of the three paths that vizi reads
+(section 1 there).
 
 **I1. Include line.** A line of the backlog file, at column 0, outside
 a fence (R7) and outside a comment that opened on an earlier line (R9),
-whose text, without trailing spaces, is exactly `<!--`, one or more
-spaces, `vizi:include`, one or more spaces, the path, one or more
-spaces, `-->`, and nothing else: the pattern
-`^<!-- +vizi:include +([^ ]+) +-->$`, where the path holds no `-->`
+whose text, without trailing spaces and tabs, is exactly `<!--`, one
+or more spaces, `vizi:include`, one or more spaces, the path, one or
+more spaces, `-->`, and nothing else: the pattern
+`^<!-- +vizi:include +([^ \t]+) +-->$`, where the path holds no space,
+no tab and no `-->`
 (R9 closes the comment at the first `-->`, so a path that holds one
 leaves text after the comment: such a line looks like an include, I2).
 The keyword is written in lower case, exactly. The include line is read
@@ -4120,7 +4139,7 @@ by a space, a tab, `-->` or the end of the line, and that is not an
 include line by I1: for example one that is indented, has text after
 its `-->`, has no path or more than one word between the keyword and
 the `-->`, has no space before the `-->`, has a tab where I1 has
-spaces, or does not close on its line. A comment that starts in any
+spaces or a tab in the path, or does not close on its line. A comment that starts in any
 other way (`<!-- vizi:Include x -->`, `<!-- vizi x -->`) is an ordinary
 comment: dropped, and not reported. Text that R9 does not read as a
 comment, such as a `<!--` after other text on an entry's line, is never
@@ -4137,8 +4156,8 @@ followed, and is reported (not read), when it:
 - starts with `/` (an absolute path);
 - holds any other character, such as `:` (so a URL, `https://…`, is
   refused), `\`, `%` or a letter outside A to Z and a to z (a
-  space never reaches I3: I1 reads the path up to the first space, and
-  a path with a space is more than one word, I2);
+  space or a tab never reaches I3: I1's path holds neither, and a line
+  with one in its path looks like an include, I2);
 - has an empty segment (`a//b.md`) or ends with `/`;
 - leaves the project's root once `.` and `..` are resolved
   (`../x.md` from `BACKLOG.md`, `../../x.md` from `docs/BACKLOG.md`);
@@ -4153,7 +4172,9 @@ is not followed and is reported (not read); no request is made for it.
 file's own is not followed, and is read with a warning. An include
 whose resolved path an earlier include line of the file named and
 followed is not followed again, and is read with a warning: the file is
-read once, at its first include line. The checks are made in the order
+read once, at its first include line, whether that read succeeded or
+failed ("A failed read of an included file"), so a failed file is not
+asked for twice. The checks are made in the order
 I2, I3, I5, I4, I7, and a line gets the first that applies, so a path
 the file list lacks, or one past the cap, is reported by I4 or I7 each
 time it is named.
@@ -4164,7 +4185,7 @@ line by I1 or looks like one by I2 is not followed, and is reported
 is read.
 
 **I7. At most five.** At most five included files are read for one
-backlog file (Clead's proposal). An include line after the fifth one
+backlog file. An include line after the fifth one
 followed is not followed and is reported (not read). An include that
 is followed counts towards the five whether its read succeeds or fails
 ("A failed read of an included file"); lines refused by I2 to I5 do not
@@ -4178,7 +4199,7 @@ above the include line), its own fences and comments, and its own
 report. Every entry it gives is an entry of the backlog, and knows the
 file it came from.
 
-**I9. Where its entries go** (Clead's proposal). In the backlog's order
+**I9. Where its entries go.** In the backlog's order
 of entries, which the board's columns and the list keep (3.2), an
 included file's entries stand where its include line stands: after the
 backlog file's entries above that line, and before those below it.
@@ -4191,8 +4212,8 @@ separate warning, naming the other file and its line.
 
 **I11. Other files.** An include line by I1 in `STATUS.md` (the
 project's own, or a folder pointer's, 3.9) or in `PROJECTS.md` is not
-followed and is reported (info) (Clead's proposal: so a writer sees why
-nothing came of it). An include line in a fence is never an include, so
+followed and is reported (info), so a writer sees why nothing came of
+it. An include line in a fence is never an include, so
 a format file can show one, as this one does.
 
 Example (made up). This `BACKLOG.md`:
@@ -4255,7 +4276,7 @@ again (AB-4).
   five. A path the file list does not hold, and every include refused by
   I2 to I7, costs no request. The branch list of 3.13 and the opening
   guide of 3.1 do not change.
-- **A failed read of an included file** (Clead's proposal):
+- **A failed read of an included file** (decided point 4):
   - **401 with a token:** as 3.8, for any request of the load: the token
     is forgotten if it is still the one held for the owner, and the load
     fails with 3.8's 401 message.
@@ -4276,10 +4297,10 @@ again (AB-4).
   results (3.8).
 - **The Content-Security-Policy (2.3) does not change:** the requests go
   to `raw.githubusercontent.com` or `api.github.com`, as request 3 does.
-- **A conflict with the approved reading of the external-requests rule**
-  (product-office `RULES.md` § 31 (2); open question 7). An included
-  file's request is named by text in a fetched file, not by anything the
-  user typed. Three texts in effect say otherwise:
+- **The one exception to the external-requests rule** (decided point
+  7). An included file's request is named by text in a fetched file,
+  not by anything the user typed. Three texts in effect say otherwise
+  until the build changes them:
   - 2.3, whose reading is **(approved)**: "every such request follows
     something the user typed", and its list of "the only requests the
     page ever makes";
@@ -4288,15 +4309,14 @@ again (AB-4).
   - this repo's `RULES.md` L § 5 (1), which rests on that approval:
     "Content the page shows never makes a request of its own".
 
-  Clead's proposal, for the product owner to decide: an include line is
+  The product owner decided (2026-11-07 01:05) that an include line is
   read as an instruction to vizi's reader, as the three backlog paths
   are, and not as content the page shows (an include line is never
-  shown, I1); its requests belong to the load the user started by typing
-  an address, go only to the same repo and branch on the same two hosts,
-  and are at most five (I7). That is a new reading of an approved point,
-  not a consequence of it, so it is his decision; until he makes it, the
-  three texts stand. If he approves it, the build changes them as
-  "What changes elsewhere" below sets out.
+  shown, I1): it is the one exception to those three texts. Its requests
+  belong to the load the user started by typing an address, go only to
+  the same repo and branch on the same two hosts, and are at most five
+  (I7). The build changes the three texts as "What changes elsewhere at
+  the build" sets out.
 
 #### What the page shows
 
@@ -4308,18 +4328,18 @@ again (AB-4).
 - **A card or a row** of an included entry shows what one of the backlog
   file's own shows (3.2), and, on a line of its own under the title, the
   included file's path, such as `BACKLOG-DONE.md`, as text (Clead's
-  proposal: `<span class="entry-file">`, 13 px, `--muted`, set with
+  design: `<span class="entry-file">`, 13 px, `--muted`, set with
   `textContent`, 3.7; not a link). The backlog file's own entries show no
-  path, as today (open question 2).
+  path, as today (decided point 2).
 - **List.** Entries are grouped by heading as 3.2 sets out, with one
-  change (Clead's proposal): consecutive entries share a group only when
+  change (Clead's design): consecutive entries share a group only when
   they have the same heading and come from the same file, so an included
   file's "Open" is never merged with the backlog file's "Open". A group
   of an included file is headed "`<heading>` — `<path>`" ("(no heading) —
   `<path>`" for its entries above its first heading), the path in its
   own `<span class="entry-file">`.
 - **Search** matches as 3.2 says (ID, notes, title, description); it
-  does not match the file's path (Clead's proposal).
+  does not match the file's path (Clead's design).
 - **Links in an included entry** resolve against the included file
   (3.7 item 4: "resolved against the file it appears in"), not the
   backlog file. Code-span links (3.4) are as today: a code span names a
@@ -4332,7 +4352,7 @@ again (AB-4).
   kind the items come in this order: the input notes (3.1), the backlog
   file's items, each included file's items in the order of I9,
   `STATUS.md`'s, `PROJECTS.md`'s. The tab's count counts them all. The
-  messages, word for word (Clead's proposal):
+  messages, word for word (Clead's design):
   - I2: "Not followed: an include is `<!-- vizi:include <path> -->`
     alone on its line, at column 0." (not read);
   - I3: "Not followed: `<path>` is not a path vizi includes: it must be
@@ -4345,8 +4365,9 @@ again (AB-4).
     message adds " GitHub's file list was truncated, so the file may
     exist.";
   - I5, itself: "Not followed: the file includes itself." (warning);
-  - I5, twice: "Not followed: `<path>` is already included on line
-    `<n>`." (warning);
+  - I5, twice: "Not followed: `<path>` is already named on line `<n>`."
+    (warning; "named", not "included", since that line's read may have
+    failed);
   - I6: "Not followed: an included file cannot include another file."
     (not read; on the included file's line);
   - I7: "Not followed: vizi reads at most five included files." (not
@@ -4364,7 +4385,8 @@ again (AB-4).
 
   `<path>` is the path as resolved by I3 where it resolves, otherwise as
   written; every path and message is set as text (3.7).
-- **The message line** `#message` (Clead's proposal). After a
+- **The message line** `#message` (decided point 4; the wording is
+  Clead's design). After a
   successful load with a backlog file, `#message` is empty today, or
   holds the truncation note when the file list was truncated (3.1, "As
   built"). After a load in which an include was not followed or not read
@@ -4375,7 +4397,7 @@ again (AB-4).
 - **No include line:** the page is exactly as today, the requests, the
   board, the list, the cards and the report included.
 
-#### Edge cases (Clead's design, each within the proposals)
+#### Edge cases (Clead's design, within the approved points)
 
 | Case | What happens |
 |---|---|
@@ -4415,14 +4437,16 @@ fixtures (2.2); the tests use made-up files.
 
 #### What changes in `docs/BACKLOG-FORMAT.md`
 
-At the build, in the same PR as the code, and not before the product
-owner's approval:
+At the build, in the same PR as the code:
 
-- a new section **6. Includes (`vizi:include`)**: the approved intent,
-  marked **(approved)**, the rules I1 to I11 and the example above, word
-  for word;
-- **"What is decided, and what is Clead's design":** the approval added
-  to the decided points; I1 to I11 added to Clead's design;
+- a new section **6. Includes (`vizi:include`)**: the approved intent of
+  "What is decided", item 17, marked **(approved)**, then the rules I1 to
+  I11 and the example above, word for word;
+- **"What is decided, and what is Clead's design":** the approval of
+  2026-11-07 added to the decided points, with the points of I7 (five),
+  I9 (where entries go) and the one-level, backlog-only, relative-path
+  and same-branch points of I3, I4, I6 and I11 marked **(approved)**;
+  the rest of I1 to I11 added to Clead's design;
 - **R9:** one sentence at its end: "A comment that is an include line
   (section 6, I1) is read before it is dropped.";
 - **section 3**, the report kinds: under "Not read", the include not
@@ -4434,10 +4458,10 @@ owner's approval:
 - **section 1** gains one sentence: "The backlog file can include other
   files (section 6)."
 
-`docs/BACKLOG-FORMAT.md` is not changed by this draft: it is in effect,
-and the rules above are not.
+`docs/BACKLOG-FORMAT.md` is not changed by this spec's PR: it describes
+the parser as built, and these rules take effect with the build.
 
-#### What changes elsewhere, if the product owner approves
+#### What changes elsewhere at the build
 
 At the build, in the same PR as the code, besides
 `docs/BACKLOG-FORMAT.md`:
@@ -4460,10 +4484,10 @@ At the build, in the same PR as the code, besides
   included file, at most five a load;
 - **`RULES.md` L § 5 (1):** "Content the page shows never makes a
   request of its own" gains the same exception, with its "Adopted:" line
-  naming his decision. That is a change of a local rule, through a
-  reviewed PR (product-office `RULES.md` § 3 (2)); it carries a WHAT,
-  so it needs his decision in chat (§ 3 (3)), which open question 7
-  asks for.
+  naming his decision of 2026-11-07 01:05 (decided point 7). That is a
+  change of a local rule, through a reviewed PR (product-office
+  `RULES.md` § 3 (2)); the WHAT it carries is his decision, given in
+  chat (§ 3 (3)), so its wording needs no further decision (§ 3 (4)).
 
 #### What changes in `src/` (no code here)
 
@@ -4500,8 +4524,9 @@ that ran (test first, 2.2; GitHub stubbed; made-up files only):
   - I2, reported as not read: the line indented; with text after
     `-->`; `<!-- vizi:include -->`; `<!-- vizi:include a.md b.md -->`;
     `<!-- vizi:include a.md-->`; a tab in place of either space around
-    `vizi:include`; `<!-- vizi:include a.md` with the
-    `-->` on a later line; not
+    `vizi:include`; a tab inside the path (`a<tab>b.md`); and
+    `<!-- vizi:include a.md` with the `-->` on a later line; read as an
+    include: the line with a trailing tab after `-->`; not
     reported: `<!-- vizi:Include a.md -->`, `<!-- vizi a.md -->`, and
     `- **[NOW] AB-1** — Text <!-- vizi:include a.md -->`, which stays the
     entry's text;
@@ -4515,7 +4540,9 @@ that ran (test first, 2.2; GitHub stubbed; made-up files only):
   - I4: a path not in the file list is reported with no request asked
     for, with and without the truncation sentence;
   - I5: the file itself, and the same file twice (also as `DONE.md` and
-    `./DONE.md`), each a warning, the file read once; a path the file
+    `./DONE.md`), each a warning, the file read once; a file whose read
+    failed, named again: the warning "already named", and no second
+    request for it; a path the file
     list lacks, named twice, reported by I4 both times, and a path past
     the cap, named twice, by I7 both times;
   - I6: an include line, and a line that looks like one, in an included
@@ -4586,40 +4613,29 @@ that ran (test first, 2.2; GitHub stubbed; made-up files only):
     (3.7);
   - without an include line, the existing tests pass unchanged.
 
-#### Open questions for the product owner
+#### Decisions on the open questions
 
-Each is a WHAT (product-office `RULES.md` § 7 (2)); Clead's proposal is
-given with each, and the draft is written to it:
+Each was a WHAT (product-office `RULES.md` § 7 (2)), put to the product
+owner with Clead's proposal. He took every proposal: Adam, 2026-11-07
+01:05, in chat, "Po-105 apyr" (product-office `DECISIONS.md`, #576).
 
-1. **The five proposals above** (the keyword, the path, backlog files
-   only, one level, entries shown like the file's own and naming their
-   file): approve, change or drop each.
-2. **Which entries name their file.** Clead's proposal: only included
-   entries, so a backlog without includes looks as today. The other
-   choice: every entry names its file once a backlog has an include.
-3. **Where included entries go.** Clead's proposal: where the include
-   line stands (I9), which the word "inline" suggests. The other choice:
-   always after the backlog file's own entries, wherever the line is.
-4. **A failed read of an included file.** Clead's proposal: the load
-   goes on, the report and `#message` say what is missing; only a 401
-   fails it, as 3.8 does for every request. The other choice: any failed
-   include fails the whole load, as a failed backlog file does (3.1).
-5. **The cap.** Clead's proposal: at most five included files a load
-   (I7), to keep a load's requests bounded (section 4, item 3). Another
-   number, or none.
-6. **The help view.** Its five steps were approved as they are (3.10),
-   so this draft does not add the include to it. Clead's proposal: leave
-   the help view as it is and document the include in
-   `docs/BACKLOG-FORMAT.md`, which the help view links to. The other
-   choice: a sentence in step 1 or 2 of the help view.
-7. **Requests named by a file.** An included file is read because a
-   line in the backlog file names it, not because the user typed it;
-   2.3 (approved), 3.7 item 5 and `RULES.md` L § 5 (1) say no request
-   comes from content ("Requests", "A conflict with the approved
-   reading"). Clead's proposal: an include line is the project's
-   instruction to vizi's reader, not content, and those three texts gain
-   that one exception at the build. The other choice: no such exception,
-   which means no include keyword in this form.
+1. **The five proposals** (the keyword, the path, backlog files only,
+   one level, entries shown like the file's own and naming their file):
+   approved as written above.
+2. **Which entries name their file:** only included entries, so a
+   backlog without includes looks as today.
+3. **Where included entries go:** where the include line stands (I9).
+4. **A failed read of an included file:** the load goes on, and the
+   report and `#message` say what is missing; only a 401 fails it, as
+   3.8 does for every request.
+5. **The cap:** at most five included files a load (I7), to keep a
+   load's requests bounded (section 4, item 3).
+6. **The help view:** unchanged (3.10); the include is documented in
+   `docs/BACKLOG-FORMAT.md`, which the help view links to.
+7. **Requests named by a file:** an include line is the project's
+   instruction to vizi's reader, not content; 2.3, 3.7 item 5 and
+   `RULES.md` L § 5 (1) gain that one exception at the build ("What
+   changes elsewhere at the build").
 
 ---
 
@@ -4856,11 +4872,11 @@ Items 29 to 31 are PBI-1.19's (3.1, "Guided opening"):
     as the documentation's schema suggests; the documentation's example
     is a user. Not checked.
 
-Item 32 is the draft of 3.15's:
+Item 32 is 3.15's:
 
-32. **Open; 3.15 (a draft).** That an include line,
+32. **Open; 3.15.** That an include line,
     `<!-- vizi:include <path> -->`, is not shown where GitHub renders a
-    Markdown file, as 3.15's proposal 1 says. Not checked: GitHub's
+    Markdown file, as 3.15's point 1 says. Not checked: GitHub's
     Markdown API was refused to this session (2026-11-06, "sessions are
     bound to their configured repositories"). It is checked at the
     build, or by the product owner on any file that holds a comment,

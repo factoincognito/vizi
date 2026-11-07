@@ -122,7 +122,7 @@ runs (non-blocking points, all Clead's call):
 **Action:** Clead does them in one small PR when the pilot is judged, or
 drops them if the pilot ends.
 
-### 5. The include keyword (PO-105) — new, waits for the product owner's intent approval
+### 5. The include keyword (PO-105) — intent approved; the build is next
 
 **Previous assumption:** vizi reads one backlog file, the first of its three
 paths found, and follows no reference in it (`docs/SPEC.md` 3.1, 3.4). Since
@@ -130,23 +130,24 @@ the product office moved its `DONE` entries to `BACKLOG-DONE.md`
 (product-office #520), vizi shows none of them.
 **Revised assessment:** the product owner asked on 2026-11-06 (12:38) for an
 include keyword, and put it in the unattended batch (12:42; product-office
-PO-105). Clead's draft is `docs/SPEC.md` 3.15 (PR #93): the keyword
+PO-105). The spec is `docs/SPEC.md` 3.15 (PR #93): the keyword
 `<!-- vizi:include <path> -->`, a path relative to the backlog file in the
 same repo and branch, backlog files only, one level, included entries on the
 board and in the list naming their file, with rules I1 to I11 for
 `docs/BACKLOG-FORMAT.md`, the requests, the report messages, the edge cases
-and the acceptance criteria. It is a draft: none of Clead's proposals in it is
-decided, and 3.15 lists seven open questions for him, one of them (7) a
-conflict with the approved reading of the external-requests rule
-(`docs/SPEC.md` 2.3, 3.7 item 5, `RULES.md` L § 5 (1)).
-**Impact on plan:** once approved, a build item (tests first) carries it out,
-and `docs/BACKLOG-FORMAT.md` gains its section 6 in that build's PR; then the
-product office adds the include line to its `BACKLOG.md` (PO-105 step 3).
-Nothing is built before the approval (product-office `RULES.md` § 29).
-**Action:** Clead puts 3.15's summary and its open questions to the product
-owner in chat. PR #93 stays open until he decides: his intent approval is
-recorded as a comment on it, and 3.15's status line and this entry change in
-#93 before it merges.
+and the acceptance criteria. Intent approval: Adam, 2026-11-07 01:05, in chat,
+"Po-105 apyr", every one of Clead's proposals and all seven open questions as
+proposed (product-office `DECISIONS.md`, #576; `docs/SPEC.md` "What is
+decided", item 17; recorded as a comment on PR #93).
+**Impact on plan:** the build is the next step (product-office PO-105 step
+3): tests first, through vizi's flow; in that build's PR,
+`docs/BACKLOG-FORMAT.md` gains its section 6, and `docs/SPEC.md` 2.3, 3.1,
+3.2, 3.5, 3.7 item 5, 3.8, section 4 item 3 and `RULES.md` L § 5 (1) change as
+3.15, "What changes elsewhere at the build", sets out. After it merges, the
+product office adds the include line to its `BACKLOG.md`.
+**Action:** Clead starts the build once #93 has its manual Crog review
+(`RULES.md` L § 4 (11)) and has merged; this entry is removed when the build
+merges.
 
 ---
 
