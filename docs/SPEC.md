@@ -200,7 +200,8 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
     only from the backlog file; included entries show on the board and in
     the list like the file's own, and only they name their file; they
     stand where the include line stands; a failed read of an included
-    file lets the load go on (only a 401 fails it); at most five included
+    file lets the load go on (only a 401 fails it), and the page says
+    what is missing; at most five included
     files a load; the help view does not change; and an include line is
     the one exception to "content never makes a request of its own" (2.3,
     3.7 item 5, `RULES.md` L § 5 (1)). How vizi does it is 3.15.
@@ -4105,9 +4106,10 @@ and approved by him on 2026-11-07 (01:05, "Po-105 apyr"):
 
 He approved them, and the answers to the six questions they left
 open, each as Clead proposed it: seven points in all ("Decisions on
-the open questions", at the end of this section). Everything else below is Clead's design
-within those approved points (product-office `RULES.md` § 6 (2) and
-(4)), and changes through a reviewed PR like any spec change.
+the open questions", at the end of this section). Everything else
+below is Clead's design within those approved points (product-office
+`RULES.md` § 6 (2) and (4)), and changes through a reviewed PR like
+any spec change.
 
 #### The rules (for `docs/BACKLOG-FORMAT.md`, new section 6)
 
@@ -4119,7 +4121,9 @@ marker of who decided what, which that file gives in its own way.
 
 **I1. Include line.** A line of the backlog file, at column 0, outside
 a fence (R7) and outside a comment that opened on an earlier line (R9),
-whose text, without trailing spaces and tabs, is exactly `<!--`, one
+whose text, without trailing spaces and tabs (U+0020 and U+0009 only:
+other white space, such as a no-break space, is not trimmed, so a line
+that ends in one has text after its `-->`, I2), is exactly `<!--`, one
 or more spaces, `vizi:include`, one or more spaces, the path, one or
 more spaces, `-->`, and nothing else: the pattern
 `^<!-- +vizi:include +((?:(?!-->)[^ \t])+) +-->$`, where the path
@@ -4139,11 +4143,11 @@ by a space, a tab, `-->` or the end of the line, and that is not an
 include line by I1: for example one that is indented, has text after
 its `-->`, has no path or more than one word between the keyword and
 the `-->`, has no space before the `-->`, has a tab where I1 has
-spaces or a tab in the path, or does not close on its line. A comment that starts in any
-other way (`<!-- vizi:Include x -->`, `<!-- vizi x -->`) is an ordinary
-comment: dropped, and not reported. Text that R9 does not read as a
-comment, such as a `<!--` after other text on an entry's line, is never
-an include and is not reported.
+spaces or a tab in the path, or does not close on its line. A comment
+that starts in any other way (`<!-- vizi:Include x -->`,
+`<!-- vizi x -->`) is an ordinary comment: dropped, and not reported.
+Text that R9 does not read as a comment, such as a `<!--` after other
+text on an entry's line, is never an include and is not reported.
 
 **I3. The path.** One or more segments joined by single `/`s, each
 segment made of letters A to Z and a to z, digits, `.`, `_` and `-`,
@@ -4163,10 +4167,26 @@ followed, and is reported (not read), when it:
   (`../x.md` from `BACKLOG.md`, `../../x.md` from `docs/BACKLOG.md`);
 - does not end in `.md`.
 
+The checks are made in two steps (Clead's design). First the form, on
+the path as written, in the order of the list above: a leading `/`, a
+character outside the set, an empty segment or a trailing `/`, a last
+segment not ending in `.md`. The first that fails gives I3's general
+message, and the path is not resolved. Only a path of the right form is
+then resolved, segment by segment from the backlog file's folder; it
+leaves the project when a `..` has no segment before it to remove, at
+any step, as `resolvePath` in `src/markdown.ts` returns `null` for a
+relative link, and gets the "leaves the project" message. So
+`../x.txt`, `/../x.md` and `a//../b.md` get the general message, and
+`../x.md` from `BACKLOG.md` and `a/../../x.md` the "leaves" message.
+
 **I4. The included file** is the path resolved by I3, in the same repo,
 at the same branch as the backlog file. It is followed only when the
 file list (3.1, request 2) holds it. A path the file list does not hold
 is not followed and is reported (not read); no request is made for it.
+The root's `STATUS.md` and `PROJECTS.md` are not followed either, and
+are reported (not read): vizi reads them in their own way (3.3, 3.9),
+and following them would read the same file twice in one load (Clead's
+design).
 
 **I5. Itself and twice.** An include whose resolved path is the backlog
 file's own is not followed, and is read with a warning. An include
@@ -4208,7 +4228,10 @@ backlog file's entries above that line, and before those below it.
 file of the same backlog has, earlier in the order of I9, is read with
 a warning (both are read; the later one gets it), as an entry with the
 same ID as an earlier entry of its own file is (section 3). It is a
-separate warning, naming the other file and its line.
+separate warning, naming the other file and its line. An entry gets at
+most one such warning, naming the first entry, in the order of I9, that
+has the same ID and is in another file (Clead's design); an ID repeated
+within one file keeps its own warning besides.
 
 **I11. Other files.** An include line by I1 in `STATUS.md` (the
 project's own, or a folder pointer's, 3.9) or in `PROJECTS.md` is not
@@ -4270,16 +4293,29 @@ again (AB-4).
   with a token, the contents API on `api.github.com`, each segment
   percent-encoded, with the token in the `Authorization` header,
   `credentials: "omit"` and `cache: "no-store"`. A load keeps the token it
-  started with for all its requests, these included, and a load replaced
-  by a newer one makes no further request (3.8, "Which token a load
-  uses").
+  started with for all its requests, these included.
+- **A replaced load** (Clead's design, within 3.8 as built). A load
+  replaced by a newer one makes no further request with its token (3.8,
+  "Which token a load uses"): the page's fetch refuses before the request
+  is made. An anonymous replaced load is not stopped, as today: its
+  remaining requests, included files among them, are still made, and
+  their answers are dropped. The guard's refusal reaches `loadRepo` as a
+  network failure ("The request to `<host>` failed."), so the included
+  file it stops is a failed read under "A failed read of an included
+  file", each later included file is refused the same way before it
+  reaches the network, and a later `STATUS.md` or `PROJECTS.md` read
+  fails the load. None of it is shown: the load the guard stopped is
+  already replaced, so its result is dropped, whatever it is (3.1, "Two
+  loads at once"; 3.8, newest wins).
 - **How many.** Without an include line, a load makes the requests it
   makes today. With included files, one more request 3 for each file
   read, at most five (I7): a load makes two to ten requests, not two to
   five. A path the file list does not hold, and every include refused by
   I2 to I7, costs no request. The branch list of 3.13 and the opening
   guide of 3.1 do not change.
-- **A failed read of an included file** (decided point 4):
+- **A failed read of an included file** (decided point 4: the load goes
+  on, only a 401 fails it, and the page says what is missing; the detail
+  below is Clead's design):
   - **401 with a token:** as 3.8, for any request of the load: the token
     is forgotten if it is still the one held for the owner, and the load
     fails with 3.8's 401 message.
@@ -4304,22 +4340,23 @@ again (AB-4).
   7). An included file's request is named by text in a fetched file,
   not by anything the user typed. Three texts in effect say otherwise
   until the build changes them:
-  - 2.3, whose reading is **(approved)**: "every such request follows
-    something the user typed", and its list of "the only requests the
-    page ever makes";
+  - 2.3: "every such request follows something the user typed", and
+    its list of "the only requests the page ever makes" (Clead's design,
+    in the paragraph after 2.3's **(approved)** reading, which is
+    "fetching a backlog after an address is typed is allowed");
   - 3.7 item 5: "Nothing in the content makes the page request
     anything", and its list of the page's only requests;
   - this repo's `RULES.md` L § 5 (1), which rests on that approval:
     "Content the page shows never makes a request of its own".
 
-  The product owner decided (2026-11-07 01:05) that an include line is
-  read as an instruction to vizi's reader, as the three backlog paths
-  are, and not as content the page shows (an include line is never
-  shown, I1): it is the one exception to those three texts. Its requests
-  belong to the load the user started by typing an address, go only to
-  the same repo and branch on the same two hosts, and are at most five
-  (I7). The build changes the three texts as "What changes elsewhere at
-  the build" sets out.
+  The product owner decided (2026-11-07 01:05) that include lines are
+  the one exception to those three texts. Clead's reasoning for it, given
+  with the proposal and not part of his decision: an include line is the
+  project's instruction to vizi's reader, as the three backlog paths
+  are; it is never shown (I1); its requests belong to the load the user
+  started by typing an address, go only to the same repo and branch on
+  the same two hosts, and are at most five (I7). The build changes the
+  three texts as "What changes elsewhere at the build" sets out.
 
 #### What the page shows
 
@@ -4367,6 +4404,9 @@ again (AB-4).
     read). When the file list was truncated (3.1, "As built"), the
     message adds " GitHub's file list was truncated, so the file may
     exist.";
+  - I4, the root's `STATUS.md` or `PROJECTS.md`: "Not followed:
+    `<path>` is read by vizi in its own way and cannot be included."
+    (not read);
   - I5, itself: "Not followed: the file includes itself." (warning);
   - I5, twice: "Not followed: `<path>` is already named on line `<n>`."
     (warning; "named", not "included", since that line's read may have
@@ -4388,8 +4428,9 @@ again (AB-4).
 
   `<path>` is the path as resolved by I3 where it resolves, otherwise as
   written; every path and message is set as text (3.7).
-- **The message line** `#message` (decided point 4; the wording is
-  Clead's design). After a
+- **The message line** `#message`. That the page says what is missing
+  is decided point 4; that `#message` and the report show it, and the
+  wording, are Clead's design. After a
   successful load with a backlog file, `#message` is empty today, or
   holds the truncation note when the file list was truncated (3.1, "As
   built"). After a load in which an include was not followed or not read
@@ -4423,7 +4464,13 @@ again (AB-4).
 | A private repo, no token for its owner | The load stops at request 1 or 2 with 3.1's 404 message; nothing is included |
 | A private repo, with a token | Included files read through the contents API with the load's token; a 401 fails the load as 3.8 says; a 403 or other failure is reported, and the load goes on |
 | A pick of another branch (3.13) | A new load: the includes are read again on that branch, from its own file list |
-| A load replaced while its includes are read | No further request (3.8); its answers are dropped (3.1, "Two loads at once") |
+| A load replaced while its includes are read, with a token | No further request with that token (3.8); the refused reads are network failures; the result is dropped (3.1, "Two loads at once") |
+| A load replaced while its includes are read, without a token | Not stopped, as today: its remaining requests are made, and its answers are dropped (3.1, "Two loads at once") |
+| An include of the root's `STATUS.md` or `PROJECTS.md` | Not followed; reported, not read (I4); each is still read as 3.3 and 3.9 say |
+| An include of another of the three backlog paths (`BACKLOG.md` including `docs/BACKLOG.md`) | Followed and read as an included file (I8); the input note "more than one backlog file" (3.1) stays as it is |
+| An include line at column 0 between an entry and the rest of its description | The dropped line is blank and ends no description (R4), so the entry's description goes on below it; the included entries come after that entry (I9) |
+| An include line indented inside a description | Not followed; reported, not read (I2) |
+| A line ending in a no-break space after `-->` | Not an include line; reported, not read (I1, I2) |
 
 #### First use: the product office
 
@@ -4434,7 +4481,7 @@ shows each heading once for `BACKLOG.md` and, for the finished entries,
 once as "`<heading>` — `BACKLOG-DONE.md`"; the board's folded `DONE`
 column holds the finished entries. Under I9 they follow the open entries
 when the line stands at the end of `BACKLOG.md`. Adding the line there is
-step 3 of PO-105, after the build, in the product office. The product
+the first use, after the build, in the product office. The product
 office's files are never copied into this repo, also not as test
 fixtures (2.2); the tests use made-up files.
 
@@ -4477,12 +4524,20 @@ At the build, in the same PR as the code, besides
   anything" gains the same exception, and its list of requests the
   included files;
 - **3.1 and 3.8:** the counts of a load's requests ("two to five") gain
-  the included files: two to ten;
+  the included files: two to ten; 3.1's "up to three to
+  `raw.githubusercontent.com`" becomes up to eight;
+- **3.1, "As built", "Encoding":** "Request 3's path is one of the three
+  backlog paths or `STATUS.md`, used as written" gains `PROJECTS.md` and
+  an included file's path as resolved by I3;
+- **3.13, "Requests in all":** "the two to five requests of 3.1" becomes
+  two to ten, and a pick's "one to four" becomes one to nine;
 - **3.2, "As built":** "consecutive entries under the same heading share
   a group" gains "and from the same file", with the heading of an
   included file's group as 3.15 sets out;
 - **3.5:** the report gains the included files' items and the include
-  items, and the order 3.15 sets out;
+  items, and the order 3.15 sets out; in "As built", "where the file is
+  the backlog file read or `STATUS.md`" gains `PROJECTS.md` and an
+  included file's path;
 - **section 4, item 3:** the rate-limit item gains one request 3 per
   included file, at most five a load;
 - **`RULES.md` L § 5 (1):** "Content the page shows never makes a
@@ -4545,9 +4600,14 @@ that ran (test first, 2.2; GitHub stubbed; made-up files only):
     `https://github.com/acme/widgets/blob/main/DONE.md`, `C:\DONE.md`,
     `a%20b.md`, `a//b.md`, `old/`, `DONE.txt`, `DONE.MD`, `ÄNDRAT.md`;
     from `docs/BACKLOG.md`: `DONE.md` → `docs/DONE.md`; `../DONE.md` →
-    `DONE.md`; `../../DONE.md` refused;
+    `DONE.md`; `../../DONE.md` refused; the order of the checks:
+    `../x.txt`, `/../x.md` and `a//../b.md` give the general message,
+    `../x.md` from `BACKLOG.md` and `a/../../x.md` the "leaves" message;
   - I4: a path not in the file list is reported with no request asked
-    for, with and without the truncation sentence;
+    for, with and without the truncation sentence; `STATUS.md` and
+    `PROJECTS.md` from `BACKLOG.md`, and `../STATUS.md` from
+    `docs/BACKLOG.md`, reported with I4's own message, with no request;
+    `docs/STATUS.md` from `BACKLOG.md` followed;
   - I5: the file itself, and the same file twice (also as `DONE.md` and
     `./DONE.md`), each a warning, the file read once; a file whose read
     failed, named again: the warning "already named", and no second
@@ -4563,7 +4623,9 @@ that ran (test first, 2.2; GitHub stubbed; made-up files only):
     gives the info item;
   - I9: the order of the example above;
   - I10: the warning on the later entry, naming the earlier file and
-    line; IDs repeated within one file keep their own warning;
+    line; an ID in two included files and the backlog file: the third
+    entry gets one I10 warning, naming the first; IDs repeated within one
+    file keep their own warning;
   - every message above, word for word;
   - a backlog file with no include line gives exactly what `parse`
     gives today, and no file to read;
@@ -4581,8 +4643,12 @@ that ran (test first, 2.2; GitHub stubbed; made-up files only):
     are still read;
   - 401 on an included file with a token: the load fails as
     `token-refused`;
-  - a load replaced while an included file is read makes no further
-    request;
+  - a replaced load with a token, written as a `loadRepo` test with a
+    fetcher that refuses (throws) from the first included file on, as
+    `guardedFetch` does: the stopped file is a failed read with the
+    network message, each later included file is refused without a
+    request reaching the stub, and the load fails at `STATUS.md` when
+    the file list holds it, and succeeds without it;
   - no include line: the same requests as today;
 - unit, `src/board.test.ts`: two groups named "Open" from two files are
   two list sections; `boardColumns` holds both files' entries in the
@@ -4614,6 +4680,13 @@ that ran (test first, 2.2; GitHub stubbed; made-up files only):
   - a private repo without a token: 3.1's 404 message and no request for
     an included file;
   - a pick of another branch (3.13) reads the includes of that branch;
+  - with a token, a load replaced while its first included file is held
+    back makes no request after it, and the newer project is shown;
+    without a token, the replaced load's later requests may still be made,
+    and nothing of it is shown;
+  - an include line between an entry and the rest of its description:
+    the description holds the lines below it, and the included entries
+    come after the entry;
   - an include line in a folder pointer's `STATUS.md`: "Show status"
     (3.9) lists I11's info item, word for word with its line, under
     "What could not be read" in the "Project status" panel, and makes
@@ -4642,16 +4715,18 @@ questions on what they left open; "decided point `<n>`" elsewhere in
    backlog without includes looks as today.
 3. **Where included entries go:** where the include line stands (I9).
 4. **A failed read of an included file:** the load goes on, and the
-   report and `#message` say what is missing; only a 401 fails it, as
-   3.8 does for every request.
+   page says what is missing; only a 401 fails it, as 3.8 does for every
+   request. That `#message` and the report show what is missing is
+   Clead's design.
 5. **The cap:** at most five included files a load (I7), to keep a
    load's requests bounded (section 4, item 3).
 6. **The help view:** unchanged (3.10); the include is documented in
    `docs/BACKLOG-FORMAT.md`, which the help view links to.
-7. **Requests named by a file:** an include line is the project's
-   instruction to vizi's reader, not content; 2.3, 3.7 item 5 and
-   `RULES.md` L § 5 (1) gain that one exception at the build ("What
-   changes elsewhere at the build").
+7. **Requests named by a file:** include lines are the one exception to
+   2.3, 3.7 item 5 and `RULES.md` L § 5 (1), which gain it at the build
+   ("What changes elsewhere at the build"). Why an exception is sound
+   (an include line is the project's instruction to vizi's reader) is
+   Clead's reasoning, not part of the decision.
 
 ---
 
