@@ -537,7 +537,8 @@ the points the text above it leaves open.
   I3 (3.15), used as written. In a github.com link (3.4) each segment
   of the file's path is percent-encoded.
 - **Failures.** A failed request 3 (the backlog file or `STATUS.md`)
-  fails the whole load and is shown with its HTTP status; a 404 there is
+  fails the whole load (an included file's does not: 3.15, "A failed
+  read of an included file") and is shown with its HTTP status; a 404 there is
   shown as a status, not as the 404 message of request 1 or 2. A
   request that cannot be made says so with the host and the reason. An answer to
   request 1 without a default branch is shown as "GitHub's answer for
@@ -4140,7 +4141,9 @@ Word for word as they go into `docs/BACKLOG-FORMAT.md` at the build
 (below, "What changes in `docs/BACKLOG-FORMAT.md`"); they carry no
 marker of who decided what, which that file gives in its own way.
 "The backlog file" is the one file of the three paths that vizi reads
-(section 1 there).
+(section 1 there). Inside the rules, "section `<n>`" and the rule
+numbers (R0 to R9, S1 to S5) are that file's own; a section of this
+spec is written `docs/SPEC.md` 3.`<n>`, as that file writes it.
 
 **I1. Include line.** A line of the backlog file, at column 0, outside
 a fence (R7) and outside a comment that opened on an earlier line (R9),
@@ -4174,11 +4177,11 @@ text on an entry's line, is never an include and is not reported.
 
 **I3. The path.** One or more segments joined by single `/`s, each
 segment made of letters A to Z and a to z, digits, `.`, `_` and `-`,
-the last ending in `.md` (lower case, as 3.4 reads `.md`). It is read
+the last ending in `.md` (lower case, as `docs/SPEC.md` 3.4 reads `.md`). It is read
 relative to the folder of the backlog file: from `BACKLOG.md`, the
 project's root; from `docs/BACKLOG.md` or `docs/PRODUCT_BACKLOG.md`,
 `docs/`. A `.` segment is dropped and a `..` segment removes the segment
-before it, as 3.7 item 4 resolves a relative link. The path is not
+before it, as `docs/SPEC.md` 3.7 item 4 resolves a relative link. The path is not
 followed, and is reported (not read), when it:
 - starts with `/` (an absolute path);
 - holds any other character, such as `:` (so a URL, `https://…`, is
@@ -4204,10 +4207,10 @@ relative link, and gets the "leaves the project" message. So
 
 **I4. The included file** is the path resolved by I3, in the same repo,
 at the same branch as the backlog file. It is followed only when the
-file list (3.1, request 2) holds it. A path the file list does not hold
+file list (`docs/SPEC.md` 3.1, request 2) holds it. A path the file list does not hold
 is not followed and is reported (not read); no request is made for it.
 The root's `STATUS.md` and `PROJECTS.md` are not followed either, and
-are reported (not read): vizi reads them in their own way (3.3, 3.9),
+are reported (not read): vizi reads them in their own way (`docs/SPEC.md` 3.3, 3.9),
 and following them would read the same file twice in one load (Clead's
 design).
 
@@ -4216,7 +4219,7 @@ file's own is not followed, and is read with a warning. An include
 whose resolved path an earlier include line of the file named and
 followed is not followed again, and is read with a warning: the file is
 read once, at its first include line, whether that read succeeded or
-failed ("A failed read of an included file"), so a failed file is not
+failed (`docs/SPEC.md` 3.15, "A failed read of an included file"), so a failed file is not
 asked for twice. The checks are made in the order
 I2, I3, I5, I4, I7, and a line gets the first that applies, so a path
 the file list lacks, or one past the cap, is reported by I4 or I7 each
@@ -4231,7 +4234,7 @@ is read.
 backlog file. An include line after the fifth one
 followed is not followed and is reported (not read). An include that
 is followed counts towards the five whether its read succeeds or fails
-("A failed read of an included file"); lines refused by I2 to I5 do not
+(`docs/SPEC.md` 3.15, "A failed read of an included file"); lines refused by I2 to I5 do not
 count.
 
 **I8. Reading an included file.** An included file is read on its own
@@ -4243,7 +4246,7 @@ report. Every entry it gives is an entry of the backlog, and knows the
 file it came from.
 
 **I9. Where its entries go.** In the backlog's order
-of entries, which the board's columns and the list keep (3.2), an
+of entries, which the board's columns and the list keep (`docs/SPEC.md` 3.2), an
 included file's entries stand where its include line stands: after the
 backlog file's entries above that line, and before those below it.
 
@@ -4257,7 +4260,7 @@ has the same ID and is in another file (Clead's design); an ID repeated
 within one file keeps its own warning besides.
 
 **I11. Other files.** An include line by I1 in `STATUS.md` (the
-project's own, or a folder pointer's, 3.9) or in `PROJECTS.md` is not
+project's own, or a folder pointer's, `docs/SPEC.md` 3.9) or in `PROJECTS.md` is not
 followed and is reported (info), so a writer sees why nothing came of
 it. An include line in a fence is never an include, so
 a format file can show one, as this one does.
@@ -4293,7 +4296,7 @@ the path leaves the project (I3), and `BACKLOG-DONE.md` line 5, an
 included file cannot include (I6); under Read with a warning,
 `BACKLOG-DONE.md` line 4, the ID AB-3 is also used in `BACKLOG.md` line
 3 (I10). `MORE.md` is not read, whether or not
-it exists. The list (3.2, "What the page shows" below) shows the groups
+it exists. The list (`docs/SPEC.md` 3.2; `docs/SPEC.md` 3.15, "What the page shows") shows the groups
 "Open" (AB-3), "Open — `BACKLOG-DONE.md`" (AB-1, AB-3) and "Open"
 again (AB-4).
 
@@ -4516,7 +4519,8 @@ At the build, in the same PR as the code:
   "What is decided", item 17, marked **(approved)**, then the rules I1 to
   I11 and the example above, word for word;
 - **"What is decided, and what is Clead's design":** the approval of
-  2026-11-07 added to the decided points, with the points of I7 (five),
+  2026-11-07 added to the decided points, naming all seven of them (the
+  keyword of I1 among them), with the points of I7 (five),
   I9 (where entries go) and the one-level, backlog-only, relative-path
   and same-branch points of I3, I4, I6 and I11 marked **(approved)**;
   the rest of I1 to I11 added to Clead's design;
@@ -4758,7 +4762,7 @@ Clead's design, as the build (#98) reads the points above leave open:
 - **The code.** `src/include.ts` holds I1 to I10: `readIncludeComment`
   (I1, I2) on the comments `scan` now returns with their line, indent
   and text from the `<!--`; `resolveIncludePath` (I3); `planIncludes`
-  (I2 to I5, I7, in that order of checks) gives the files a load reads
+  (I2, I3, I5, I4, I7, in the order I5 gives) gives the files a load reads
   and the backlog file's include items; `readBacklog` puts the backlog
   file and the files read together in the order of I9, with I6, I8 and
   I10, and returns one report per file. `loadRepo` returns `included`,

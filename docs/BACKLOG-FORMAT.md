@@ -20,14 +20,20 @@ reads next to it, and of the `PROJECTS.md` of an umbrella project
   His intent approval of the umbrella view, 2026-11-04 11:06, adds: a
   `PROJECTS.md` at the project's root, its headings shown as a tree with
   the projects under them. His intent approval of the include keyword,
-  2026-11-07 01:05 (`docs/SPEC.md` 3.15 and "What is decided", item
-  17), adds: a backlog file can include other files of the same repo and
-  branch, by a path relative to it (I3, I4); only the backlog file
-  includes, one level only (I6, I11); at most five included files a
-  load (I7); included entries stand where the include line stands (I9).
-  Those points are marked **(approved)** below; section 6 gives the
-  include points in its **(approved)** paragraph, ahead of the rules,
-  which are quoted as written.
+  2026-11-07 01:05 (`docs/SPEC.md` 3.15, its seven decided points, and
+  "What is decided", item 17), adds: the keyword, an HTML comment
+  `<!-- vizi:include <path> -->` on a line of its own (I1), with a path
+  relative to the backlog file, in the same repo and on the same branch
+  (I3, I4); only the backlog file includes, one level only (I6, I11);
+  included entries show on the board and in the list like the file's
+  own, and only they name their file; they stand where the include line
+  stands (I9); a failed read of an included file lets the load go on,
+  only a 401 fails it, and the page says what is missing; at most five
+  included files a load (I7); the help view does not change; and include
+  lines are the one exception to "content never makes a request of its
+  own". Those points are marked **(approved)** below; section 6 gives
+  the include points in its **(approved)** paragraph, ahead of the
+  rules, which are quoted as written.
 - **Clead's design (the HOW), within the approved intent:** everything
   else in this file: the order the paths are tried in, the rules R0 to
   R9, the three kinds of report item, how `STATUS.md` is read (S1 to
@@ -549,7 +555,7 @@ where the include line stands; a failed read of an included file lets
 the load go on (only a 401 fails it), and the page says what is missing;
 at most five included files a load; the help view does not change; and
 an include line is the one exception to "content never makes a request
-of its own" (2.3, 3.7 item 5, `RULES.md` L § 5 (1)). How vizi does it is
+of its own" (`docs/SPEC.md` 2.3, 3.7 item 5, `RULES.md` L § 5 (1)). How vizi does it is
 `docs/SPEC.md` 3.15.
 
 Clead's design, within that approval: the rules below, except the
@@ -588,11 +594,11 @@ text on an entry's line, is never an include and is not reported.
 
 **I3. The path.** One or more segments joined by single `/`s, each
 segment made of letters A to Z and a to z, digits, `.`, `_` and `-`,
-the last ending in `.md` (lower case, as 3.4 reads `.md`). It is read
+the last ending in `.md` (lower case, as `docs/SPEC.md` 3.4 reads `.md`). It is read
 relative to the folder of the backlog file: from `BACKLOG.md`, the
 project's root; from `docs/BACKLOG.md` or `docs/PRODUCT_BACKLOG.md`,
 `docs/`. A `.` segment is dropped and a `..` segment removes the segment
-before it, as 3.7 item 4 resolves a relative link. The path is not
+before it, as `docs/SPEC.md` 3.7 item 4 resolves a relative link. The path is not
 followed, and is reported (not read), when it:
 - starts with `/` (an absolute path);
 - holds any other character, such as `:` (so a URL, `https://…`, is
@@ -618,10 +624,10 @@ relative link, and gets the "leaves the project" message. So
 
 **I4. The included file** is the path resolved by I3, in the same repo,
 at the same branch as the backlog file. It is followed only when the
-file list (3.1, request 2) holds it. A path the file list does not hold
+file list (`docs/SPEC.md` 3.1, request 2) holds it. A path the file list does not hold
 is not followed and is reported (not read); no request is made for it.
 The root's `STATUS.md` and `PROJECTS.md` are not followed either, and
-are reported (not read): vizi reads them in their own way (3.3, 3.9),
+are reported (not read): vizi reads them in their own way (`docs/SPEC.md` 3.3, 3.9),
 and following them would read the same file twice in one load (Clead's
 design).
 
@@ -630,7 +636,7 @@ file's own is not followed, and is read with a warning. An include
 whose resolved path an earlier include line of the file named and
 followed is not followed again, and is read with a warning: the file is
 read once, at its first include line, whether that read succeeded or
-failed ("A failed read of an included file"), so a failed file is not
+failed (`docs/SPEC.md` 3.15, "A failed read of an included file"), so a failed file is not
 asked for twice. The checks are made in the order
 I2, I3, I5, I4, I7, and a line gets the first that applies, so a path
 the file list lacks, or one past the cap, is reported by I4 or I7 each
@@ -645,7 +651,7 @@ is read.
 backlog file. An include line after the fifth one
 followed is not followed and is reported (not read). An include that
 is followed counts towards the five whether its read succeeds or fails
-("A failed read of an included file"); lines refused by I2 to I5 do not
+(`docs/SPEC.md` 3.15, "A failed read of an included file"); lines refused by I2 to I5 do not
 count.
 
 **I8. Reading an included file.** An included file is read on its own
@@ -657,7 +663,7 @@ report. Every entry it gives is an entry of the backlog, and knows the
 file it came from.
 
 **I9. Where its entries go.** In the backlog's order
-of entries, which the board's columns and the list keep (3.2), an
+of entries, which the board's columns and the list keep (`docs/SPEC.md` 3.2), an
 included file's entries stand where its include line stands: after the
 backlog file's entries above that line, and before those below it.
 
@@ -671,7 +677,7 @@ has the same ID and is in another file (Clead's design); an ID repeated
 within one file keeps its own warning besides.
 
 **I11. Other files.** An include line by I1 in `STATUS.md` (the
-project's own, or a folder pointer's, 3.9) or in `PROJECTS.md` is not
+project's own, or a folder pointer's, `docs/SPEC.md` 3.9) or in `PROJECTS.md` is not
 followed and is reported (info), so a writer sees why nothing came of
 it. An include line in a fence is never an include, so
 a format file can show one, as this one does.
@@ -707,6 +713,6 @@ the path leaves the project (I3), and `BACKLOG-DONE.md` line 5, an
 included file cannot include (I6); under Read with a warning,
 `BACKLOG-DONE.md` line 4, the ID AB-3 is also used in `BACKLOG.md` line
 3 (I10). `MORE.md` is not read, whether or not
-it exists. The list (3.2, "What the page shows" below) shows the groups
+it exists. The list (`docs/SPEC.md` 3.2; `docs/SPEC.md` 3.15, "What the page shows") shows the groups
 "Open" (AB-3), "Open — `BACKLOG-DONE.md`" (AB-1, AB-3) and "Open"
 again (AB-4).
