@@ -401,10 +401,15 @@ URL, and, from PBI-1.15, the branch list of 3.13 after such a load, also
 to `api.github.com`. From PBI-1.19 the opening guide of 3.1 ("Guided
 opening") also reads an owner's repo list and a repo's branches, from
 `api.github.com` only, while the user types in, leaves or submits the
-Repository field, before or with the load. The approved reading still
-holds: it covers what the page loads at startup, and every such request
-follows something the user typed. Content the page shows never makes a
-request of its own (3.7). The browser tests stub GitHub's answers with
+Repository field, before or with the load. From PBI-1.34 a load also
+reads, with one more request 3 each, the files its backlog file includes
+(3.15), at most five, from the same repo and branch on the same two
+hosts. The approved reading still holds: it covers what the page loads
+at startup, and every such request follows something the user typed,
+or is named by an include line of the backlog file that load read
+(3.15). Content the page shows never makes a request of its own (3.7);
+include lines are the one exception, decided by the product owner on
+2026-11-07 01:05 (3.15, decided point 7). The browser tests stub GitHub's answers with
 Playwright routes, so no test reaches the network. Publishing on GitHub
 Pages (2.2) does not change this reading: what the page loads at startup
 is still only its own document.
@@ -494,13 +499,14 @@ the points the text above it leaves open.
      the file list: it tells which of the three backlog paths exist, and
      feeds the documentation list and the path links (3.4);
   3. `GET https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>`,
-     once each for the backlog file, `STATUS.md` and `PROJECTS.md`
-     (3.9), each only if the file list has it; documentation files are
-     not fetched (3.4).
+     once each for the backlog file, the files it includes (3.15, at
+     most five), `STATUS.md` and `PROJECTS.md` (3.9), each only if the
+     file list has it; documentation files are not fetched (3.4).
 
   So one load makes one or two requests to `api.github.com` (requests 1
-  and 2) and up to three to `raw.githubusercontent.com` (request 3): two
-  to five in all when the backlog file is found. From PBI-1.15 the
+  and 2) and up to eight to `raw.githubusercontent.com` (request 3): two
+  to ten in all when the backlog file is found (two to five without an
+  include line). From PBI-1.15 the
   branch picker reads the repo's branch list after a load succeeds, with
   one to three more requests to `api.github.com` (3.13). From PBI-1.19
   the opening guide ("Guided opening" below) makes requests of its own
@@ -526,11 +532,13 @@ the points the text above it leaves open.
   no request: the page says what an address looks like.
 - **Encoding.** The branch is percent-encoded in request 2 (so a `/` in
   it becomes `%2F`) and used as written in request 3 and in github.com
-  links. Request 3's path is one of the three backlog paths or
-  `STATUS.md`, used as written. In a github.com link (3.4) each segment
+  links. Request 3's path is one of the three backlog paths,
+  `STATUS.md`, `PROJECTS.md` or an included file's path as resolved by
+  I3 (3.15), used as written. In a github.com link (3.4) each segment
   of the file's path is percent-encoded.
 - **Failures.** A failed request 3 (the backlog file or `STATUS.md`)
-  fails the whole load and is shown with its HTTP status; a 404 there is
+  fails the whole load (an included file's does not: 3.15, "A failed
+  read of an included file") and is shown with its HTTP status; a 404 there is
   shown as a status, not as the 404 message of request 1 or 2. A
   request that cannot be made says so with the host and the reason. An answer to
   request 1 without a default branch is shown as "GitHub's answer for
@@ -1342,7 +1350,10 @@ changes none of its reading rules, with one exception, an owner alone
   in board order.
 - **The list** groups the entries that pass the filter and the search
   by heading, in file order: consecutive entries under the same heading
-  share a group, and a heading with no entries left is not shown.
+  and from the same file share a group, and a heading with no entries
+  left is not shown. A group of an included file is headed
+  "`<heading>` — `<path>`", or "(no heading) — `<path>`" for its entries
+  above its first heading (3.15).
 - **After a load** the search is empty, the filter is "All markers",
   and the Board tab is open.
 
@@ -1414,14 +1425,20 @@ Clead's design: the report lists, with line numbers, what the parsers
 skipped or guessed, sorted into the three kinds of
 `docs/BACKLOG-FORMAT.md` section 3 (not read, read with a warning,
 info), plus what `src/status.ts` could not read and the input notes of
-3.1 (more than one backlog file). It is the same parsers; the report is
-not a second pass. The tab shows the number of items of each kind.
+3.1 (more than one backlog file). From PBI-1.34 it also lists the
+include items and each included file's items (3.15), in the order 3.15
+sets out ("What the page shows", Report): within each kind, the input
+notes, the backlog file's items, each included file's items in the order
+of I9, `STATUS.md`'s, `PROJECTS.md`'s. It is the same parsers; the
+report is not a second pass. The tab shows the number of items of each
+kind.
 
 **As built (PBI-1.2).** The tab's label is "Report (`<n>`)", the total
 number of items. The kinds are listed in the order Not read, Read with
 a warning, Info, each with its count. An item with a line reads
 "`<file>` line `<n>`: `<message>`", where the file is the backlog file
-read or `STATUS.md`. An item without a line shows its message only:
+read, `STATUS.md`, `PROJECTS.md` or an included file's path. An item
+without a line shows its message only:
 an input note (3.1: more than one backlog file, a truncated file list),
 and a `STATUS.md` item without a line (a missing field heading, a
 missing "Last update" line).
@@ -1502,11 +1519,14 @@ the tests check:
 5. **No loads from content.** Images are never loaded: `![alt](url)` is
    shown as a link with the alt text, under item 4, or as the alt text.
    Nothing in the content makes the page request anything: no images,
-   frames, styles, fonts or scripts. The page's only requests are those
-   of 3.1, after the user enters a URL (2.3), with the branch list of
-   3.13 and, from PBI-1.19, the opening guide's reads of 3.1 ("Guided
-   opening") while the user types in, leaves or submits the Repository
-   field.
+   frames, styles, fonts or scripts. The one exception is an include
+   line of the backlog file (3.15), which the product owner decided on
+   2026-11-07 01:05: it names a file of the same repo and branch that
+   the load reads. The page's only requests are those of 3.1, after the
+   user enters a URL (2.3), the included files among them (3.15, at
+   most five a load), with the branch list of 3.13 and, from PBI-1.19,
+   the opening guide's reads of 3.1 ("Guided opening") while the user
+   types in, leaves or submits the Repository field.
 
 Tests for it include, at least: `<script>` and `<img src=x onerror=…>`
 in a description (shown as text, nothing runs); a link to
@@ -1864,8 +1884,9 @@ forgets the token held at that moment.
   with `Accept: application/vnd.github.raw+json`, which answers the
   file's text (checked 2026-11-04 without a token, on a public file).
   The branch and each segment of the path are percent-encoded. So a
-  load with a token makes two to five requests (with `PROJECTS.md`,
-  3.9), all to `api.github.com`. The branch list of 3.13, after a load,
+  load with a token makes two to ten requests (with `PROJECTS.md`, 3.9,
+  and the included files, 3.15; two to five without an include line),
+  all to `api.github.com`. The branch list of 3.13, after a load,
   goes to `api.github.com` the same way, with the token that load used,
   and so do the opening guide's reads of 3.1 ("Guided opening"), with
   the token
@@ -3520,9 +3541,10 @@ accept.
   same request before a load; the picker does not take its answer and
   reads its own list as here.
 - **Requests in all.** With the picker, opening a repo makes the two to
-  five requests of 3.1 (or of 3.8 with a token), then one to three to
-  `api.github.com` for the branches. A pick makes the requests of a load
-  with a named branch: no request 1, so one to four.
+  ten requests of 3.1 (or of 3.8 with a token; two to five without an
+  include line, 3.15), then one to three to `api.github.com` for the
+  branches. A pick makes the requests of a load with a named branch: no
+  request 1, so one to nine (one to four without an include line).
 
 #### Picking a branch
 
@@ -4064,14 +4086,16 @@ Test first (2.2), with GitHub stubbed and synthetic data.
 
 ### 3.15 The include keyword (PO-105)
 
-**Status: intent approved, not built.** Intent approval: Adam,
+**Status: built (PBI-1.34, PR #98).** Intent approval: Adam,
 2026-11-07 01:05, product-office DECISIONS.md (in chat, "Po-105 apyr";
 PR #576 there; recorded as a comment on PR #93; "What is decided", item
-17). The build is the next step (product-office PO-105 step 3). Until it
-is built, 3.1 to 3.14 and `docs/BACKLOG-FORMAT.md` describe the page as
-it is; the changes the build makes to them are listed below ("What
-changes in `docs/BACKLOG-FORMAT.md`", "What changes elsewhere at the
-build").
+17). The build (product-office PO-105 step 3) made the changes listed
+below ("What changes in `docs/BACKLOG-FORMAT.md`", "What changes
+elsewhere at the build") to 2.3, 3.1, 3.2, 3.5, 3.7, 3.8, 3.13, section
+4 and `RULES.md` L § 5 (1); the rules I1 to I11 are now section 6 of
+`docs/BACKLOG-FORMAT.md`. "As built (PBI-1.34)", at the end of this
+section, records how the code reads the points the text below leaves
+open.
 
 **What the product owner asked for** (2026-11-06, 12:38, in chat;
 recorded in the product office's `DECISIONS.md` and as its backlog item
@@ -4117,7 +4141,9 @@ Word for word as they go into `docs/BACKLOG-FORMAT.md` at the build
 (below, "What changes in `docs/BACKLOG-FORMAT.md`"); they carry no
 marker of who decided what, which that file gives in its own way.
 "The backlog file" is the one file of the three paths that vizi reads
-(section 1 there).
+(section 1 there). Inside the rules, "section `<n>`" and the rule
+numbers (R0 to R9, S1 to S5) are that file's own; a section of this
+spec is written `docs/SPEC.md` 3.`<n>`, as that file writes it.
 
 **I1. Include line.** A line of the backlog file, at column 0, outside
 a fence (R7) and outside a comment that opened on an earlier line (R9),
@@ -4151,11 +4177,11 @@ text on an entry's line, is never an include and is not reported.
 
 **I3. The path.** One or more segments joined by single `/`s, each
 segment made of letters A to Z and a to z, digits, `.`, `_` and `-`,
-the last ending in `.md` (lower case, as 3.4 reads `.md`). It is read
+the last ending in `.md` (lower case, as `docs/SPEC.md` 3.4 reads `.md`). It is read
 relative to the folder of the backlog file: from `BACKLOG.md`, the
 project's root; from `docs/BACKLOG.md` or `docs/PRODUCT_BACKLOG.md`,
 `docs/`. A `.` segment is dropped and a `..` segment removes the segment
-before it, as 3.7 item 4 resolves a relative link. The path is not
+before it, as `docs/SPEC.md` 3.7 item 4 resolves a relative link. The path is not
 followed, and is reported (not read), when it:
 - starts with `/` (an absolute path);
 - holds any other character, such as `:` (so a URL, `https://…`, is
@@ -4181,10 +4207,10 @@ relative link, and gets the "leaves the project" message. So
 
 **I4. The included file** is the path resolved by I3, in the same repo,
 at the same branch as the backlog file. It is followed only when the
-file list (3.1, request 2) holds it. A path the file list does not hold
+file list (`docs/SPEC.md` 3.1, request 2) holds it. A path the file list does not hold
 is not followed and is reported (not read); no request is made for it.
 The root's `STATUS.md` and `PROJECTS.md` are not followed either, and
-are reported (not read): vizi reads them in their own way (3.3, 3.9),
+are reported (not read): vizi reads them in their own way (`docs/SPEC.md` 3.3, 3.9),
 and following them would read the same file twice in one load (Clead's
 design).
 
@@ -4193,7 +4219,7 @@ file's own is not followed, and is read with a warning. An include
 whose resolved path an earlier include line of the file named and
 followed is not followed again, and is read with a warning: the file is
 read once, at its first include line, whether that read succeeded or
-failed ("A failed read of an included file"), so a failed file is not
+failed (`docs/SPEC.md` 3.15, "A failed read of an included file"), so a failed file is not
 asked for twice. The checks are made in the order
 I2, I3, I5, I4, I7, and a line gets the first that applies, so a path
 the file list lacks, or one past the cap, is reported by I4 or I7 each
@@ -4208,7 +4234,7 @@ is read.
 backlog file. An include line after the fifth one
 followed is not followed and is reported (not read). An include that
 is followed counts towards the five whether its read succeeds or fails
-("A failed read of an included file"); lines refused by I2 to I5 do not
+(`docs/SPEC.md` 3.15, "A failed read of an included file"); lines refused by I2 to I5 do not
 count.
 
 **I8. Reading an included file.** An included file is read on its own
@@ -4220,7 +4246,7 @@ report. Every entry it gives is an entry of the backlog, and knows the
 file it came from.
 
 **I9. Where its entries go.** In the backlog's order
-of entries, which the board's columns and the list keep (3.2), an
+of entries, which the board's columns and the list keep (`docs/SPEC.md` 3.2), an
 included file's entries stand where its include line stands: after the
 backlog file's entries above that line, and before those below it.
 
@@ -4234,7 +4260,7 @@ has the same ID and is in another file (Clead's design); an ID repeated
 within one file keeps its own warning besides.
 
 **I11. Other files.** An include line by I1 in `STATUS.md` (the
-project's own, or a folder pointer's, 3.9) or in `PROJECTS.md` is not
+project's own, or a folder pointer's, `docs/SPEC.md` 3.9) or in `PROJECTS.md` is not
 followed and is reported (info), so a writer sees why nothing came of
 it. An include line in a fence is never an include, so
 a format file can show one, as this one does.
@@ -4270,7 +4296,7 @@ the path leaves the project (I3), and `BACKLOG-DONE.md` line 5, an
 included file cannot include (I6); under Read with a warning,
 `BACKLOG-DONE.md` line 4, the ID AB-3 is also used in `BACKLOG.md` line
 3 (I10). `MORE.md` is not read, whether or not
-it exists. The list (3.2, "What the page shows" below) shows the groups
+it exists. The list (`docs/SPEC.md` 3.2; `docs/SPEC.md` 3.15, "What the page shows") shows the groups
 "Open" (AB-3), "Open — `BACKLOG-DONE.md`" (AB-1, AB-3) and "Open"
 again (AB-4).
 
@@ -4493,7 +4519,8 @@ At the build, in the same PR as the code:
   "What is decided", item 17, marked **(approved)**, then the rules I1 to
   I11 and the example above, word for word;
 - **"What is decided, and what is Clead's design":** the approval of
-  2026-11-07 added to the decided points, with the points of I7 (five),
+  2026-11-07 added to the decided points, naming all seven of them (the
+  keyword of I1 among them), with the points of I7 (five),
   I9 (where entries go) and the one-level, backlog-only, relative-path
   and same-branch points of I3, I4, I6 and I11 marked **(approved)**;
   the rest of I1 to I11 added to Clead's design;
@@ -4508,8 +4535,8 @@ At the build, in the same PR as the code:
 - **section 1** gains one sentence: "The backlog file can include other
   files (section 6)."
 
-`docs/BACKLOG-FORMAT.md` is not changed by this spec's PR: it describes
-the parser as built, and these rules take effect with the build.
+`docs/BACKLOG-FORMAT.md` was not changed by this spec's PR (#93); the
+build (#98) made the changes above.
 
 #### What changes elsewhere at the build
 
@@ -4728,6 +4755,35 @@ questions on what they left open; "decided point `<n>`" elsewhere in
    (an include line is the project's instruction to vizi's reader) is
    Clead's reasoning, not part of the decision.
 
+#### As built (PBI-1.34)
+
+Clead's design, as the build (#98) reads the points above leave open:
+
+- **The code.** `src/include.ts` holds I1 to I10: `readIncludeComment`
+  (I1, I2) on the comments `scan` now returns with their line, indent
+  and text from the `<!--`; `resolveIncludePath` (I3); `planIncludes`
+  (I2, I3, I5, I4, I7, in the order I5 gives) gives the files a load reads
+  and the backlog file's include items; `readBacklog` puts the backlog
+  file and the files read together in the order of I9, with I6, I8 and
+  I10, and returns one report per file. `loadRepo` returns `included`,
+  each file's text or its failure's message. `includesElsewhere` gives
+  I11's item to `src/status.ts` and `src/projects.ts`.
+- **The three build notes of PBI-1.34.** The root's `STATUS.md` and
+  `PROJECTS.md` are checked before the file list, so they get I4's own
+  message whether or not the file list holds them. 3.13 is named among
+  the sections the build changes. The replaced-load unit test names both
+  files: the load fails at `STATUS.md` when the file list holds it, and
+  succeeds when it holds neither `STATUS.md` nor `PROJECTS.md`.
+- **The messages.** Backticks around a placeholder (`` `<path>` ``,
+  `` `<n>` ``) mark where the value goes, as elsewhere in this spec; the
+  backticks around literal syntax are part of the message, as in 3.9's
+  pointer message: I2's `` `<!-- vizi:include <path> -->` `` and I3's
+  `` `.` ``, `` `_` ``, `` `-` ``, `` `/` `` and `` `.md` ``.
+- **The message line.** I6 is among "the not read items of I2 to I7",
+  so an include in an included file also adds the line to `#message`.
+- **Order within a file.** Each file's items are by line; an item
+  without a line (I8's) comes after them.
+
 ---
 
 ## 4. Known unknowns
@@ -4746,8 +4802,10 @@ PBI-1.2's; their outcome after it (PR #9):
    in for GitHub's CORS answer, so real GitHub was not tried.
 3. **Open; PBI-1.4.** GitHub's anonymous rate limit as a browser sees
    it. One load makes one or two `api.github.com` requests (3.1,
-   requests 1 and 2) and up to three to `raw.githubusercontent.com`, and
-   each "Show status" of the umbrella view one more (3.9); from PBI-1.19
+   requests 1 and 2) and up to three to `raw.githubusercontent.com`, with
+   one request 3 more per included file, at most five a load (3.15, from
+   PBI-1.34), and each "Show status" of the umbrella view one more (3.9);
+   from PBI-1.19
    the opening guide's reads add two to four per owner, once per page
    visit when its list is read in full, and two to four on each blur
    with an owner and a repo (3.1, "Guided opening", which also quotes

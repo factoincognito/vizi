@@ -19,12 +19,26 @@ reads next to it, and of the `PROJECTS.md` of an umbrella project
   line numbers, and blockers waiting on the product owner highlighted.
   His intent approval of the umbrella view, 2026-11-04 11:06, adds: a
   `PROJECTS.md` at the project's root, its headings shown as a tree with
-  the projects under them. Those points are marked **(approved)**
-  below.
+  the projects under them. His intent approval of the include keyword,
+  2026-11-07 01:05 (`docs/SPEC.md` 3.15, its seven decided points, and
+  "What is decided", item 17), adds: the keyword, an HTML comment
+  `<!-- vizi:include <path> -->` on a line of its own (I1), with a path
+  relative to the backlog file, in the same repo and on the same branch
+  (I3, I4); only the backlog file includes, one level only (I6, I11);
+  included entries show on the board and in the list like the file's
+  own, and only they name their file; they stand where the include line
+  stands (I9); a failed read of an included file lets the load go on,
+  only a 401 fails it, and the page says what is missing; at most five
+  included files a load (I7); the help view does not change; and include
+  lines are the one exception to "content never makes a request of its
+  own". Those points are marked **(approved)** below; section 6 gives
+  the include points in its **(approved)** paragraph, ahead of the
+  rules, which are quoted as written.
 - **Clead's design (the HOW), within the approved intent:** everything
   else in this file: the order the paths are tried in, the rules R0 to
   R9, the three kinds of report item, how `STATUS.md` is read (S1 to
-  S5), and how `PROJECTS.md` is read (P1 to P7). It is Clead's call,
+  S5), how `PROJECTS.md` is read (P1 to P7), and the rest of the
+  include rules I1 to I11 (section 6). It is Clead's call,
   not a question for the product owner, and it does not block building.
   It changes through a reviewed PR.
 - **Not decided:** a lint mode beyond the page's report.
@@ -41,6 +55,7 @@ project's root), `docs/BACKLOG.md` and `docs/PRODUCT_BACKLOG.md`.
 Clead's design: they are tried in that order, and the first one found is
 read. When more than one exists, the report says so and names the one
 read. When none exists, the page says that no backlog file was found.
+The backlog file can include other files (section 6).
 
 ---
 
@@ -149,7 +164,8 @@ inside a comment is never an entry, a heading or a report item: a
 commented-out entry is not shown. A `<!--` anywhere else on a line (after
 other text, or inside backticks) is text, not a comment. A comment that
 never closes runs to the end of the file and is reported as Info
-(section 3). For example:
+(section 3). A comment that is an include line (section 6, I1) is read
+before it is dropped. For example:
 
 ```markdown
 <!-- - **[NOW] AB-9** — Hidden. -->
@@ -275,7 +291,8 @@ inside a fence (R7) are never report items.
   starts with a marker in brackets, with or without the bold `**` before
   it (`[NOW]`, `**[NOW]`), but which is not an entry by R1: indented, or
   not bold. An indented marked item inside an entry is shown as part of
-  that entry's description and also reported here.
+  that entry's description and also reported here. Also an include not
+  followed or not read (section 6: I2 to I4, I6, I7, a failed read).
 - **Read with a warning:** an entry with
   - no ID;
   - its ID outside the bold;
@@ -284,7 +301,9 @@ inside a fence (R7) are never report items.
   - a marker outside the recommended set;
   - the same ID as an earlier entry (both are read; the later one gets
     the warning);
-  - notes whose parentheses never close in the head (R3).
+  - notes whose parentheses never close in the head (R3);
+  - an include of the file itself or of a file already included (I5);
+  - an ID used by an entry of another file of the backlog (I10).
 
   The recommended set is the markers of the template's legend
   (`docs/BACKLOG.md` in `factoincognito/ai-project-template-v2`):
@@ -298,7 +317,9 @@ inside a fence (R7) are never report items.
   - more than one backlog file found (section 1);
   - a fence that never closes (R7);
   - an HTML comment that never closes (R9);
-  - what `STATUS.md` could not give (S2).
+  - what `STATUS.md` could not give (S2);
+  - an included file with no entry (I8);
+  - an include line outside a backlog file (I11).
 
 Further recommendations, which the report does not check: a comment
 that hides an entry written on its own line (edge case 1); a legend of
@@ -517,3 +538,181 @@ and this report (line numbers count from the example's first line):
 Line 3 is text and line 18 an ordered item: both are ignored (P6). Line
 17 is a comment and is dropped, and line 22 is inside a fence, so
 neither is a pointer (P2).
+
+---
+
+## 6. Includes (`vizi:include`)
+
+**(approved)** The product owner's intent approval of 2026-11-07 (01:05,
+in chat, "Po-105 apyr", on Clead's proposals; recorded in the product
+office's `DECISIONS.md`, PR #576, and as a comment on PR #93) of the
+include keyword (product-office PO-105): a backlog file can name another
+file of the same repo and branch with `<!-- vizi:include <path> -->`, a
+path relative to it, and vizi reads that file too, one level only, only
+from the backlog file; included entries show on the board and in the
+list like the file's own, and only they name their file; they stand
+where the include line stands; a failed read of an included file lets
+the load go on (only a 401 fails it), and the page says what is missing;
+at most five included files a load; the help view does not change; and
+an include line is the one exception to "content never makes a request
+of its own" (`docs/SPEC.md` 2.3, 3.7 item 5, `RULES.md` L § 5 (1)). How vizi does it is
+`docs/SPEC.md` 3.15.
+
+Clead's design, within that approval: the rules below, except the
+points "What is decided" marks **(approved)**. "The backlog file" is the
+one file of the three paths that vizi reads (section 1).
+
+**I1. Include line.** A line of the backlog file, at column 0, outside
+a fence (R7) and outside a comment that opened on an earlier line (R9),
+whose text, without trailing spaces and tabs (U+0020 and U+0009 only:
+other white space, such as a no-break space, is not trimmed, so a line
+that ends in one has text after its `-->`, I2), is exactly `<!--`, one
+or more spaces, `vizi:include`, one or more spaces, the path, one or
+more spaces, `-->`, and nothing else: the pattern
+`^<!-- +vizi:include +((?:(?!-->)[^ \t])+) +-->$`, where the path
+holds no space, no tab and no `-->`
+(R9 closes the comment at the first `-->`, so a path that holds one
+leaves text after the comment: such a line looks like an include, I2).
+The keyword is written in lower case, exactly. The include line is read
+in the same first pass that finds fences and comments (R7, R9), and is
+then dropped as any comment is, so the file's other lines are read as
+if it were not there (a dropped comment leaves a blank line, which ends
+no description, R4).
+
+**I2. A line that looks like an include** but is not one by I1 is not
+followed, and is reported (not read): a comment (R9) whose text, after
+the `<!--` and any spaces or tabs, starts with `vizi:include` followed
+by a space, a tab, `-->` or the end of the line, and that is not an
+include line by I1: for example one that is indented, has text after
+its `-->`, has no path or more than one word between the keyword and
+the `-->`, has no space before the `-->`, has a tab where I1 has
+spaces or a tab in the path, or does not close on its line. A comment
+that starts in any other way (`<!-- vizi:Include x -->`,
+`<!-- vizi x -->`) is an ordinary comment: dropped, and not reported.
+Text that R9 does not read as a comment, such as a `<!--` after other
+text on an entry's line, is never an include and is not reported.
+
+**I3. The path.** One or more segments joined by single `/`s, each
+segment made of letters A to Z and a to z, digits, `.`, `_` and `-`,
+the last ending in `.md` (lower case, as `docs/SPEC.md` 3.4 reads `.md`). It is read
+relative to the folder of the backlog file: from `BACKLOG.md`, the
+project's root; from `docs/BACKLOG.md` or `docs/PRODUCT_BACKLOG.md`,
+`docs/`. A `.` segment is dropped and a `..` segment removes the segment
+before it, as `docs/SPEC.md` 3.7 item 4 resolves a relative link. The path is not
+followed, and is reported (not read), when it:
+- starts with `/` (an absolute path);
+- holds any other character, such as `:` (so a URL, `https://…`, is
+  refused), `\`, `%` or a letter outside A to Z and a to z (a
+  space or a tab never reaches I3: I1's path holds neither, and a line
+  with one in its path looks like an include, I2);
+- has an empty segment (`a//b.md`) or ends with `/`;
+- leaves the project's root once `.` and `..` are resolved
+  (`../x.md` from `BACKLOG.md`, `../../x.md` from `docs/BACKLOG.md`);
+- does not end in `.md`.
+
+The checks are made in two steps (Clead's design). First the form, on
+the path as written, in the order of the list above: a leading `/`, a
+character outside the set, an empty segment or a trailing `/`, a last
+segment not ending in `.md`. The first that fails gives I3's general
+message, and the path is not resolved. Only a path of the right form is
+then resolved, segment by segment from the backlog file's folder; it
+leaves the project when a `..` has no segment before it to remove, at
+any step, as `resolvePath` in `src/markdown.ts` returns `null` for a
+relative link, and gets the "leaves the project" message. So
+`../x.txt`, `/../x.md` and `a//../b.md` get the general message, and
+`../x.md` from `BACKLOG.md` and `a/../../x.md` the "leaves" message.
+
+**I4. The included file** is the path resolved by I3, in the same repo,
+at the same branch as the backlog file. It is followed only when the
+file list (`docs/SPEC.md` 3.1, request 2) holds it. A path the file list does not hold
+is not followed and is reported (not read); no request is made for it.
+The root's `STATUS.md` and `PROJECTS.md` are not followed either, and
+are reported (not read): vizi reads them in their own way (`docs/SPEC.md` 3.3, 3.9),
+and following them would read the same file twice in one load (Clead's
+design).
+
+**I5. Itself and twice.** An include whose resolved path is the backlog
+file's own is not followed, and is read with a warning. An include
+whose resolved path an earlier include line of the file named and
+followed is not followed again, and is read with a warning: the file is
+read once, at its first include line, whether that read succeeded or
+failed (`docs/SPEC.md` 3.15, "A failed read of an included file"), so a failed file is not
+asked for twice. The checks are made in the order
+I2, I3, I5, I4, I7, and a line gets the first that applies, so a path
+the file list lacks, or one past the cap, is reported by I4 or I7 each
+time it is named.
+
+**I6. One level.** In an included file, a comment that is an include
+line by I1 or looks like one by I2 is not followed, and is reported
+(not read), on the included file's line. Nothing an included file names
+is read.
+
+**I7. At most five.** At most five included files are read for one
+backlog file. An include line after the fifth one
+followed is not followed and is reported (not read). An include that
+is followed counts towards the five whether its read succeeds or fails
+(`docs/SPEC.md` 3.15, "A failed read of an included file"); lines refused by I2 to I5 do not
+count.
+
+**I8. Reading an included file.** An included file is read on its own
+with every rule of sections 2 and 3, as a backlog file is: its own line
+numbers (R8), its own headings and groups (R5, R6; an entry above its
+first heading has no group, whatever heading of the backlog file stands
+above the include line), its own fences and comments, and its own
+report. Every entry it gives is an entry of the backlog, and knows the
+file it came from.
+
+**I9. Where its entries go.** In the backlog's order
+of entries, which the board's columns and the list keep (`docs/SPEC.md` 3.2), an
+included file's entries stand where its include line stands: after the
+backlog file's entries above that line, and before those below it.
+
+**I10. The same ID in two files.** An entry whose ID an entry of another
+file of the same backlog has, earlier in the order of I9, is read with
+a warning (both are read; the later one gets it), as an entry with the
+same ID as an earlier entry of its own file is (section 3). It is a
+separate warning, naming the other file and its line. An entry gets at
+most one such warning, naming the first entry, in the order of I9, that
+has the same ID and is in another file (Clead's design); an ID repeated
+within one file keeps its own warning besides.
+
+**I11. Other files.** An include line by I1 in `STATUS.md` (the
+project's own, or a folder pointer's, `docs/SPEC.md` 3.9) or in `PROJECTS.md` is not
+followed and is reported (info), so a writer sees why nothing came of
+it. An include line in a fence is never an include, so
+a format file can show one, as this one does.
+
+Example (made up). This `BACKLOG.md`:
+
+```markdown
+## Open
+
+- **[NOW] AB-3** — Draw the chart.
+<!-- vizi:include BACKLOG-DONE.md -->
+<!-- vizi:include ../OLD.md -->
+- **[NEXT] AB-4** — Export the chart.
+```
+
+with this `BACKLOG-DONE.md` next to it:
+
+```markdown
+## Open
+
+- **[DONE] AB-1** — Read the data. See [the notes](notes/data.md).
+- **[DONE] AB-3** — Draw a first chart.
+<!-- vizi:include MORE.md -->
+```
+
+is read as four entries, in this order: AB-3 (`BACKLOG.md` line 3),
+AB-1 and AB-3 (`BACKLOG-DONE.md` lines 3 and 4), AB-4 (`BACKLOG.md`
+line 6). AB-1 and the second AB-3 name `BACKLOG-DONE.md`; their group is
+"Open" of `BACKLOG-DONE.md`, and the link in AB-1 goes to
+`notes/data.md` beside `BACKLOG-DONE.md`. The report holds, in the
+order the Report tab lists them: under Not read, `BACKLOG.md` line 5,
+the path leaves the project (I3), and `BACKLOG-DONE.md` line 5, an
+included file cannot include (I6); under Read with a warning,
+`BACKLOG-DONE.md` line 4, the ID AB-3 is also used in `BACKLOG.md` line
+3 (I10). `MORE.md` is not read, whether or not
+it exists. The list (`docs/SPEC.md` 3.2; `docs/SPEC.md` 3.15, "What the page shows") shows the groups
+"Open" (AB-3), "Open — `BACKLOG-DONE.md`" (AB-1, AB-3) and "Open"
+again (AB-4).

@@ -122,35 +122,6 @@ runs (non-blocking points, all Clead's call):
 **Action:** Clead does them in one small PR when the pilot is judged, or
 drops them if the pilot ends.
 
-### 5. The include keyword (PO-105) — intent approved; the build is next
-
-**Previous assumption:** vizi reads one backlog file, the first of its three
-paths found, and follows no reference in it (`docs/SPEC.md` 3.1, 3.4). Since
-the product office moved its `DONE` entries to `BACKLOG-DONE.md`
-(product-office #520), vizi shows none of them.
-**Revised assessment:** the product owner asked on 2026-11-06 (12:38) for an
-include keyword, and put it in the unattended batch (12:42; product-office
-PO-105). The spec is `docs/SPEC.md` 3.15 (PR #93): the keyword
-`<!-- vizi:include <path> -->`, a path relative to the backlog file in the
-same repo and branch, backlog files only, one level, included entries on the
-board and in the list naming their file, with rules I1 to I11 for
-`docs/BACKLOG-FORMAT.md`, the requests, the report messages, the edge cases
-and the acceptance criteria. Intent approval: Adam, 2026-11-07 01:05, in chat,
-"Po-105 apyr", all seven points Clead put to him (Clead's five proposals and
-the six questions they left open), each as proposed (product-office
-`DECISIONS.md`, #576; `docs/SPEC.md` "What is decided", item 17; recorded as a
-comment on PR #93).
-**Impact on plan:** the build is the next step (product-office PO-105 step
-3): tests first, through vizi's flow; in that build's PR,
-`docs/BACKLOG-FORMAT.md` gains its section 6, and `docs/SPEC.md` 2.3, 3.1,
-3.2, 3.5, 3.7 item 5, 3.8, section 4 item 3 and `RULES.md` L § 5 (1) change as
-3.15, "What changes elsewhere at the build", sets out. The first use, after
-the build: the product office adds the include line to its `BACKLOG.md`.
-**Action:** Clead starts the build once #93 has its manual Crog review
-(`RULES.md` L § 4 (11)) and has merged. The build PR changes `RULES.md` L § 5
-(1), so it too gets a separate Crog agent's review and is not merged on a CI
-verdict alone (L § 4 (11)). This entry is removed when the build merges.
-
 ---
 
 ## Items that do not change

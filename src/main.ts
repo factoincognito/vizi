@@ -4,12 +4,7 @@
  * built with calls that set text; no source text is ever inserted as HTML
  * (docs/SPEC.md 3.7).
  */
-import {
-  type BacklogEntry,
-  type BacklogResult,
-  parse as parseBacklog,
-  type ReportItem,
-} from "./backlog";
+import type { BacklogEntry, ReportItem } from "./backlog";
 import { boardColumns, descriptionForDisplay, listSections } from "./board";
 import {
   branchOptions,
@@ -53,6 +48,7 @@ import {
   READ_ONLY_SENTENCE,
   UMBRELLA_HELP,
 } from "./help";
+import { type Backlog, type IncludedFile, readBacklog } from "./include";
 import {
   type Block,
   type Inline,
@@ -103,7 +99,8 @@ interface Project {
   name: string;
   files: string[];
   backlogPath: string | null;
-  backlog: BacklogResult | null;
+  /** The backlog file with its included files (3.15). */
+  backlog: Backlog | null;
   status: StatusResult | null;
   /** Notes about the input itself (docs/SPEC.md 3.5): more than one backlog file, a truncated file list. */
   inputNotes: ReportItem[];
@@ -338,7 +335,9 @@ function renderStatus(p: Project): void {
 
 // ----------------------------------------------------------------- entries
 
-function entryElement(e: BacklogEntry, testid: string, basePath: string): HTMLElement {
+/** A card or a row. An included entry's links resolve against its own file, and it names that file (3.15). */
+function entryElement(e: BacklogEntry, testid: string, backlogPath: string): HTMLElement {
+  const basePath = e.file ?? backlogPath;
   const details = h("details", { class: "entry", "data-testid": testid, "data-id": e.id ?? "" });
   const summary = h(
     "summary",
@@ -349,6 +348,7 @@ function entryElement(e: BacklogEntry, testid: string, basePath: string): HTMLEl
     e.notes.length > 0 ? h("span", { class: "notes" }, ` (${e.notes.join("; ")})`) : null,
     " ",
     h("span", { class: "title" }, ...inlineEl(e.title, basePath)),
+    e.file === undefined ? null : h("span", { class: "entry-file" }, e.file),
   );
   details.append(summary);
   // The description is rendered when the entry is first opened.
@@ -413,7 +413,12 @@ function renderList(): void {
       h(
         "section",
         { class: "group" },
-        h("h3", { "data-testid": "list-group" }, s.heading),
+        h(
+          "h3",
+          { "data-testid": "list-group" },
+          s.heading,
+          ...(s.file === undefined ? [] : [" — ", h("span", { class: "entry-file" }, s.file)]),
+        ),
         h("ul", {}, ...s.entries.map((e) => h("li", {}, entryElement(e, "list-row", base)))),
       ),
     );
@@ -452,7 +457,8 @@ function renderReport(p: Project): number {
     }
   };
   add(null, p.inputNotes);
-  add(p.backlogPath, p.backlog?.report ?? []);
+  // The backlog file's items, its include items among them, then each included file's (3.15).
+  for (const r of p.backlog?.reports ?? []) add(r.file, r.items);
   add("STATUS.md", p.status?.report ?? []);
   add("PROJECTS.md", p.projects?.report ?? []);
   const box = must("report-body");
@@ -688,17 +694,22 @@ function build(
   files: string[],
   backlogPaths: string[],
   backlogText: string | null,
+  included: IncludedFile[],
   statusText: string | null,
   truncated: boolean,
   link: Project["link"],
   projectsText: string | null,
   readProjectStatus: Project["readProjectStatus"],
 ): Project {
+  const backlogPath = backlogPaths[0] ?? null;
   return {
     name,
     files,
-    backlogPath: backlogPaths[0] ?? null,
-    backlog: backlogText === null ? null : parseBacklog(backlogText),
+    backlogPath,
+    backlog:
+      backlogPath === null || backlogText === null
+        ? null
+        : readBacklog(backlogPath, backlogText, files, truncated, included),
     status: statusText === null ? null : parseStatus(statusText),
     inputNotes: inputNotes(backlogPaths, truncated),
     link,
@@ -905,6 +916,7 @@ async function openRef(ref: RepoRef, load: number, picked: boolean): Promise<voi
     result.files,
     result.backlogPaths,
     result.backlogText,
+    result.included,
     result.statusText,
     result.truncated,
     (path) => ({ kind: "external", href: blobUrl(withBranch, path), newTab: true }),
@@ -947,11 +959,17 @@ async function openRef(ref: RepoRef, load: number, picked: boolean): Promise<voi
     p.backlog
       ? ""
       : "No backlog file was found (looked for BACKLOG.md, docs/BACKLOG.md and docs/PRODUCT_BACKLOG.md).",
-    result.truncated
-      ? [
-          "The file list from GitHub was truncated, so the documentation list and file links may be incomplete.",
-        ]
-      : [],
+    [
+      ...(result.truncated
+        ? [
+            "The file list from GitHub was truncated, so the documentation list and file links may be incomplete.",
+          ]
+        : []),
+      // 3.15: an include not followed or not read; warnings and info items put nothing here.
+      ...(p.backlog?.incomplete
+        ? ["Not every included file could be read; the Report tab lists why."]
+        : []),
+    ],
   );
 }
 

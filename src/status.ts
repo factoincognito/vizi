@@ -3,6 +3,7 @@
  * Pure: it takes the file's text and returns the fields, the blockers
  * and what it could not read.
  */
+import { includesElsewhere } from "./include";
 import { heading, indentOf, isBlank, type Line, listItem, type ReportItem, scan } from "./scan";
 
 export type { ReportItem, ReportKind } from "./scan";
@@ -84,7 +85,9 @@ function readBlockers(block: Line[]): { text: string; line: number }[] {
 }
 
 export function parse(source: string): StatusResult {
-  const { lines, report } = scan(source);
+  const { lines, report, comments } = scan(source);
+  // I11: an include line here is not followed; the report says so.
+  report.push(...includesElsewhere(comments));
   const sections = new Map<string, Line[]>();
   let current: Line[] | null = null;
   for (const l of lines) {

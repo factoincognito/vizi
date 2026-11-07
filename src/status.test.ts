@@ -233,3 +233,27 @@ describe("S5: waiting on the product owner", () => {
     ]);
   });
 });
+
+describe("I11: an include line in STATUS.md", () => {
+  const INFO = "Not followed: only the backlog file can include another file.";
+
+  it("gives the info item on its line, and is not followed: the fields read as without it", () => {
+    const plain = status("None.");
+    const withInclude = lines(plain, "<!-- vizi:include DONE.md -->");
+    const r = parse(withInclude);
+    const last = withInclude.split("\n").length;
+    expect(r.report).toContainEqual({
+      kind: "info",
+      code: "include-elsewhere",
+      line: last,
+      message: INFO,
+    });
+    const without = parse(plain);
+    expect({ ...r, report: [] }).toEqual({ ...without, report: [] });
+  });
+
+  it("reports only an include line by I1, not one that only looks like one", () => {
+    const r = parse(lines(status("None."), "  <!-- vizi:include DONE.md -->"));
+    expect(r.report.some((i) => i.code === "include-elsewhere")).toBe(false);
+  });
+});

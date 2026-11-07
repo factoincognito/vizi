@@ -43,12 +43,18 @@ export function entryMatches(entry: BacklogEntry, query: string): boolean {
 
 export interface Section {
   heading: string;
+  /** The included file the section's entries come from (docs/SPEC.md 3.15); absent for the backlog file's own. */
+  file?: string;
   entries: BacklogEntry[];
 }
 
 export const NO_HEADING = "(no heading)";
 
-/** Entries that pass the filter, grouped under their heading in file order; sections left empty are dropped. */
+/**
+ * Entries that pass the filter, grouped under their heading in the backlog's
+ * order; consecutive entries share a section only when they have the same
+ * heading and come from the same file (3.15). Sections left empty are dropped.
+ */
 export function listSections(
   entries: BacklogEntry[],
   filter: { marker: string | null; query: string },
@@ -59,8 +65,9 @@ export function listSections(
     if (!entryMatches(e, filter.query)) continue;
     const heading = e.group ?? NO_HEADING;
     const last = sections[sections.length - 1];
-    if (last && last.heading === heading) last.entries.push(e);
-    else sections.push({ heading, entries: [e] });
+    if (last && last.heading === heading && last.file === e.file) last.entries.push(e);
+    else
+      sections.push({ heading, ...(e.file === undefined ? {} : { file: e.file }), entries: [e] });
   }
   return sections;
 }

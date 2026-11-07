@@ -24,10 +24,22 @@ export interface Line {
   fence: "open" | "inside" | "close" | null;
 }
 
+/** An HTML comment R9 found, on the line it opens on (docs/SPEC.md 3.15: include lines are read in this pass). */
+export interface Comment {
+  /** The line the comment opens on (R8). */
+  line: number;
+  /** The indent before its `<!--`. */
+  indent: number;
+  /** The line's text from its `<!--` to the end of the line, as written: the text after a `-->` on it included. */
+  text: string;
+}
+
 export interface Scanned {
   lines: Line[];
   /** Info items: a fence or a comment that never closes. */
   report: ReportItem[];
+  /** The comments, in file order. */
+  comments: Comment[];
 }
 
 const FENCE_OPEN = /^(`{3,}|~{3,})/;
@@ -44,6 +56,7 @@ export function scan(source: string): Scanned {
   const raw = source.replace(/^﻿/, "").split(/\r?\n/);
   const lines: Line[] = [];
   const report: ReportItem[] = [];
+  const comments: Comment[] = [];
   let fence: { char: string; length: number; line: number } | null = null;
   let commentLine: number | null = null;
 
@@ -76,6 +89,7 @@ export function scan(source: string): Scanned {
     const indent = indentOf(original);
     const body = original.slice(indent);
     if (body.startsWith("<!--")) {
+      comments.push({ line: number, indent, text: body });
       const end = original.indexOf("-->", indent + 4);
       if (end < 0) {
         commentLine = number;
@@ -114,7 +128,7 @@ export function scan(source: string): Scanned {
       message: "An HTML comment never closes; the rest of the file is dropped.",
     });
   }
-  return { lines, report };
+  return { lines, report, comments };
 }
 
 /** R0: a list item is `- `, `* ` or `1. ` after any indent. Returns the text after the marker. */

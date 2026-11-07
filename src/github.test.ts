@@ -196,6 +196,8 @@ describe("loadRepo: the requests of 3.1, in order", () => {
       projectsText: null,
       // Learned from request 1, for the branch picker's default mark (3.13).
       defaultBranch: "main",
+      // No include line: no included file (3.15).
+      included: [],
     });
   });
 
@@ -1068,5 +1070,247 @@ describe("readDefaultBranch: request 1 of 3.1 on its own (3.1, Guided opening)",
       kind: "not-found",
       message: "Not found, or the token does not give access to this repo.",
     });
+  });
+});
+
+// ---------------------------------------------------------------- includes (3.15)
+
+describe("loadRepo: included files (3.15)", () => {
+  const backlog = [
+    "- **[NOW] AB-1** — Own.",
+    "<!-- vizi:include ./DONE.md -->",
+    "<!-- vizi:include old/../MORE.md -->",
+    "<!-- vizi:include gone.md -->",
+  ].join("\n");
+  const files = ["BACKLOG.md", "DONE.md", "MORE.md", "STATUS.md", "PROJECTS.md"];
+  const anon = (overrides: Record<string, Answer> = {}): Record<string, Answer> => ({
+    [API]: { status: 200, body: JSON.stringify({ default_branch: "main" }) },
+    [TREE]: { status: 200, body: tree(files) },
+    [`${RAW}/BACKLOG.md`]: { status: 200, body: backlog },
+    [`${RAW}/DONE.md`]: { status: 200, body: "done text" },
+    [`${RAW}/MORE.md`]: { status: 200, body: "more text" },
+    [`${RAW}/STATUS.md`]: { status: 200, body: "status text" },
+    [`${RAW}/PROJECTS.md`]: { status: 200, body: "projects text" },
+    ...overrides,
+  });
+
+  it("reads the backlog file, the included files in their order, STATUS.md, PROJECTS.md, one after another, from raw with the path as resolved", async () => {
+    const { fetcher, calls } = fake(anon());
+    const r = await loadRepo(ref, fetcher);
+    expect(calls).toEqual([
+      API,
+      TREE,
+      `${RAW}/BACKLOG.md`,
+      `${RAW}/DONE.md`,
+      `${RAW}/MORE.md`,
+      `${RAW}/STATUS.md`,
+      `${RAW}/PROJECTS.md`,
+    ]);
+    expect(r.ok && r.included).toEqual([
+      { path: "DONE.md", ok: true, text: "done text" },
+      { path: "MORE.md", ok: true, text: "more text" },
+    ]);
+  });
+
+  it("makes one request at a time", async () => {
+    let open = 0;
+    let most = 0;
+    const answers = anon();
+    const fetcher: Fetcher = async (url) => {
+      open += 1;
+      most = Math.max(most, open);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      open -= 1;
+      const a = answers[url];
+      if (!a) throw new Error(`unexpected request ${url}`);
+      return { status: a.status, text: async () => a.body ?? "" };
+    };
+    await loadRepo(ref, fetcher);
+    expect(most).toBe(1);
+  });
+
+  it("with a token, reads them through the contents API, each segment encoded, with the header, no cookies, no caching and no token in a URL", async () => {
+    const docsBacklog = [
+      "<!-- vizi:include sub/A-1.md -->",
+      "<!-- vizi:include ../ROOT.md -->",
+    ].join("\n");
+    const { fetcher, sent } = fakeWithInit({
+      [API]: okRepo,
+      [TREE]: {
+        status: 200,
+        body: tree(["docs/BACKLOG.md", "docs/sub/A-1.md", "ROOT.md", "STATUS.md"]),
+      },
+      [contents("docs/BACKLOG.md")]: { status: 200, body: docsBacklog },
+      [contents("docs/sub/A-1.md")]: { status: 200, body: "a" },
+      [contents("ROOT.md")]: { status: 200, body: "root" },
+      [contents("STATUS.md")]: { status: 200, body: "s" },
+    });
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(sent.map((s) => s.url)).toEqual([
+      API,
+      TREE,
+      contents("docs/BACKLOG.md"),
+      `${API}/contents/docs/sub/A-1.md?ref=main`,
+      `${API}/contents/ROOT.md?ref=main`,
+      contents("STATUS.md"),
+    ]);
+    for (const s of sent) {
+      expect(s.init?.headers?.Authorization).toBe(`Bearer ${TOKEN}`);
+      expect(s.init?.credentials).toBe("omit");
+      expect(s.init?.cache).toBe("no-store");
+      expect(s.url).not.toContain(TOKEN);
+    }
+    expect(r.ok && r.included).toEqual([
+      { path: "docs/sub/A-1.md", ok: true, text: "a" },
+      { path: "ROOT.md", ok: true, text: "root" },
+    ]);
+  });
+
+  it("asks for no file the file list does not hold", async () => {
+    const { fetcher, calls } = fake(anon());
+    await loadRepo(ref, fetcher);
+    expect(calls.some((c) => c.includes("gone.md"))).toBe(false);
+  });
+
+  it.each([
+    [
+      404,
+      "GitHub answered HTTP 404 for https://raw.githubusercontent.com/acme/widgets/main/DONE.md.",
+    ],
+    [
+      403,
+      "GitHub answered HTTP 403 for https://raw.githubusercontent.com/acme/widgets/main/DONE.md.",
+    ],
+    [
+      500,
+      "GitHub answered HTTP 500 for https://raw.githubusercontent.com/acme/widgets/main/DONE.md.",
+    ],
+  ])(
+    "goes on when an included file answers %i, and returns 3.1's message for it",
+    async (status, message) => {
+      const { fetcher, calls } = fake(anon({ [`${RAW}/DONE.md`]: { status } }));
+      const r = await loadRepo(ref, fetcher);
+      expect(r.ok).toBe(true);
+      expect(r.ok && r.included).toEqual([
+        { path: "DONE.md", ok: false, message },
+        { path: "MORE.md", ok: true, text: "more text" },
+      ]);
+      expect(r.ok && [r.statusText, r.projectsText]).toEqual(["status text", "projects text"]);
+      expect(calls.slice(-2)).toEqual([`${RAW}/STATUS.md`, `${RAW}/PROJECTS.md`]);
+    },
+  );
+
+  it("goes on after a network failure of an included file", async () => {
+    const answers = anon();
+    const fetcher: Fetcher = async (url) => {
+      if (url === `${RAW}/DONE.md`) throw new TypeError("Failed to fetch");
+      const a = answers[url];
+      if (!a) throw new Error(`unexpected request ${url}`);
+      return { status: a.status, text: async () => a.body ?? "" };
+    };
+    const r = await loadRepo(ref, fetcher);
+    expect(r.ok && r.included[0]).toEqual({
+      path: "DONE.md",
+      ok: false,
+      message: "The request to raw.githubusercontent.com failed: Failed to fetch.",
+    });
+    expect(r.ok && [r.statusText, r.projectsText]).toEqual(["status text", "projects text"]);
+  });
+
+  const withToken = (done: TokenAnswer) => ({
+    [API]: okRepo,
+    [TREE]: { status: 200, body: tree(["BACKLOG.md", "DONE.md", "STATUS.md", "PROJECTS.md"]) },
+    [contents("BACKLOG.md")]: { status: 200, body: "<!-- vizi:include DONE.md -->" },
+    [contents("DONE.md")]: done,
+    [contents("STATUS.md")]: { status: 200, body: "s" },
+    [contents("PROJECTS.md")]: { status: 200, body: "p" },
+  });
+
+  it.each([
+    [
+      "the rate limit",
+      { status: 403, headers: { "X-RateLimit-Remaining": "0" } },
+      "GitHub's rate limit is reached.",
+    ],
+    [
+      "another 403",
+      { status: 403 },
+      'GitHub says the token may not read this repo: it may lack the "Contents: read" permission, or an organisation\'s token policy may stop it.',
+    ],
+    ["a 404", { status: 404 }, `GitHub answered HTTP 404 for ${contents("DONE.md")}.`],
+  ])(
+    "with a token, goes on after %s on an included file, with 3.8's message",
+    async (_n, done, message) => {
+      const { fetcher, sent } = fakeWithInit(withToken(done));
+      const r = await loadRepo(ref, fetcher, TOKEN);
+      expect(r.ok && r.included).toEqual([{ path: "DONE.md", ok: false, message }]);
+      expect(r.ok && [r.statusText, r.projectsText]).toEqual(["s", "p"]);
+      expect(sent.map((s) => s.url).slice(-2)).toEqual([
+        contents("STATUS.md"),
+        contents("PROJECTS.md"),
+      ]);
+    },
+  );
+
+  it("fails the load as token-refused on a 401 for an included file with a token", async () => {
+    const { fetcher, sent } = fakeWithInit(withToken({ status: 401 }));
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(r).toMatchObject({ ok: false, kind: "token-refused", status: 401 });
+    // Nothing after the refused file is asked for.
+    expect(sent.map((s) => s.url).at(-1)).toBe(contents("DONE.md"));
+  });
+
+  describe("a replaced load with a token: the guard refuses from the first included file on", () => {
+    const twoIncludes = "<!-- vizi:include A.md -->\n<!-- vizi:include B.md -->";
+    /** Throws, as guardedFetch does once its load is replaced, for the included files and every request after them. */
+    const refusing = (answers: Record<string, TokenAnswer>) => {
+      const inner = fakeWithInit(answers);
+      let replaced = false;
+      const fetcher: Fetcher = (url, init) => {
+        if (url === contents("A.md")) replaced = true;
+        if (replaced) throw new Error("replaced by a newer load");
+        return inner.fetcher(url, init);
+      };
+      return { fetcher, sent: inner.sent };
+    };
+    const answers = (extra: string[]) => ({
+      [API]: okRepo,
+      [TREE]: { status: 200, body: tree(["BACKLOG.md", "A.md", "B.md", ...extra]) },
+      [contents("BACKLOG.md")]: { status: 200, body: twoIncludes },
+      [contents("A.md")]: { status: 200, body: "a" },
+      [contents("B.md")]: { status: 200, body: "b" },
+      [contents("STATUS.md")]: { status: 200, body: "s" },
+      [contents("PROJECTS.md")]: { status: 200, body: "p" },
+    });
+    const network = "The request to api.github.com failed.";
+
+    it("fails at STATUS.md when the file list holds it, and no refused request reaches the stub", async () => {
+      const { fetcher, sent } = refusing(answers(["STATUS.md"]));
+      const r = await loadRepo(ref, fetcher, TOKEN);
+      expect(r).toMatchObject({ ok: false, kind: "network", message: network });
+      expect(sent.map((s) => s.url)).toEqual([API, TREE, contents("BACKLOG.md")]);
+    });
+
+    it("succeeds when the file list holds neither STATUS.md nor PROJECTS.md, each included file a failed read", async () => {
+      const { fetcher, sent } = refusing(answers([]));
+      const r = await loadRepo(ref, fetcher, TOKEN);
+      expect(r.ok && r.included).toEqual([
+        { path: "A.md", ok: false, message: network },
+        { path: "B.md", ok: false, message: network },
+      ]);
+      expect(sent.map((s) => s.url)).toEqual([API, TREE, contents("BACKLOG.md")]);
+    });
+  });
+
+  it("without an include line, makes the same requests as today and returns no included file", async () => {
+    const { fetcher, calls } = fake({
+      [API]: { status: 200, body: JSON.stringify({ default_branch: "main" }) },
+      [TREE]: { status: 200, body: tree(["BACKLOG.md", "DONE.md", "STATUS.md"]) },
+      [`${RAW}/BACKLOG.md`]: { status: 200, body: "- **[NOW] AB-1** — Own.\n<!-- DONE.md -->" },
+      [`${RAW}/STATUS.md`]: { status: 200, body: "s" },
+    });
+    const r = await loadRepo(ref, fetcher);
+    expect(calls).toEqual([API, TREE, `${RAW}/BACKLOG.md`, `${RAW}/STATUS.md`]);
+    expect(r.ok && r.included).toEqual([]);
   });
 });

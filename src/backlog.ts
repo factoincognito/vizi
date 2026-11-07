@@ -34,6 +34,8 @@ export interface BacklogEntry {
   group: string | null;
   /** The line the entry starts on (R8). */
   line: number;
+  /** The included file the entry comes from (docs/SPEC.md 3.15, I8); absent for the backlog file's own entries. */
+  file?: string;
 }
 
 export interface BacklogHeading {
@@ -133,7 +135,8 @@ function readDescription(lines: Line[], from: number, headRest: string): string 
   return out.join("\n");
 }
 
-export function parse(source: string): BacklogResult {
+/** Reads one file. `file` is given for an included file (I8): each of its entries then names it. */
+export function parse(source: string, file?: string): BacklogResult {
   const { lines, report } = scan(source);
   const entries: BacklogEntry[] = [];
   const groups: BacklogHeading[] = [];
@@ -252,6 +255,7 @@ export function parse(source: string): BacklogResult {
       headRest: rest,
       group,
       line: at,
+      ...(file === undefined ? {} : { file }),
     });
     report.push(...problems);
   }

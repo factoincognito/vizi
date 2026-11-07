@@ -157,3 +157,37 @@ describe("descriptionForDisplay (SPEC 3.7 item 2)", () => {
     expect(descriptionForDisplay(b as BacklogEntry)).toBe("code-looking");
   });
 });
+
+describe("entries of included files (3.15)", () => {
+  const own = entry("NOW", "AB-1", { group: "Open", line: 3 });
+  const included = entry("DONE", "AB-2", { group: "Open", line: 3, file: "BACKLOG-DONE.md" });
+  const after = entry("NEXT", "AB-4", { group: "Open", line: 6 });
+
+  it("makes two list sections of two groups named Open from two files", () => {
+    expect(
+      listSections([own, included, after], { marker: null, query: "" }).map((s) => [
+        s.heading,
+        s.file,
+        s.entries.map((e) => e.id),
+      ]),
+    ).toEqual([
+      ["Open", undefined, ["AB-1"]],
+      ["Open", "BACKLOG-DONE.md", ["AB-2"]],
+      ["Open", undefined, ["AB-4"]],
+    ]);
+  });
+
+  it("keeps the included entries in the board's columns in the order given", () => {
+    const more = entry("DONE", "AB-9", { group: null, line: 1 });
+    const columns = boardColumns([own, included, after, more]);
+    expect(columns.map((c) => [c.marker, c.entries.map((e) => e.id)])).toEqual([
+      ["NOW", ["AB-1"]],
+      ["NEXT", ["AB-4"]],
+      ["DONE", ["AB-2", "AB-9"]],
+    ]);
+  });
+
+  it("does not match the file's path in a search", () => {
+    expect(entryMatches(included, "BACKLOG-DONE")).toBe(false);
+  });
+});

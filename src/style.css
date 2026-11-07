@@ -710,6 +710,17 @@ footer {
   font-size: 0.85rem;
 }
 
+/* The included file an entry or a list group comes from (docs/SPEC.md 3.15). */
+.entry-file {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: normal;
+}
+
+.entry summary .entry-file {
+  display: block;
+}
+
 .md pre {
   overflow-x: auto;
   background: var(--bg);
