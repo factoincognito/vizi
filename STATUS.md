@@ -13,7 +13,7 @@ Build: the first version is built and published at https://factoincognito.github
 The include keyword (PO-105): its spec is merged (#93, intent-approved by the product owner on 2026-11-07); the build is PBI-1.34. Of the audit findings of 2026-11-06, PBI-1.31 to PBI-1.33 are re-checked at the next audit.
 
 ## Next step
-PBI-1.12, PBI-1.10, PBI-1.6 and PBI-1.34, in the backlog's order. Then the product owner's first try of tokens against real GitHub (`docs/SPEC.md` section 4, items 9 to 15) whenever he has time, then PBI-1.4.
+PBI-1.34, the include keyword build (first, product owner 2026-11-07), then PBI-1.12, PBI-1.10 and PBI-1.6, in the backlog's order. Then the product owner's first try of tokens against real GitHub (`docs/SPEC.md` section 4, items 9 to 15) whenever he has time, then PBI-1.4.
 
 ## Blockers
 - Product Owner: the definition of done for this phase (`docs/NEXT_SESSION.md`, entry 1).
