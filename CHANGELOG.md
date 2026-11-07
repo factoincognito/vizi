@@ -95,6 +95,9 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Backlog: the findings of the product office's audit of 2026-11-06 filed as PBI-1.20 to PBI-1.33 (#91).
 - Audit fixes (PBI-1.21 to PBI-1.27, PBI-1.29, PBI-1.30): restated global rules cut to pointers to the product office's Rules; the CI reviewer's instructions gain the review checks it can no longer read in `memory/standards.md`; changelog lines for #87 to #90 (#92).
 - Spec: the include keyword (PO-105), `docs/SPEC.md` 3.15, with the product owner's intent approval of 2026-11-07 (#93).
+- Rules: L § 4 (1) cites the override of § 34 (2) (PBI-1.28) (#95).
+- Backlog: PBI-1.34, the include keyword build (#96), put first in the order (#97).
+- The include keyword (PBI-1.34): a backlog file includes other files of the same repo and branch with `<!-- vizi:include <path> -->` (`src/include.ts`); included entries on the board and in the list naming their file, the report by file, the message line; `docs/BACKLOG-FORMAT.md` section 6; `docs/SPEC.md` 3.15 built, with 2.3, 3.1, 3.2, 3.5, 3.7, 3.8, 3.13 and section 4 updated; `RULES.md` L § 5 (1) gains the one exception for include lines (#98).
 
 ## Project created
 
