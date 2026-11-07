@@ -212,6 +212,61 @@ test.describe("the browser enforces it", () => {
     expect(problems).toEqual([]);
   });
 
+  test("included entries shown, markup in an included description as text: no violation and no console error (3.15)", async ({
+    page,
+  }) => {
+    const problems: string[] = [];
+    page.on("console", (m) => m.type() === "error" && problems.push(m.text()));
+    page.on("pageerror", (e) => problems.push(e.message));
+    const violations = await watchViolations(page);
+    const cors = { "access-control-allow-origin": "*" };
+    const included = [
+      "## Old",
+      "- **[DONE] A-2** — Hostile. <script>window.__pwned = 1</script>",
+      "  <img src=x onerror=window.__pwned=2> and more.",
+    ].join("\n");
+    await page.route(/^https:\/\/(api\.github\.com|raw\.githubusercontent\.com)\//, (route) => {
+      const url = route.request().url();
+      if (url === "https://api.github.com/repos/acme/widgets")
+        return route.fulfill({ status: 200, headers: cors, body: '{"default_branch":"main"}' });
+      if (url.includes("/branches?"))
+        return route.fulfill({ status: 200, headers: cors, body: '[{"name":"main"}]' });
+      if (url.includes("/git/trees/"))
+        return route.fulfill({
+          status: 200,
+          headers: cors,
+          body: '{"truncated":false,"tree":[{"path":"BACKLOG.md","type":"blob"},{"path":"OLD.md","type":"blob"}]}',
+        });
+      if (url.endsWith("/OLD.md"))
+        return route.fulfill({ status: 200, headers: cors, body: included });
+      return route.fulfill({
+        status: 200,
+        headers: cors,
+        body: "- **[NOW] A-1** — One.\n<!-- vizi:include OLD.md -->",
+      });
+    });
+    await page.goto("/");
+    await page.locator("#url-input").fill("https://github.com/acme/widgets");
+    await page.locator("#open-url").click();
+    const done = page.locator('[data-testid="column"][data-marker="DONE"]');
+    await done.locator(":scope > summary").click();
+    const card = page.locator('[data-testid="card"][data-id="A-2"]');
+    await expect(card.locator(".entry-file")).toHaveText("OLD.md");
+    await card.locator("summary").click();
+    await expect(card).toContainText("<script>window.__pwned = 1</script>");
+    await expect(card.getByTestId("description")).toContainText(
+      "<img src=x onerror=window.__pwned=2>",
+    );
+    await expect(page.locator("#board script, #board img")).toHaveCount(0);
+    expect(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned)).toBe(
+      undefined,
+    );
+    await page.getByRole("tab", { name: "List" }).click();
+    await expect(page.getByTestId("list-group")).toHaveText(["(no heading)", "Old — OLD.md"]);
+    expect(await violations()).toEqual([]);
+    expect(problems).toEqual([]);
+  });
+
   test("the opening guide's datalist and select shown: no violation and no console error (3.1, PBI-1.19)", async ({
     page,
   }) => {

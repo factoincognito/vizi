@@ -319,3 +319,18 @@ describe("a long file", () => {
     expect(r.tree).toHaveLength(5000);
   });
 });
+
+describe("I11: an include line in PROJECTS.md", () => {
+  it("gives the info item on its line, and is not followed", () => {
+    const r = parse("# Tools\n<!-- vizi:include more.md -->\n- acme/widgets\n");
+    expect(r.report).toEqual([
+      {
+        kind: "info",
+        code: "include-elsewhere",
+        line: 2,
+        message: "Not followed: only the backlog file can include another file.",
+      },
+    ]);
+    expect(outline(r.tree)).toEqual([{ h: "Tools", p: ["acme/widgets"], c: [] }]);
+  });
+});
