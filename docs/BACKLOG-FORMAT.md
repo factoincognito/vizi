@@ -25,7 +25,9 @@ reads next to it, and of the `PROJECTS.md` of an umbrella project
   branch, by a path relative to it (I3, I4); only the backlog file
   includes, one level only (I6, I11); at most five included files a
   load (I7); included entries stand where the include line stands (I9).
-  Those points are marked **(approved)** below.
+  Those points are marked **(approved)** below; section 6 gives the
+  include points in its **(approved)** paragraph, ahead of the rules,
+  which are quoted as written.
 - **Clead's design (the HOW), within the approved intent:** everything
   else in this file: the order the paths are tried in, the rules R0 to
   R9, the three kinds of report item, how `STATUS.md` is read (S1 to

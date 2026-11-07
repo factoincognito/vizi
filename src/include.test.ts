@@ -609,6 +609,22 @@ describe("no include line", () => {
     "- [x] unmarked",
   );
 
+  it("keeps parse's report order, an unclosed fence after an earlier unmarked item included", () => {
+    const fenced = lines("- [x] unmarked", "- **[NOW] AB-1** — One.", "```", "inside");
+    const p = parse(fenced);
+    expect(p.report.map((r) => [r.line, r.code])).toEqual([
+      [1, "unmarked-item"],
+      [3, "unclosed-fence"],
+    ]);
+    expect(readBacklog("BACKLOG.md", fenced, FILES, false, []).reports).toEqual([
+      { file: "BACKLOG.md", items: p.report },
+    ]);
+    const commented = lines("- [x] unmarked", "<!-- never closes", "- **[NOW] AB-1** — One.");
+    expect(readBacklog("BACKLOG.md", commented, FILES, false, []).reports).toEqual([
+      { file: "BACKLOG.md", items: parse(commented).report },
+    ]);
+  });
+
   it("gives exactly what parse gives, and no file to read", () => {
     expect(plan(text)).toEqual({ reads: [], report: [] });
     const b = readBacklog("BACKLOG.md", text, FILES, false, []);
