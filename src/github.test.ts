@@ -1083,7 +1083,7 @@ describe("loadRepo: included files (3.15)", () => {
     "<!-- vizi:include gone.md -->",
   ].join("\n");
   const files = ["BACKLOG.md", "DONE.md", "MORE.md", "STATUS.md", "PROJECTS.md"];
-  const anon = (overrides: Record<string, Answer> = {}) => ({
+  const anon = (overrides: Record<string, Answer> = {}): Record<string, Answer> => ({
     [API]: { status: 200, body: JSON.stringify({ default_branch: "main" }) },
     [TREE]: { status: 200, body: tree(files) },
     [`${RAW}/BACKLOG.md`]: { status: 200, body: backlog },

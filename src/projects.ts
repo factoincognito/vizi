@@ -4,6 +4,7 @@
  * could not be read. Pure: it takes the file's text. Text from the file
  * is data; nothing here makes a request or builds markup.
  */
+import { includesElsewhere } from "./include";
 import { heading, type ReportItem, scan } from "./scan";
 
 export type { ReportItem, ReportKind } from "./scan";
@@ -51,7 +52,8 @@ const isDots = (name: string) => name === "." || name === "..";
 
 export function parse(source: string): ProjectsResult {
   const scanned = scan(source);
-  const report: ReportItem[] = [...scanned.report];
+  // I11: an include line here is not followed; the report says so.
+  const report: ReportItem[] = [...scanned.report, ...includesElsewhere(scanned.comments)];
   const top: ProjectNode[] = [];
   const stack: ProjectNode[] = [];
   let noHeading: ProjectNode | null = null;

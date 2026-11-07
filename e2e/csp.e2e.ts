@@ -222,7 +222,7 @@ test.describe("the browser enforces it", () => {
     const cors = { "access-control-allow-origin": "*" };
     const included = [
       "## Old",
-      "- **[DONE] A-2** — Hostile. <script>window.__pwned = 1</script>",
+      "- **[DONE] AB-2** — Hostile. <script>window.__pwned = 1</script>",
       "  <img src=x onerror=window.__pwned=2> and more.",
     ].join("\n");
     await page.route(/^https:\/\/(api\.github\.com|raw\.githubusercontent\.com)\//, (route) => {
@@ -242,7 +242,7 @@ test.describe("the browser enforces it", () => {
       return route.fulfill({
         status: 200,
         headers: cors,
-        body: "- **[NOW] A-1** — One.\n<!-- vizi:include OLD.md -->",
+        body: "- **[NOW] AB-1** — One.\n<!-- vizi:include OLD.md -->",
       });
     });
     await page.goto("/");
@@ -250,7 +250,7 @@ test.describe("the browser enforces it", () => {
     await page.locator("#open-url").click();
     const done = page.locator('[data-testid="column"][data-marker="DONE"]');
     await done.locator(":scope > summary").click();
-    const card = page.locator('[data-testid="card"][data-id="A-2"]');
+    const card = page.locator('[data-testid="card"][data-id="AB-2"]');
     await expect(card.locator(".entry-file")).toHaveText("OLD.md");
     await card.locator("summary").click();
     await expect(card).toContainText("<script>window.__pwned = 1</script>");

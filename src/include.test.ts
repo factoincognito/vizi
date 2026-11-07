@@ -75,7 +75,8 @@ describe("I1: the include line", () => {
       ok("a.md", "- **[DONE] AB-2** — Old."),
     ]);
     const own = b.entries.find((e) => e.id === "AB-1");
-    expect(own?.description).toBe("More of AB-1's description.");
+    // A description keeps its indent as read (edge case 6).
+    expect(own?.description).toBe("  More of AB-1's description.");
   });
 });
 
@@ -497,7 +498,7 @@ describe("I9 and the spec's example", () => {
       ok("DONE.md", "- **[DONE] AB-2** — Old."),
     ]);
     expect(b.entries.map((e) => e.id)).toEqual(["AB-1", "AB-2", "AB-5"]);
-    expect(b.entries[0]?.description).toBe("Still AB-1.");
+    expect(b.entries[0]?.description).toBe("  Still AB-1.");
   });
 
   it("keeps the order of two included files", () => {

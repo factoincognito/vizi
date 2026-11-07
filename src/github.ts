@@ -12,6 +12,7 @@ import {
   nextPageWanted,
   readBranchPage,
 } from "./branches";
+import { type IncludedFile, planIncludes } from "./include";
 
 export interface RepoRef {
   owner: string;
@@ -138,6 +139,8 @@ export type LoadResult =
       projectsText: string | null;
       /** The default branch, when request 1 told it; null when the reference named a branch (3.13). */
       defaultBranch: string | null;
+      /** The backlog file's included files that were read, in the order of their include lines (3.15). */
+      included: IncludedFile[];
     }
   | {
       ok: false;
@@ -368,10 +371,19 @@ export async function loadRepo(
   const backlogPath = backlogPaths[0] ?? null;
   let backlogText: string | null = null;
   let statusText: string | null = null;
+  const included: IncludedFile[] = [];
   if (backlogPath !== null) {
     const r3 = await file(branch, backlogPath);
     if ("ok" in r3) return r3;
     backlogText = r3.text;
+    // 3.15: the included files, one after another, before STATUS.md. Only a 401 with a token fails the load.
+    const truncated = listing.truncated === true;
+    for (const read of planIncludes(backlogPath, backlogText, files, truncated).reads) {
+      const answer = await file(branch, read.path);
+      if (!("ok" in answer)) included.push({ path: read.path, ok: true, text: answer.text });
+      else if (answer.kind === "token-refused") return answer;
+      else included.push({ path: read.path, ok: false, message: answer.message });
+    }
   }
   if (files.includes("STATUS.md")) {
     const r4 = await file(branch, "STATUS.md");
@@ -396,6 +408,7 @@ export async function loadRepo(
     statusText,
     projectsText,
     defaultBranch,
+    included,
   };
 }
 
