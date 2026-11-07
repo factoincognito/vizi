@@ -1,6 +1,6 @@
 # Vizi - backlog visualizer — Next Session Planning
 
-**Last Updated:** 2026-11-06
+**Last Updated:** 2026-11-07
 **Author:** Clead (Tech Owner)
 **Purpose:** Staging area for reasoning, revised assumptions, and plan-adaptation thoughts that aren't yet mature enough to be a PBI, a decision, a strategy update, or a vision-doc change. Complements `docs/BACKLOG.md` — it does not replace it. How it is read and kept: product-office Process P-1 § 4 (3), P-8 § 4 and P-9 § 1 (2).
 
@@ -136,8 +136,8 @@ same repo and branch, backlog files only, one level, included entries on the
 board and in the list naming their file, with rules I1 to I11 for
 `docs/BACKLOG-FORMAT.md`, the requests, the report messages, the edge cases
 and the acceptance criteria. Intent approval: Adam, 2026-11-07 01:05, in chat,
-"Po-105 apyr", every one of Clead's proposals and all seven open questions as
-proposed (product-office `DECISIONS.md`, #576; `docs/SPEC.md` "What is
+"Po-105 apyr", all seven points Clead put to him (his five proposals and the six
+questions they left open), each as proposed (product-office `DECISIONS.md`, #576; `docs/SPEC.md` "What is
 decided", item 17; recorded as a comment on PR #93).
 **Impact on plan:** the build is the next step (product-office PO-105 step
 3): tests first, through vizi's flow; in that build's PR,
@@ -146,8 +146,9 @@ decided", item 17; recorded as a comment on PR #93).
 3.15, "What changes elsewhere at the build", sets out. After it merges, the
 product office adds the include line to its `BACKLOG.md`.
 **Action:** Clead starts the build once #93 has its manual Crog review
-(`RULES.md` L § 4 (11)) and has merged; this entry is removed when the build
-merges.
+(`RULES.md` L § 4 (11)) and has merged. The build PR changes `RULES.md` L § 5
+(1), so it too gets a separate Crog agent's review and is not merged on a CI
+verdict alone (L § 4 (11)). This entry is removed when the build merges.
 
 ---
 

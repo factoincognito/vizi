@@ -4103,7 +4103,7 @@ and approved by him on 2026-11-07 (01:05, "Po-105 apyr"):
 5. **Included entries show on the board and in the list** like the
    file's own entries, each naming its file.
 
-With them he approved the answers to the seven questions the draft put
+With them he approved the answers to the seven points the draft put
 to him, each as Clead proposed it ("Decisions on the open questions",
 at the end of this section). Everything else below is Clead's design
 within those approved points (product-office `RULES.md` § 6 (2) and
@@ -4122,8 +4122,8 @@ a fence (R7) and outside a comment that opened on an earlier line (R9),
 whose text, without trailing spaces and tabs, is exactly `<!--`, one
 or more spaces, `vizi:include`, one or more spaces, the path, one or
 more spaces, `-->`, and nothing else: the pattern
-`^<!-- +vizi:include +([^ \t]+) +-->$`, where the path holds no space,
-no tab and no `-->`
+`^<!-- +vizi:include +((?:(?!-->)[^ \t])+) +-->$`, where the path
+holds no space, no tab and no `-->`
 (R9 closes the comment at the first `-->`, so a path that holds one
 leaves text after the comment: such a line looks like an include, I2).
 The keyword is written in lower case, exactly. The include line is read
@@ -4488,6 +4488,9 @@ At the build, in the same PR as the code, besides
   change of a local rule, through a reviewed PR (product-office
   `RULES.md` § 3 (2)); the WHAT it carries is his decision, given in
   chat (§ 3 (3)), so its wording needs no further decision (§ 3 (4)).
+  Because the build PR changes a local rule, it gets the review of a
+  separate Crog agent on Opus, and a CI verdict on it is extra
+  (`RULES.md` L § 4 (11)); it is not merged on a CI verdict alone.
 
 #### What changes in `src/` (no code here)
 
@@ -4524,7 +4527,10 @@ that ran (test first, 2.2; GitHub stubbed; made-up files only):
   - I2, reported as not read: the line indented; with text after
     `-->`; `<!-- vizi:include -->`; `<!-- vizi:include a.md b.md -->`;
     `<!-- vizi:include a.md-->`; a tab in place of either space around
-    `vizi:include`; a tab inside the path (`a<tab>b.md`); and
+    `vizi:include`; a tab inside the path (`a<tab>b.md`);
+    `<!--vizi:include a.md -->`, with no space after `<!--`;
+    `<!-- vizi:include a-->b.md -->` and
+    `<!-- vizi:include --> -->`, each reported by I2, not I3; and
     `<!-- vizi:include a.md` with the `-->` on a later line; read as an
     include: the line with a trailing tab after `-->`; not
     reported: `<!-- vizi:Include a.md -->`, `<!-- vizi a.md -->`, and
@@ -4618,6 +4624,9 @@ that ran (test first, 2.2; GitHub stubbed; made-up files only):
 Each was a WHAT (product-office `RULES.md` § 7 (2)), put to the product
 owner with Clead's proposal. He took every proposal: Adam, 2026-11-07
 01:05, in chat, "Po-105 apyr" (product-office `DECISIONS.md`, #576).
+Point 1 is the five proposals above, and points 2 to 7 are the six
+questions on what they left open; "decided point `<n>`" elsewhere in
+3.15 means point `<n>` of this list.
 
 1. **The five proposals** (the keyword, the path, backlog files only,
    one level, entries shown like the file's own and naming their file):
