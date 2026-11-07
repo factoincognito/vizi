@@ -150,7 +150,7 @@ Build order: Clead's proposal, from the design the spec is taken from.
   opens that branch. The `/tree/<branch>` address keeps working. A spec
   change first, then the code. After PBI-1.16, in the redesigned start
   page.
-- **[NEXT] PBI-1.19** (product owner, 2026-11-04 22:47, on Clead's
+- **[DONE] PBI-1.19** (2026-11-06: PR #85, merge `58b6e17`; product owner, 2026-11-04 22:47, on Clead's
   recommendation; open to change after trying it) — Guided opening from
   the Repository field: it takes `<owner>` or `<owner>/<repo>`. While
   typing after `<owner>/`, a list of that owner's repos drops down
