@@ -94,6 +94,7 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - PBI-1.19: the guided opening, which reads an owner's repos and a repo's branches as the Repository field is typed or left, and offers them in a select (#85).
 - Backlog: the findings of the product office's audit of 2026-11-06 filed as PBI-1.20 to PBI-1.33 (#91).
 - Audit fixes (PBI-1.21 to PBI-1.27, PBI-1.29, PBI-1.30): restated global rules cut to pointers to the product office's Rules; the CI reviewer's instructions gain the review checks it can no longer read in `memory/standards.md`; changelog lines for #87 to #90 (#92).
+- Spec: the include keyword (PO-105), `docs/SPEC.md` 3.15, with the product owner's intent approval of 2026-11-07 (#93).
 
 ## Project created
 
