@@ -136,7 +136,7 @@ same repo and branch, backlog files only, one level, included entries on the
 board and in the list naming their file, with rules I1 to I11 for
 `docs/BACKLOG-FORMAT.md`, the requests, the report messages, the edge cases
 and the acceptance criteria. Intent approval: Adam, 2026-11-07 01:05, in chat,
-"Po-105 apyr", all seven points Clead put to him (his five proposals and the six
+"Po-105 apyr", all seven points Clead put to him (Clead's five proposals and the six
 questions they left open), each as proposed (product-office `DECISIONS.md`, #576; `docs/SPEC.md` "What is
 decided", item 17; recorded as a comment on PR #93).
 **Impact on plan:** the build is the next step (product-office PO-105 step

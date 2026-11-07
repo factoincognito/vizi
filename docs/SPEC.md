@@ -4103,9 +4103,9 @@ and approved by him on 2026-11-07 (01:05, "Po-105 apyr"):
 5. **Included entries show on the board and in the list** like the
    file's own entries, each naming its file.
 
-With them he approved the answers to the seven points the draft put
-to him, each as Clead proposed it ("Decisions on the open questions",
-at the end of this section). Everything else below is Clead's design
+He approved them, and the answers to the six questions they left
+open, each as Clead proposed it: seven points in all ("Decisions on
+the open questions", at the end of this section). Everything else below is Clead's design
 within those approved points (product-office `RULES.md` § 6 (2) and
 (4)), and changes through a reviewed PR like any spec change.
 
@@ -4263,7 +4263,10 @@ again (AB-4).
 - **How.** An included file's request is request 3 as 3.1 and 3.8 make
   it, with the load's branch and token: without a token,
   `GET https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>`,
-  the path as written (I3 allows only characters that need no encoding);
+  the path as resolved by I3, unencoded (I3 allows only characters that
+  need no encoding, and its resolution drops every `.` and `..`
+  segment, so `./DONE.md` and `old/../DONE.md` are sent as
+  `DONE.md`);
   with a token, the contents API on `api.github.com`, each segment
   percent-encoded, with the token in the `Authorization` header,
   `credentials: "omit"` and `cache: "no-store"`. A load keeps the token it
@@ -4611,6 +4614,10 @@ that ran (test first, 2.2; GitHub stubbed; made-up files only):
   - a private repo without a token: 3.1's 404 message and no request for
     an included file;
   - a pick of another branch (3.13) reads the includes of that branch;
+  - an include line in a folder pointer's `STATUS.md`: "Show status"
+    (3.9) lists I11's info item, word for word with its line, under
+    "What could not be read" in the "Project status" panel, and makes
+    no request for the named file;
   - a backlog file of 1500 lines including one of 1500 lines loads and
     renders in under 8 seconds, as item 6 of section 4 does for one file;
   - the CSP test of `e2e/csp.e2e.ts` passes with included entries shown,
