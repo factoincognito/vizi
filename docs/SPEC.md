@@ -4817,39 +4817,79 @@ design within them.
 - A path form (`/vizi/<owner>/<repo>`) is not used. GitHub Pages answers
   a path it has no file for with HTTP 404, and only a `404.html` that
   redirects could serve one.
-- **Reading the address.** At startup the page reads
-  `location.search` once, with `URLSearchParams`, and takes the first
-  `repo` parameter's value (`get("repo")`). **(approved)** Every other
-  parameter is ignored, and a second `repo` parameter is ignored too. A
-  value that is empty, or holds only white space after the field's own
-  trim, counts as no `repo` parameter. `location.hash` is not read.
-- **Decoding.** `URLSearchParams` decodes the value once (a `+` becomes a
-  space, `%XX` its character). The field then reads the decoded text as
-  typed, and decodes a branch once more as 3.1 sets out. So a branch
+- **In a link, a branch that holds `+`, `&` or `#` is percent-encoded**
+  (`%2B`, `%26`, `%23`). Written raw, `+` becomes a space, `&` ends the
+  value and `#` starts the address's fragment, so the page opens another
+  branch than the one meant, or none; `%23` is then refused by the field,
+  as a typed `#` is.
+
+#### Reading the address
+
+- At startup the page reads `location.search` once, with a pure function
+  `repoFromSearch(search: string): string | null` in a module of its own
+  (`src/address.ts`). `location.hash` is not read.
+- **Which parameter.** The text after the leading `?` is split on `&`.
+  The first part whose name, the text before its first `=`, is exactly
+  `repo` is the parameter; a part `repo` without `=` is not one.
+  **(approved)** Every other parameter is ignored, and so is every later
+  `repo` part. The name is compared as written: `REPO` or `r%65po` is
+  another parameter.
+- **Decoding.** The value, the text after the part's first `=`, has each
+  `+` replaced by a space and is then decoded once with
+  `decodeURIComponent`. When that decoding fails (a malformed escape such
+  as `%E0`, or a lone `%`), the value is used undecoded, with only the
+  `+` replaced. So the field reads what the link's author wrote, and
+  refuses it as it refuses the same text typed: `?repo=acme/w/tree/a%E0`
+  gives the field `acme/w/tree/a%E0`, whose branch the field refuses with
+  its branch message (3.1); `?repo=acme/w/tree/50%` gives
+  `acme/w/tree/50%`, refused the same way. `URLSearchParams` is not used,
+  because it turns a malformed escape into U+FFFD, which the field would
+  accept as part of a branch nobody named.
+- **Two decodings.** A well-formed value is decoded here once, and the
+  field then decodes a branch once more, as 3.1 sets out. So a branch
   `fix-å` opens from `?repo=acme/w/tree/fix-%C3%A5` (the field gets
-  `fix-å`, typed) and from `?repo=acme/w/tree/fix-%25C3%25A5` (the field
-  gets `fix-%C3%A5`, as a copied GitHub address holds it).
+  `fix-å`, as typed) and from `?repo=acme/w/tree/fix-%25C3%25A5` (the
+  field gets `fix-%C3%A5`, as a copied GitHub address holds it).
+- **No value.** A value that is empty, or holds only white space as the
+  field's own trim reads it, counts as no `repo` parameter. Since only
+  the first `repo` part counts, `?repo=&repo=acme/widgets` also gives no
+  value.
 
 #### What the page does with it
 
-- **(approved)** With a `repo` value, the page writes the value into the
-  Repository field (`#url-input`), as it is, and then does what pressing
-  "Open" does (3.1, `openFromField`). The requests, the token picked by
-  the owner (3.8), the messages, the opening guide and the results are
-  the same as for the same text typed and opened.
-  - An owner alone (`?repo=factoincognito`) shows that owner's repo list
-    in the guide's select, as "Open" with an owner alone does (3.1,
-    "Guided opening"); no project is loaded until a repo is chosen.
-  - A value the field refuses gives the field's own message, as "Open"
-    with that text would.
-- **When.** After `mount()`, the token store's start (3.8) and the first
-  render of the tokens, so a token saved for the owner is known before
-  the open. It happens once per page load.
-- **(approved)** Without a `repo` value, the page starts as before: the
-  field is empty and nothing is read.
+- **When.** Once per page load, after `mount()`, the token store's start
+  (3.8) and the first render of the tokens, so a token saved for the
+  owner is known before the open.
+- **(approved)** Without a value, the page starts as before: the field
+  is empty and nothing is read.
+- **(approved)** With a value, the page writes it into the Repository
+  field (`#url-input`) and then does what pressing "Open" does
+  (`openFromField`).
+- **The write is one of the page's own writes of the field** (3.1,
+  "Where other parts set or read the field"), as "Open in vizi" (3.9)
+  is. It fires no `input` event, so right after it the page updates the
+  token Owner prefill by the rule for typed text (3.8), and the opening
+  guide follows the field as after its other page writes: its last text
+  is the field's text, the `#guide-message` line is reserved by 3.1's
+  rule ("The opening guide's message line"), and the datalist is filled
+  from a list already kept, with no request. The open then reads the
+  field as it holds the value after the write (the browser strips line
+  breaks from a text field's value), so what opens is what the field
+  shows.
+- **The requests** are those of "Open" with that text in the field,
+  with no keystroke and no blur before it, so the opening guide makes no
+  request of its own before the open:
+  - an owner and a repo (`?repo=acme/widgets`): 3.1's request 1, request
+    2 and the requests 3, then 3.13's branch list;
+  - an owner and a repo with a branch, or a full GitHub address: the
+    same, without request 1 when a branch is named;
+  - **(approved)** an owner alone (`?repo=factoincognito`): the reads of
+    that owner's repo list (3.1, "When an owner's list is read"), and the
+    owner's repos in the guide's select, as "Open" with an owner alone
+    gives them; no project is loaded until a repo is chosen;
+  - a value the field refuses: no request, and the field's own message.
 - **The focus** is not moved: the page does not focus the field or
-  "Open". The field's `input` event is not fired; the owner prefill of
-  "Add a token" (3.8) is not filled from the address.
+  "Open" at startup.
 - **(approved) The page writes no address.** It does not change its own
   URL, add a history entry or set a hash, before or after the open.
   Opening another repository in the page, picking a branch (3.13) or
@@ -4857,73 +4897,130 @@ design within them.
   address may name another repository than the one shown. A reload opens
   what the address names.
 
+#### The rules on requests at startup
+
+Item 2's approved reading is that the web pack's no-external-requests
+rule covers what the page loads at startup, so that fetching a backlog
+after an address is typed is allowed (2.3; `RULES.md` L § 5 (1)). Item
+18 approves the open at startup from the page's address. Clead's reading,
+carrying out item 18 (product-office `RULES.md` § 3 (4)): the `repo`
+value is an address the user gives by opening the link, and the page
+treats it as typed. Without a `repo` value the page still loads only its
+own document at startup, which `e2e/smoke.e2e.ts` (it opens `/`) keeps
+checking, and that test stays as it is (L § 5 (2)). The build changes
+the texts that say "typed" or "enters", listed below. The change to
+`RULES.md` L § 5 (1) is a rules change, so the build PR gets a separate
+Crog agent's review besides the CI verdict (L § 4 (11)), as PBI-1.34's
+did.
+
 #### The help view
 
 - **(approved)** The help view (3.10) gets one paragraph after its last
   step and before the closing link: "To open a repo straight from a
   link, add `?repo=<owner>/<repo>` to vizi's address, for example
   `https://factoincognito.github.io/vizi/?repo=factoincognito/vizi`."
-  The two code parts are code (`c`); the rest is text. A test in
-  `src/help.test.ts` reads the example's `repo` value with the page's
-  own reader and checks that it is an owner and a repo.
+  The two code parts are code; the rest is text. It is not a step.
+- A test in `src/help.test.ts` reads the example's `repo` value with
+  `repoFromSearch` and the field's reader and checks that it is an owner
+  and a repo.
 
 #### Security and policy
 
 - **(approved)** A link can make the page open a private repository
-  with a token saved in that browser for its owner (3.8). Nothing new
-  is exposed: the content is shown only to that browser's user, the
-  token is sent only to GitHub, and the page stays read-only. A link
-  cannot carry a token: the address is never read for one.
-- **(approved)** No new kind of request. The open makes exactly the
+  with a token saved in that browser for its owner (3.8). The content is
+  shown only to that browser's user, the token is sent only to GitHub,
+  and the page stays read-only. A link cannot carry a token: the address
+  is never read for one.
+- One thing is new: a repository named in a link, a private one
+  included, sits in the page's address, so it is kept in the browser's
+  history (and its sync), in bookmarks, and in GitHub Pages' request
+  logs. A typed address is not (3.1 keeps the field's
+  `autocomplete="off"` for that reason).
+- **(approved)** No new kind of request: the open makes exactly the
   requests "Open" makes for the same text. The Content-Security-Policy
   (2.3) does not change; only the inline script's hash changes with the
   build.
 - Each page load with a `repo` value spends that open's requests against
-  GitHub's anonymous limit (section 4), as pressing "Open" does.
+  GitHub's anonymous limit (section 4), as pressing "Open" does. Any page
+  on the web can already spend that limit by calling `api.github.com`
+  itself.
+- The page sets no referrer policy, so the browser's default sends only
+  the origin to GitHub, never the `?repo=` value.
 
 #### What changes elsewhere at the build
 
+- `RULES.md` L § 5 (1): "fetching a backlog after the user types a
+  public GitHub repo's address is allowed" gains "or opens vizi with one
+  in the page's address (`docs/SPEC.md` 3.16)".
+- 2.3, Clead's paragraph: "after the user enters a URL" gains "or opens
+  the page with one in its address (3.16)", and "every such request
+  follows something the user typed" gains "or gave in the page's address
+  (3.16)". The approved sentence of item 2 is quoted as it was approved
+  and does not change.
+- 3.7, item 5: "after the user enters a URL (2.3)" gains "or opens the
+  page with one in its address (3.16)".
 - 3.1, "The field": "It starts empty, and the page never fills it at
-  startup" gains "except from the page's address (3.16)".
-- 3.10, "No address", and 3.13, "The address after picking": "does not
-  read its own address" gains "except the `repo` parameter at startup
-  (3.16)"; neither view nor a pick writes the address.
+  startup" gains "except from the page's address (3.16)"; and "Where
+  other parts set or read the field" gains the startup write of 3.16, a
+  page write that updates the Owner prefill and the opening guide as
+  above.
+- 3.10: "Nothing is added to or removed from the five steps and the
+  closing link" gains "except the paragraph of 3.16, between them"; its
+  "Static text in the built page" bullet and its list of browser tests
+  name the paragraph; and "No address" changes: the page reads its
+  address only for 3.16's `repo` parameter at startup, the view still
+  has no hash and no history entry, and a reload shows the start page
+  when the address has no `repo` value.
+- 3.13, "The address after picking": "the page does not read or write
+  its own URL" becomes "the page does not write its own URL, and reads
+  it only for 3.16's `repo` parameter at startup"; "vizi has no address
+  of its own to change" stays true.
 - `docs/BACKLOG-FORMAT.md` does not change.
 
 #### What changes in `src/` (no code here)
 
-- `src/main.ts`: a function, run once at startup after the tokens are
-  rendered, that reads the parameter and, with a value, sets the field
-  and calls `openFromField()`. The reading of the parameter is a pure
-  function in a module of its own (for example `src/address.ts`,
-  `repoFromSearch(search: string): string | null`), so it is unit-tested
-  without a page.
-- `src/help.ts`: the paragraph and its rendering in the help view.
+- `src/address.ts` (new): `repoFromSearch`, as "Reading the address"
+  sets out, with no DOM.
+- `src/main.ts`: one function, run once at startup after the tokens are
+  rendered, that reads `repoFromSearch(location.search)` and, with a
+  value, writes the field, updates the Owner prefill and the opening
+  guide as the other page writes do, and calls `openFromField()`.
+- `src/help.ts`: the paragraph, and its rendering in the help view.
 
 #### Tests
 
 Test first, as the web pack asks (`languages/web/code-standards.md`).
 
-- Unit (`repoFromSearch`): no search; `?repo=acme/widgets`; a second
-  `repo` ignored; other parameters ignored; an empty and a white-space
-  value give no value; `+` and `%20` decode to a space; `%25` decodes to
-  `%` once; a value with `/tree/<branch>`.
+- Unit (`repoFromSearch`): no search (`""` and `"?"`); `?repo=acme/widgets`;
+  a second `repo` ignored; `?repo=&repo=acme/widgets` gives no value;
+  other parameters ignored (`?x=1&repo=acme/widgets` gives the value);
+  `?repo` without `=` gives no value; `REPO` is another parameter; an
+  empty and a white-space value give no value; `+` and `%20` decode to a
+  space; `%25` decodes to `%` once; a value with `/tree/<branch>`; a raw
+  `&` ends the value (`?repo=acme/w/tree/a&b` gives `acme/w/tree/a`); a
+  malformed escape (`?repo=acme/w/tree/a%E0`) and a lone `%`
+  (`?repo=acme/w/tree/50%`) give the value undecoded.
 - Browser (Playwright, GitHub's answers stubbed as elsewhere):
-  - `?repo=acme/widgets` loads the project with the same requests, in
-    the same order, as typing `acme/widgets` and pressing Open, and the
-    field holds `acme/widgets`;
+  - `?repo=acme/widgets` makes 3.1's request 1, request 2 and the
+    requests 3, in that order, then 3.13's branch list, and no other
+    request; the project loads and the field holds `acme/widgets`;
   - `?repo=acme` shows the owner's repo list in the guide's select and
-    loads no project;
+    loads no project; the `#guide-message` line is reserved before the
+    list answers; typing `/` after it (`acme/`) keeps the select, as after
+    a typed `acme` and "Open";
+  - `?repo=acme/w/tree/a%E0` shows the field's branch message and makes
+    no request;
   - a refused value (`?repo=acme/widgets.git`) shows the field's message
     and makes no request;
   - no `repo` parameter: no request at startup, the field empty;
   - with a token saved for the owner, the open sends it, and only to
-    `api.github.com` and `raw.githubusercontent.com`;
+    `api.github.com` and `raw.githubusercontent.com`; the Owner prefill
+    holds the owner after the open;
   - the address is unchanged after the open and after opening another
     repo from the field (`location.href` and `history.length`);
   - the focus is on `document.body` after the startup open;
-  - the help view shows the new paragraph after the last step and
-    before the closing link.
+  - the help view shows the new paragraph after the last step and before
+    the closing link.
 - The load check in `e2e/smoke.e2e.ts` stays as it is (`RULES.md`
   L § 5 (2)).
 
