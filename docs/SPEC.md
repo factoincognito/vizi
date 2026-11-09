@@ -4145,8 +4145,11 @@ Clead's design, as the build reads the points above leave open:
   `entries`, `has`, `add` and `remove` read the stored value on every
   call and keep nothing in memory. `src/main.ts` draws the section from
   `entries()` after its own writes, and from the event's `newValue` on a
-  `storage` event; each entry's `li` carries its de-duplication key as
-  `data-key`, which the focus rule follows.
+  `storage` event of `vizi.savedRepos`, which the token code then does
+  not handle (an event whose `key` is null, all of storage cleared,
+  empties the list and goes on to the tokens, 3.8); each entry's `li`
+  carries its de-duplication key as `data-key`, which the focus rule
+  follows.
 - **Cleaning.** Entries are read in order; one that breaks the rules or
   repeats an earlier one is dropped, and the first 50 that remain are
   kept. At startup the value is written back when the cleaned entries,
@@ -4164,17 +4167,23 @@ Clead's design, as the build reads the points above leave open:
   and leaves the results as they are.
 - **"×" refused by storage.** 3.14 gives a message for "Save" only. A
   removal whose write the browser refuses changes nothing and writes no
-  message; the list, drawn from storage, still shows the entry.
+  message; the list, drawn from storage, still shows the entry, and the
+  focus is put on that entry's "×".
 - **The layout.** "Save" is the next sibling of `#project-name` in
   `#results`, before `#branch-picker`. On desktop the heading is an
-  inline block and "Save" sits after it on the same line, centred on
-  it; on a phone both are blocks and "Save" is under the heading at the
-  full width, 44 px high. The `h2` "Open a project from GitHub" has
-  `tabindex="-1"` for the focus rule of "Removing an entry".
-- **The focus when an entry goes.** The entry that took its place is
-  the one now at the removed entry's position, or the last entry when
-  that position is past the end, both for "×" and for a removal in
-  another tab.
+  inline block with no vertical margin and "Save" sits after it on the
+  same line, centred on it; on a phone both are blocks, the heading 8 px
+  above "Save", which is at the full width, 44 px high. At both widths
+  `#branch-picker` starts 12 px under the lower of the two. The `h2`
+  "Open a project from GitHub" has `tabindex="-1"` for the focus rule
+  of "Removing an entry".
+- **The focus when an entry goes.** "×" gives the removed entry's key
+  and its position in the list as drawn, so where the focus goes does
+  not depend on whether the click focused the button (WebKit does not
+  focus a button on a click). The entry that took its place is the one
+  now at that position, or the last entry when that position is past the
+  end. A removal in another tab moves the focus by the same rule, and
+  only when the focus was on that entry's buttons.
 - **Tests.** `src/saved.test.ts`, `e2e/saved.e2e.ts`, and one test in
   `e2e/csp.e2e.ts`. Two tests of earlier items change with the new
   elements: 3.13's order of `#results` (`e2e/branches.e2e.ts`) has

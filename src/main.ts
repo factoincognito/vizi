@@ -1464,45 +1464,71 @@ function savedEntry(entry: SavedRepo): HTMLElement {
     },
     h("span", { "aria-hidden": "true" }, "×"),
   );
-  remove.addEventListener("click", () => {
-    savedRepos.remove(entry);
-    renderSaved();
-  });
-  return h(
+  const li = h(
     "li",
     { class: "saved-row", "data-testid": "saved-entry", "data-key": savedKey(entry) },
     open,
     remove,
   );
+  // "×" names its entry and position itself, so where the focus goes does not depend on whether
+  // the click focused the button (WebKit does not focus a button on a click) (3.14).
+  remove.addEventListener("click", () => {
+    const index = savedRows().indexOf(li);
+    savedRepos.remove(entry);
+    renderSaved(savedRepos.entries(), { key: savedKey(entry), index });
+  });
+  return li;
+}
+
+/** The entries' rows as drawn. */
+function savedRows(): HTMLElement[] {
+  return [...must("saved-list").children].filter((r): r is HTMLElement => r instanceof HTMLElement);
+}
+
+/**
+ * The focus after an entry was removed, or its removal refused: on the
+ * entry's "×" while the entry is still listed; otherwise on the open button
+ * of the entry that took its place, or of the one before it when it was the
+ * last, or on the address section's heading when the list is empty (3.14).
+ */
+function focusAfterRemoval(key: string, index: number): void {
+  const now = savedRows();
+  const same = now.find((r) => r.dataset.key === key);
+  if (same) {
+    same.querySelector<HTMLElement>("[data-testid=saved-remove]")?.focus();
+    return;
+  }
+  const next = now[Math.min(index, now.length - 1)];
+  (
+    next?.querySelector<HTMLElement>("[data-testid=saved-open]") ?? must("open-project-title")
+  ).focus();
 }
 
 /**
  * Draws the list from what is stored (or from a `storage` event's new
- * value), and "Save" with it. The focus stays on the same control of the
- * same entry; when that entry is gone, it moves to the open button of the
- * entry that took its place, or of the one before it when it was the last,
- * or to the address section's heading when the list is empty (3.14).
+ * value), and "Save" with it. After "×", `removal` names the entry and its
+ * position, and the focus follows `focusAfterRemoval`. Otherwise the focus
+ * stays on the same control of the same entry, and moves as after a removal
+ * only when it was on an entry that is gone (another tab removed it).
  */
-function renderSaved(list: readonly SavedRepo[] = savedRepos.entries()): void {
-  const ul = must("saved-list");
+function renderSaved(
+  list: readonly SavedRepo[] = savedRepos.entries(),
+  removal: { key: string; index: number } | null = null,
+): void {
   const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const activeKey = active?.closest<HTMLElement>("[data-testid=saved-entry]")?.dataset.key;
-  const rows = () => [...ul.children].filter((r): r is HTMLElement => r instanceof HTMLElement);
-  const oldIndex = rows().findIndex((r) => r.dataset.key === activeKey);
-  ul.replaceChildren(...list.map(savedEntry));
+  const oldIndex = savedRows().findIndex((r) => r.dataset.key === activeKey);
+  must("saved-list").replaceChildren(...list.map(savedEntry));
   must("saved-repos").hidden = list.length === 0;
   renderSaveButton(list);
-  if (activeKey === undefined || !active) return;
-  const now = rows();
-  const same = now.find((r) => r.dataset.key === activeKey);
-  if (same) {
-    same.querySelector<HTMLElement>(`[data-testid="${active.dataset.testid}"]`)?.focus();
+  if (removal !== null) {
+    focusAfterRemoval(removal.key, removal.index);
     return;
   }
-  const next = now[Math.min(oldIndex, now.length - 1)];
-  (
-    next?.querySelector<HTMLElement>("[data-testid=saved-open]") ?? must("open-project-title")
-  ).focus();
+  if (activeKey === undefined || !active) return;
+  const same = savedRows().find((r) => r.dataset.key === activeKey);
+  if (same) same.querySelector<HTMLElement>(`[data-testid="${active.dataset.testid}"]`)?.focus();
+  else focusAfterRemoval(activeKey, oldIndex);
 }
 
 /** The section (3.14): its heading and the list, hidden while the list is empty. */
@@ -2007,9 +2033,13 @@ openFromAddress();
 // Another open tab saved, forgot or removed tokens (3.8), or saved repos (3.14). Following an event never writes to storage.
 window.addEventListener("storage", (event) => {
   if (storage === null || (event.storageArea !== null && event.storageArea !== storage)) return;
-  // The list is drawn from the event's new value; a removed key or cleared storage holds no entry (3.14).
-  if (event.key === null || event.key === SAVED_KEY)
-    renderSaved(readSaved(event.key === null ? null : event.newValue));
+  // The list is drawn from the event's new value (3.14); an event of its key is about nothing else.
+  if (event.key === SAVED_KEY) {
+    renderSaved(readSaved(event.newValue));
+    return;
+  }
+  // Cleared storage: no entry, and the tokens follow below (3.8).
+  if (event.key === null) renderSaved([]);
   const outcome = tokens.onStorage(event.key, event.oldValue, event.newValue);
   renderTokens();
   if (outcome.allForgotten) {
