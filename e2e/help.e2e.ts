@@ -9,7 +9,14 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { test as base, expect, type Page, type Route } from "@playwright/test";
-import { CLOSING_LINK, HELP_STEPS, HELP_TITLE, plainText, READ_ONLY_SENTENCE } from "../src/help";
+import {
+  CLOSING_LINK,
+  HELP_STEPS,
+  HELP_TITLE,
+  plainText,
+  READ_ONLY_SENTENCE,
+  REPO_LINK_HELP,
+} from "../src/help";
 import { isAllowedRequest } from "./guard";
 import { branchesUrl, branchListRead } from "./picker";
 
@@ -265,6 +272,28 @@ test.describe("the view's structure and text (3.10)", () => {
       );
       await expect(li.locator(":scope > p code")).toHaveText(code);
     }
+  });
+
+  test("the paragraph of 3.16 is after the last step and before the closing link, with its code parts as code; it is not a step", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await openView(page);
+    const paragraph = page.locator("#help-repo-link");
+    await expect(paragraph).toHaveText(plainText(REPO_LINK_HELP));
+    await expect(paragraph.locator("code")).toHaveText(
+      REPO_LINK_HELP.filter((p) => p.kind === "code").map((p) => p.text),
+    );
+    // Order in the view: the ordered list of steps, then this paragraph, then the closing link's paragraph.
+    expect(
+      await paragraph.evaluate((p) => [
+        p.tagName,
+        p.closest("ol") === null,
+        p.previousElementSibling?.tagName,
+        Boolean(p.nextElementSibling?.querySelector("#help-format-link")),
+      ]),
+    ).toEqual(["P", true, "OL", true]);
+    await expect(page.locator("#help ol > li")).toHaveCount(5);
   });
 
   test("every example block takes the focus, is a region and has a name naming its step", async ({
@@ -577,6 +606,8 @@ test.describe("the help view and the page's rules (2.3, 3.10)", () => {
         if (line.trim() !== "") expect(decoded, line).toContain(line);
       }
     }
+    // The paragraph of 3.16, as its parts.
+    for (const part of REPO_LINK_HELP) expect(decoded, part.text).toContain(part.text);
     expect(html).not.toMatch(/github_pat_[A-Za-z0-9_]{10,}/);
     expect(html).not.toMatch(/ghp_[A-Za-z0-9]{20,}/);
     expect(decoded).not.toMatch(/github_pat_[A-Za-z0-9_]{10,}/);

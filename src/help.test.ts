@@ -5,9 +5,11 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { repoFromSearch } from "./address";
 import { parse as parseBacklog, RECOMMENDED_MARKERS } from "./backlog";
 import { boardColumns } from "./board";
-import { BACKLOG_PATHS } from "./github";
+import { BACKLOG_PATHS, readRepository } from "./github";
+import { readGuideText } from "./guide";
 import {
   CLOSING_LINK,
   COLUMN_MARKERS,
@@ -20,6 +22,8 @@ import {
   PROJECTS_EXAMPLE,
   plainText,
   READ_ONLY_SENTENCE,
+  REPO_LINK_EXAMPLE,
+  REPO_LINK_HELP,
   STATUS_EXAMPLE,
   TOKEN_EXAMPLE,
   UMBRELLA_HELP,
@@ -30,7 +34,13 @@ import { parseToken } from "./token";
 
 /** Every piece of text the view shows, as data. */
 function allText(): string[] {
-  const out = [HELP_TITLE, READ_ONLY_SENTENCE, plainText(CLOSING_LINK.label), CLOSING_LINK.href];
+  const out = [
+    HELP_TITLE,
+    READ_ONLY_SENTENCE,
+    plainText(REPO_LINK_HELP),
+    plainText(CLOSING_LINK.label),
+    CLOSING_LINK.href,
+  ];
   for (const step of HELP_STEPS) {
     out.push(plainText(step.title), step.example, ...step.paragraphs.map(plainText));
   }
@@ -75,6 +85,7 @@ describe("the help view's text (3.10)", () => {
   test("a paragraph is a list of parts, each plain text or code, and none is empty", () => {
     for (const p of [
       ...HELP_STEPS.flatMap((s) => [s.title, ...s.paragraphs]),
+      REPO_LINK_HELP,
       CLOSING_LINK.label,
     ]) {
       expect(p.length).toBeGreaterThan(0);
@@ -99,6 +110,7 @@ describe("the help view's text (3.10)", () => {
   test("no code part starts or ends with a space, so none is hard to see", () => {
     for (const p of [
       ...HELP_STEPS.flatMap((s) => [s.title, ...s.paragraphs]),
+      REPO_LINK_HELP,
       CLOSING_LINK.label,
     ]) {
       for (const part of p.filter((x) => x.kind === "code")) {
@@ -371,6 +383,40 @@ describe("no local folder in the help (3.11)", () => {
   test("nor does the module's source", () => {
     const source = readFileSync(join(__dirname, "help.ts"), "utf8").toLowerCase();
     for (const words of FOLDER_WORDS) expect(source).not.toContain(words);
+  });
+});
+
+describe("the paragraph on opening a repo from a link (3.16)", () => {
+  test("its words are those of 3.16, word for word, with its two code parts as code", () => {
+    expect(plainText(REPO_LINK_HELP)).toBe(
+      "To open a repo straight from a link, add ?repo=<owner>/<repo> to vizi's address, for example https://factoincognito.github.io/vizi/?repo=factoincognito/vizi.",
+    );
+    expect(REPO_LINK_HELP.filter((p) => p.kind === "code").map((p) => p.text)).toEqual([
+      "?repo=<owner>/<repo>",
+      REPO_LINK_EXAMPLE,
+    ]);
+    expect(REPO_LINK_EXAMPLE).toBe(
+      "https://factoincognito.github.io/vizi/?repo=factoincognito/vizi",
+    );
+  });
+
+  test("its example's repo value, read by repoFromSearch and the field's reader, is an owner and a repo", () => {
+    const value = repoFromSearch(new URL(REPO_LINK_EXAMPLE).search);
+    expect(value).toBe("factoincognito/vizi");
+    expect(readRepository(value ?? "")).toEqual({
+      ok: true,
+      ref: { owner: "factoincognito", repo: "vizi", branch: null },
+    });
+    expect(readGuideText(value ?? "")).toEqual({
+      kind: "repo",
+      owner: "factoincognito",
+      repo: "vizi",
+    });
+  });
+
+  test("it is not a step: the five steps stay five", () => {
+    expect(HELP_STEPS).toHaveLength(5);
+    for (const step of HELP_STEPS) expect(step.paragraphs).not.toContain(REPO_LINK_HELP);
   });
 });
 
