@@ -291,6 +291,8 @@ project's documentation.
   an owner's repo list and a repo's branches (3.1; PBI-1.19).
 - Added on 2026-11-07: the include keyword, by which a backlog file
   names another file vizi reads too (3.15; product-office PO-105).
+- Added on 2026-11-09: the repository to open given in the page's
+  address, `?repo=<owner>/<repo>` (3.16; PBI-1.35).
 
 Not decided: a lint mode beyond the page's report (Clead's suggestion,
 which the product owner found worth considering). The parser is
@@ -403,8 +405,8 @@ tokens"); no token is ever in it.
 The pack's standards say: "No CDN scripts, web fonts, images or other
 external requests." Reading a GitHub URL is an external request. The
 pack's browser test (`e2e/smoke.e2e.ts`) checks only what the page
-requests while it loads, so a request made after the user enters a URL
-passes it.
+requests while it loads, so a request made after the user enters a URL,
+or opens the page with one in its address (3.16), passes it.
 
 **(approved)** vizi reads the rule as covering what the page loads at
 startup: fetching a backlog after an address is typed is allowed.
@@ -429,8 +431,9 @@ the backlog file that load read
 include lines are the one exception, decided by the product owner on
 2026-11-07 01:05 (3.15, decided point 7). The browser tests stub GitHub's answers with
 Playwright routes, so no test reaches the network. Publishing on GitHub
-Pages (2.2) does not change this reading: what the page loads at startup
-is still only its own document.
+Pages (2.2) does not change this reading: what the page loads at startup,
+without a `repo` value in its address (3.16), is still only its own
+document.
 
 **Content-Security-Policy.** Clead's design.
 
@@ -1099,7 +1102,8 @@ changes none of its reading rules, with one exception, an owner alone
   above), and no space while the field is empty or holds text that is
   not guided. The space is added or removed only on `input` events and
   on the page's own writes of the field (a repo chosen in the opening
-  guide's select, "Open in vizi"), by the same rule, never on a blur, a
+  guide's select, "Open in vizi", the startup write from the page's
+  address of 3.16), by the same rule, never on a blur, a
   focus, a read starting or a read answering, so a blur that writes a
   one-line message, such as "Reading…" or "Choose one…", moves nothing
   below the address row; a longer outcome may move content when it
@@ -3619,7 +3623,7 @@ accept.
 #### The address after picking
 
 - vizi has no address of its own to change: the page does not write its
-  own URL, and reads it only for 3.16's `repo` parameter at startup,
+  own URL, and reads it only for 3.16's `repo` parameter at startup; it
   keeps no history (3.9, 3.10), and a pick adds no history entry and no
   hash.
 - The address field is left as it is (it is PBI-1.17's, and the picker
@@ -4983,8 +4987,12 @@ did.
 - 2.3, Clead's paragraph: "after the user enters a URL" gains "or opens
   the page with one in its address (3.16)", and "every such request
   follows something the user typed" gains "or gave in the page's address
-  (3.16)". The approved sentence of item 2 is quoted as it was approved
-  and does not change.
+  (3.16)"; its last sentence, "what the page loads at startup is still
+  only its own document", gains "without a `repo` value in its address
+  (3.16)". 2.3's first paragraph: "a request made after the user enters a
+  URL" gains "or opens the page with one in its address (3.16)". The
+  approved sentence of item 2 is quoted as it was approved and does not
+  change.
 - 3.7, item 5: "after the user enters a URL (2.3)" gains "or opens the
   page with one in its address (3.16)".
 - 3.1, "The field": "It starts empty, and the page never fills it at
@@ -5043,9 +5051,11 @@ Test first, as the web pack asks (`languages/web/code-standards.md`).
   - a refused value (`?repo=acme/widgets.git`) shows the field's message
     and makes no request;
   - no `repo` parameter: no request at startup, the field empty;
-  - with a token saved for the owner, the open sends it, and only to
-    `api.github.com` and `raw.githubusercontent.com`; the Owner prefill
-    holds the owner after the open;
+  - with a token saved for the owner, the open sends it with every
+    request, and every request goes to `api.github.com` (with a token,
+    3.8 reads request 3 through the contents API, and none goes to
+    `raw.githubusercontent.com`); the Owner prefill holds the owner after
+    the open;
   - the address is unchanged after the open and after opening another
     repo from the field (`location.href` and `history.length`);
   - the focus is on `document.body` after the startup open;

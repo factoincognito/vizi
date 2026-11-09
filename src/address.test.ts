@@ -114,7 +114,7 @@ describe("repoFromSearch: decoding (3.16)", () => {
     expect(repoFromSearch("?repo=acme/w/tree/50%")).toBe("acme/w/tree/50%");
   });
 
-  test("no U+FFFD ever comes from decoding", () => {
+  test("no U+FFFD comes from a malformed escape", () => {
     for (const s of ["?repo=acme/w/tree/a%E0", "?repo=acme/w/tree/a%C3", "?repo=a%ED%A0%80"]) {
       expect(repoFromSearch(s)).not.toContain("�");
     }
@@ -137,8 +137,12 @@ describe("what the field makes of the value (3.16, 3.1)", () => {
     }
   });
 
-  test("%23 in a link's branch reaches the field as #, which it refuses", () => {
-    const read = readRepository(repoFromSearch("?repo=acme/w/tree/a%23b") ?? "");
+  test("%23 in a link's branch reaches the field as #, which it refuses as a typed # is", () => {
+    const value = repoFromSearch("?repo=acme/w/tree/a%23b") ?? "";
+    expect(value).toBe("acme/w/tree/a#b");
+    const read = readRepository(value);
     expect(read.ok).toBe(false);
+    if (!read.ok) expect(read.reason).toBe("form");
+    expect(read).toEqual(readRepository("acme/w/tree/a#b"));
   });
 });
