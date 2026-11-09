@@ -271,6 +271,10 @@ test.describe("Save (3.14)", () => {
       expect(b.y).toBeLessThan(h.y + h.height);
       expect(Math.round(b.height)).toBe(40);
     }
+    // The same gap above the branch picker at both widths: 12 px under the lower of the heading and "Save".
+    const picker = await page.locator("#branch-picker").boundingBox();
+    if (!picker) throw new Error("no box");
+    expect(Math.round(picker.y - Math.max(h.y + h.height, b.y + b.height))).toBe(12);
   });
 
   test("a load of the default branch saves null; a /tree/<branch> address and a pick save the branch; the same repo with two branches is two entries", async ({
@@ -504,6 +508,58 @@ test.describe("opening an entry (3.14)", () => {
 });
 
 test.describe("removing an entry (3.14)", () => {
+  test("× with the focus elsewhere (a click that does not focus the button, as WebKit's): the focus still moves to the next entry, the one before, then the heading", async ({
+    page,
+  }) => {
+    await plant(page, { repos: [e("a"), e("b"), e("c")] });
+    const field = page.locator("#url-input");
+    await field.focus();
+    await removeOf(page, 1).dispatchEvent("click");
+    await expect(entries(page)).toHaveCount(2);
+    expect(await focused(page)).toBe("saved-open@acme/c!");
+    await field.focus();
+    await removeOf(page, 1).dispatchEvent("click");
+    await expect(entries(page)).toHaveCount(1);
+    expect(await focused(page)).toBe("saved-open@acme/a!");
+    await field.focus();
+    await removeOf(page, 0).dispatchEvent("click");
+    await expect(section(page)).toBeHidden();
+    expect(await focused(page)).toBe("open-project-title");
+  });
+
+  test("× refused by storage: the entry stays listed, no message, and the focus is on that entry's ×, also when the click did not focus it", async ({
+    page,
+  }) => {
+    await plant(page, { repos: [e("a"), e("b")] });
+    await page.addInitScript((k) => {
+      const set = Storage.prototype.setItem;
+      const remove = Storage.prototype.removeItem;
+      Storage.prototype.setItem = function (key: string, value: string) {
+        if (key === k) throw new DOMException("refused", "QuotaExceededError");
+        return set.call(this, key, value);
+      };
+      Storage.prototype.removeItem = function (key: string) {
+        if (key === k) throw new DOMException("refused", "SecurityError");
+        return remove.call(this, key);
+      };
+    }, KEY);
+    await page.reload();
+    await expect(entries(page)).toHaveCount(2);
+    const raw = await storedRaw(page);
+    await removeOf(page, 0).click();
+    await settle(page);
+    await expect(entries(page)).toHaveCount(2);
+    await expect(page.locator("#message")).toHaveText("");
+    expect(await focused(page)).toBe("saved-remove@acme/a!");
+    await page.locator("#url-input").focus();
+    await removeOf(page, 1).dispatchEvent("click");
+    await settle(page);
+    await expect(entries(page)).toHaveCount(2);
+    await expect(page.locator("#message")).toHaveText("");
+    expect(await focused(page)).toBe("saved-remove@acme/b!");
+    expect(await storedRaw(page)).toBe(raw);
+  });
+
   test("× removes the entry and leaves the results; Save reads Save again; the focus moves to the next entry, the one before, then the heading", async ({
     page,
     context,

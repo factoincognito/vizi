@@ -292,6 +292,37 @@ describe("the store (3.14)", () => {
     expect(b.entries()).toEqual([entry("acme", "z"), entry("acme", "y")]);
   });
 
+  test("a removal whose setItem throws: false, and the stored value unchanged", () => {
+    const { storage, data } = memoryStorage();
+    createSavedStore(storage).add(entry("acme", "a"));
+    createSavedStore(storage).add(entry("acme", "b"));
+    const before = data.get(SAVED_KEY);
+    const store = createSavedStore({
+      ...storage,
+      setItem: () => {
+        throw new Error("QuotaExceededError");
+      },
+    });
+    expect(store.remove(entry("acme", "a"))).toBe(false);
+    expect(data.get(SAVED_KEY)).toBe(before);
+    expect(store.entries()).toEqual([entry("acme", "b"), entry("acme", "a")]);
+  });
+
+  test("a removal of the last entry whose removeItem throws: false, and the stored value unchanged", () => {
+    const { storage, data } = memoryStorage();
+    createSavedStore(storage).add(entry("acme", "a"));
+    const before = data.get(SAVED_KEY);
+    const store = createSavedStore({
+      ...storage,
+      removeItem: () => {
+        throw new Error("SecurityError");
+      },
+    });
+    expect(store.remove(entry("acme", "a"))).toBe(false);
+    expect(data.get(SAVED_KEY)).toBe(before);
+    expect(store.entries()).toEqual([entry("acme", "a")]);
+  });
+
   test("storage that throws on writing: nothing saved, the refusal returned", () => {
     const { storage, data } = memoryStorage();
     const store = createSavedStore({
