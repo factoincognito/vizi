@@ -212,6 +212,32 @@ test.describe("the browser enforces it", () => {
     expect(problems).toEqual([]);
   });
 
+  test("the Saved repos list shown with entries: no violation and no console error (3.14)", async ({
+    page,
+  }) => {
+    const problems: string[] = [];
+    page.on("console", (m) => m.type() === "error" && problems.push(m.text()));
+    page.on("pageerror", (e) => problems.push(e.message));
+    const violations = await watchViolations(page);
+    await page.goto("/");
+    await page.evaluate(() =>
+      localStorage.setItem(
+        "vizi.savedRepos",
+        JSON.stringify({
+          repos: [
+            { owner: "acme", repo: "widgets", branch: null },
+            { owner: "acme", repo: "plain", branch: "<img/src=x/onerror=window.__pwned=1>" },
+          ],
+        }),
+      ),
+    );
+    await page.reload();
+    await expect(page.getByTestId("saved-entry")).toHaveCount(2);
+    await expect(page.locator("#saved-repos")).toBeVisible();
+    expect(await violations()).toEqual([]);
+    expect(problems).toEqual([]);
+  });
+
   test("included entries shown, markup in an included description as text: no violation and no console error (3.15)", async ({
     page,
   }) => {

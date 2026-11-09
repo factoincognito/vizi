@@ -226,7 +226,8 @@ test.describe("the view's structure and text (3.10)", () => {
     expect(tags).toEqual(["H1", "H2", "H3", "H3", "H3", "H3", "H3"]);
     // The start page's other headings are all in the hidden wrapper, so none is read while the view
     // is open: the h2 "Open a project from GitHub", the panel's h2 and its h3 "Add a token" (3.10,
-    // "Accessibility", as 3.12 changes it; its list leaves out the new h2, which is there too).
+    // "Accessibility", as 3.12 changes it; its list leaves out the new h2, which is there too), and
+    // the h2 "Saved repos" of 3.14, there whether or not its section is shown.
     const hidden = await page.evaluate(() => {
       const start = document.getElementById("start");
       return [...document.querySelectorAll("h2, h3")]
@@ -235,6 +236,7 @@ test.describe("the view's structure and text (3.10)", () => {
     });
     expect(hidden).toEqual([
       ["open-project-title", "H2", true, true],
+      ["saved-repos-title", "H2", true, true],
       ["private-repos-title", "H2", true, true],
       ["token-add-title", "H3", true, true],
       ["project-name", "H2", true, true],
