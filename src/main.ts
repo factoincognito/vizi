@@ -4,6 +4,7 @@
  * built with calls that set text; no source text is ever inserted as HTML
  * (docs/SPEC.md 3.7).
  */
+import { repoFromSearch } from "./address";
 import type { BacklogEntry, ReportItem } from "./backlog";
 import { boardColumns, descriptionForDisplay, listSections } from "./board";
 import {
@@ -46,6 +47,7 @@ import {
   type Paragraph,
   plainText,
   READ_ONLY_SENTENCE,
+  REPO_LINK_HELP,
   UMBRELLA_HELP,
 } from "./help";
 import { type Backlog, type IncludedFile, readBacklog } from "./include";
@@ -1352,6 +1354,8 @@ function mountHelp(
     title,
     h("p", { id: "help-read-only" }, READ_ONLY_SENTENCE),
     steps,
+    // How to open a repo from a link: after the last step, before the closing link, not a step (3.16).
+    h("p", { id: "help-repo-link" }, ...helpParts(REPO_LINK_HELP)),
     h("p", {}, formatLink),
     back("help-back-end"),
   );
@@ -1700,6 +1704,22 @@ function openFromField(): void {
   void openUrl(urlField().value);
 }
 
+/**
+ * The repository named in the page's address (3.16): once at startup, after
+ * the tokens are known, the `repo` value is written into the field, as one of
+ * the page's own writes (the Owner prefill and the opening guide follow it, as
+ * after "Open in vizi"), and opened as "Open" opens it. Without a value
+ * nothing happens. The page never writes its own address, and moves no focus.
+ */
+function openFromAddress(): void {
+  const value = repoFromSearch(location.search);
+  if (value === null) return;
+  urlField().value = value;
+  fillOwnerFromAddress();
+  guideFieldWritten();
+  openFromField();
+}
+
 /** A token change for the owner (null: all): its kept list and running reads go, and so does what the guide shows of it. */
 function guideTokenChanged(owner: string | null): void {
   ownerLists.tokenChanged(owner);
@@ -1863,6 +1883,8 @@ function mount(): void {
 mount();
 tokens.start();
 renderTokens();
+// After the tokens are known, so a token saved for the address's owner is used (3.16).
+openFromAddress();
 // Another open tab saved, forgot or removed tokens (3.8). Following an event never writes to storage.
 window.addEventListener("storage", (event) => {
   if (storage === null || (event.storageArea !== null && event.storageArea !== storage)) return;

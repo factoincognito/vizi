@@ -238,6 +238,21 @@ export const UMBRELLA_HELP: Paragraph = [
   t("."),
 ];
 
+/** The example link of the paragraph below: vizi's address with a `repo` parameter (docs/SPEC.md 3.16). */
+export const REPO_LINK_EXAMPLE = "https://factoincognito.github.io/vizi/?repo=factoincognito/vizi";
+
+/**
+ * After the last step and before the closing link, not a step: how to open a
+ * repo straight from a link (docs/SPEC.md 3.16, "The help view"), word for word.
+ */
+export const REPO_LINK_HELP: Paragraph = [
+  t("To open a repo straight from a link, add "),
+  c("?repo=<owner>/<repo>"),
+  t(" to vizi's address, for example "),
+  c(REPO_LINK_EXAMPLE),
+  t("."),
+];
+
 /** After the steps, outside them: the format spec on GitHub (docs/SPEC.md 3.10). */
 export const CLOSING_LINK: { href: string; label: Paragraph } = {
   href: "https://github.com/factoincognito/vizi/blob/main/docs/BACKLOG-FORMAT.md",
