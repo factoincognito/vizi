@@ -291,6 +291,8 @@ project's documentation.
   an owner's repo list and a repo's branches (3.1; PBI-1.19).
 - Added on 2026-11-07: the include keyword, by which a backlog file
   names another file vizi reads too (3.15; product-office PO-105).
+- Added on 2026-11-09: the repository to open given in the page's
+  address, `?repo=<owner>/<repo>` (3.16; PBI-1.35).
 
 Not decided: a lint mode beyond the page's report (Clead's suggestion,
 which the product owner found worth considering). The parser is
@@ -403,8 +405,8 @@ tokens"); no token is ever in it.
 The pack's standards say: "No CDN scripts, web fonts, images or other
 external requests." Reading a GitHub URL is an external request. The
 pack's browser test (`e2e/smoke.e2e.ts`) checks only what the page
-requests while it loads, so a request made after the user enters a URL
-passes it.
+requests while it loads, so a request made after the user enters a URL,
+or opens the page with one in its address (3.16), passes it.
 
 **(approved)** vizi reads the rule as covering what the page loads at
 startup: fetching a backlog after an address is typed is allowed.
@@ -412,22 +414,26 @@ startup: fetching a backlog after an address is typed is allowed.
 
 Clead's design: the load check stays as it is. The only requests the
 page ever makes are the GitHub requests of 3.1, after the user enters a
-URL, and, from PBI-1.15, the branch list of 3.13 after such a load, also
+URL or opens the page with one in its address (3.16), and, from
+PBI-1.15, the branch list of 3.13 after such a load, also
 to `api.github.com`. From PBI-1.19 the opening guide of 3.1 ("Guided
 opening") also reads an owner's repo list and a repo's branches, from
 `api.github.com` only, while the user types in, leaves or submits the
-Repository field, before or with the load. From PBI-1.34 a load also
+Repository field, or opens the page with an owner alone in its address
+(3.16), before or with the load. From PBI-1.34 a load also
 reads, with one more request 3 each, the files its backlog file includes
 (3.15), at most five, from the same repo and branch on the same two
 hosts. The approved reading still holds: it covers what the page loads
-at startup, and every such request follows something the user typed,
-or is named by an include line of the backlog file that load read
+at startup, and every such request follows something the user typed
+or gave in the page's address (3.16), or is named by an include line of
+the backlog file that load read
 (3.15). Content the page shows never makes a request of its own (3.7);
 include lines are the one exception, decided by the product owner on
 2026-11-07 01:05 (3.15, decided point 7). The browser tests stub GitHub's answers with
 Playwright routes, so no test reaches the network. Publishing on GitHub
-Pages (2.2) does not change this reading: what the page loads at startup
-is still only its own document.
+Pages (2.2) does not change this reading: what the page loads at startup,
+without a `repo` value in its address (3.16), is still only its own
+document.
 
 **Content-Security-Policy.** Clead's design.
 
@@ -590,7 +596,8 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
   - Its label, a `<label for="url-input">`, reads "Repository".
   - Its placeholder reads "<owner>/<repo>" (the product owner's
     decision of 21:01, item 14).
-  - It starts empty, and the page never fills it at startup.
+  - It starts empty, and the page never fills it at startup, except
+    from the page's address (3.16).
   - Placement before PBI-1.16: where today's label "Public GitHub repo"
     is, which it replaces. From PBI-1.16 (3.12): under the section's
     heading `h2` "Open a project from GitHub", the label "Repository"
@@ -711,6 +718,13 @@ above from PBI-1.17. It is built after PBI-1.14 and before PBI-1.16
     text. For an owner alone (`acme`), which the one reader refuses, the
     Owner prefill fills nothing, as today; it fills the owner once a
     repo is in the field.
+  - From PBI-1.35 the page writes the `repo` value of its own address
+    into the field once at startup (3.16). It is one of the page's own
+    writes, as "Open in vizi" is: it fires no `input` event, so right
+    after it the page updates the Owner prefill by the rule for typed
+    text (3.8) and the opening guide follows the field as after its
+    other page writes; then the page opens the field's text as "Open"
+    does.
 - **One reader.** `src/github.ts` exports one function that reads the
   field's text into a reference, used for submitting the form, for the
   Owner prefill, and, from PBI-1.19, by the opening guide for its
@@ -1088,7 +1102,8 @@ changes none of its reading rules, with one exception, an owner alone
   above), and no space while the field is empty or holds text that is
   not guided. The space is added or removed only on `input` events and
   on the page's own writes of the field (a repo chosen in the opening
-  guide's select, "Open in vizi"), by the same rule, never on a blur, a
+  guide's select, "Open in vizi", the startup write from the page's
+  address of 3.16), by the same rule, never on a blur, a
   focus, a read starting or a read answering, so a blur that writes a
   one-line message, such as "Reading…" or "Choose one…", moves nothing
   below the address row; a longer outcome may move content when it
@@ -1538,10 +1553,12 @@ the tests check:
    line of the backlog file (3.15), which the product owner decided on
    2026-11-07 01:05: it names a file of the same repo and branch that
    the load reads. The page's only requests are those of 3.1, after the
-   user enters a URL (2.3), the included files among them (3.15, at
+   user enters a URL (2.3) or opens the page with one in its address
+   (3.16), the included files among them (3.15, at
    most five a load), with the branch list of 3.13 and, from PBI-1.19,
    the opening guide's reads of 3.1 ("Guided opening") while the user
-   types in, leaves or submits the Repository field.
+   types in, leaves or submits the Repository field, or opens the page
+   with an owner alone in its address (3.16).
 
 Tests for it include, at least: `<script>` and `<img src=x onerror=…>`
 in a description (shown as text, nothing runs); a link to
@@ -2213,7 +2230,9 @@ A link at the end to `docs/BACKLOG-FORMAT.md` on GitHub. The text ships
 in the page. A test checks that its examples read as stated.
 
 Clead's design, within that intent. Nothing is added to or removed from
-the five steps and the closing link. The link is not a sixth step.
+the five steps and the closing link, except the paragraph of 3.16,
+between them. The link is not a sixth step, and neither is that
+paragraph.
 
 - **Opening and closing.**
   - In the page's `<header>`, at the right of the `h1` "vizi backlog
@@ -2246,14 +2265,19 @@ the five steps and the closing link. The link is not a sixth step.
     moves to the control, which is shown again by then. Escape with the
     view closed does nothing.
   - **No address.** The view has no hash and no history entry. The page
-    keeps no history (3.9) and does not read its own address, so the view
-    would have nothing to restore from one. A reload, or opening the
-    page again, shows the start page. The view cannot be linked to; the
-    link at its end is to the format spec on GitHub.
+    keeps no history (3.9) and reads its own address only for 3.16's
+    `repo` parameter at startup, so the view would have nothing to
+    restore from one. A reload, or opening the page again, shows the
+    start page when the address has no `repo` value (with one, the start
+    page opens that repository, 3.16); it never shows the view. The view
+    cannot be linked to; the link at its end is to the format spec on
+    GitHub.
   - The view is not a tab: the tabs belong to a loaded project.
 - **Static text in the built page.** The text is in a module,
-  `src/help.ts`, as data: the view's title, the read-only sentence, and
-  for each step a title, a few short paragraphs, and one example. A paragraph is a list of parts, each plain text or
+  `src/help.ts`, as data: the view's title, the read-only sentence,
+  for each step a title, a few short paragraphs, and one example, and,
+  from PBI-1.35, the paragraph of 3.16 on opening a repo from a link
+  (`REPO_LINK_HELP`). A paragraph is a list of parts, each plain text or
   code. The module is built into the one inline script, so the text ships
   in `dist/index.html`. Nothing is loaded for it: no `fetch`, no file, no
   image. The page's requests stay as in 2.3, and the policy in 2.3 stays
@@ -2456,6 +2480,10 @@ the five steps and the closing link. The link is not a sixth step.
       step titles are in order; every control label the text names
       ("Private repos", "Owner", "Remember in this browser" and "Add")
       exists on the start page, inside the "Private repos" panel (3.12);
+    - from PBI-1.35, the paragraph of 3.16 is after the ordered list of
+      steps and before the closing link, outside the list, with its two
+      code parts in `<code>`, and the built `dist/index.html` holds its
+      text;
     - Escape and both Back buttons close it, the control is shown again,
       the focus returns to it, and a project loaded before is still
       there; Escape with the view closed does nothing;
@@ -3594,9 +3622,10 @@ accept.
 
 #### The address after picking
 
-- vizi has no address of its own to change: the page does not read or
-  write its own URL, keeps no history (3.9, 3.10), and a pick adds no
-  history entry and no hash.
+- vizi has no address of its own to change: the page does not write its
+  own URL, and reads it only for 3.16's `repo` parameter at startup; it
+  keeps no history (3.9, 3.10), and a pick adds no history entry and no
+  hash.
 - The address field is left as it is (it is PBI-1.17's, and the picker
   never touches it, see above). Using the field's "Open" again opens
   what the field says, which may be another branch than the picked one.
@@ -4843,8 +4872,11 @@ design within them.
   gives the field `acme/w/tree/a%E0`, whose branch the field refuses with
   its branch message (3.1); `?repo=acme/w/tree/50%` gives
   `acme/w/tree/50%`, refused the same way. `URLSearchParams` is not used,
-  because it turns a malformed escape into U+FFFD, which the field would
-  accept as part of a branch nobody named.
+  because it turns an escape whose bytes are not valid UTF-8, such as
+  `%E0`, into U+FFFD, which the field would accept as part of a branch
+  nobody named. (A `%` that two hex digits do not follow, such as a lone
+  `%`, it keeps as written, as this reading does; checked with the
+  `URLSearchParams` of Node.js 22.23.4 on 2026-11-09, not in a browser.)
 - **Two decodings.** A well-formed value is decoded here once, and the
   field then decodes a branch once more, as 3.1 sets out. So a branch
   `fix-å` opens from `?repo=acme/w/tree/fix-%C3%A5` (the field gets
@@ -4955,8 +4987,12 @@ did.
 - 2.3, Clead's paragraph: "after the user enters a URL" gains "or opens
   the page with one in its address (3.16)", and "every such request
   follows something the user typed" gains "or gave in the page's address
-  (3.16)". The approved sentence of item 2 is quoted as it was approved
-  and does not change.
+  (3.16)"; its last sentence, "what the page loads at startup is still
+  only its own document", gains "without a `repo` value in its address
+  (3.16)". 2.3's first paragraph: "a request made after the user enters a
+  URL" gains "or opens the page with one in its address (3.16)". The
+  approved sentence of item 2 is quoted as it was approved and does not
+  change.
 - 3.7, item 5: "after the user enters a URL (2.3)" gains "or opens the
   page with one in its address (3.16)".
 - 3.1, "The field": "It starts empty, and the page never fills it at
@@ -4994,7 +5030,9 @@ Test first, as the web pack asks (`languages/web/code-standards.md`).
 - Unit (`repoFromSearch`): no search (`""` and `"?"`); `?repo=acme/widgets`;
   a second `repo` ignored; `?repo=&repo=acme/widgets` gives no value;
   other parameters ignored (`?x=1&repo=acme/widgets` gives the value);
-  `?repo` without `=` gives no value; `REPO` is another parameter; an
+  `?repo` without `=` gives no value, and `?repo&repo=acme/widgets` gives
+  `acme/widgets` (a part `repo` without `=` is not the parameter, so the
+  next `repo` part is the first one); `REPO` is another parameter; an
   empty and a white-space value give no value; `+` and `%20` decode to a
   space; `%25` decodes to `%` once; a value with `/tree/<branch>`; a raw
   `&` ends the value (`?repo=acme/w/tree/a&b` gives `acme/w/tree/a`); a
@@ -5013,9 +5051,11 @@ Test first, as the web pack asks (`languages/web/code-standards.md`).
   - a refused value (`?repo=acme/widgets.git`) shows the field's message
     and makes no request;
   - no `repo` parameter: no request at startup, the field empty;
-  - with a token saved for the owner, the open sends it, and only to
-    `api.github.com` and `raw.githubusercontent.com`; the Owner prefill
-    holds the owner after the open;
+  - with a token saved for the owner, the open sends it with every
+    request, and every request goes to `api.github.com` (with a token,
+    3.8 reads request 3 through the contents API, and none goes to
+    `raw.githubusercontent.com`); the Owner prefill holds the owner after
+    the open;
   - the address is unchanged after the open and after opening another
     repo from the field (`location.href` and `history.length`);
   - the focus is on `document.body` after the startup open;
