@@ -101,6 +101,8 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - The include keyword (PBI-1.34): a backlog file includes other files of the same repo and branch with `<!-- vizi:include <path> -->` (`src/include.ts`); included entries on the board and in the list naming their file, the report by file, the message line; `docs/BACKLOG-FORMAT.md` section 6; `docs/SPEC.md` 3.15 built, with 2.3, 3.1, 3.2, 3.5, 3.7, 3.8, 3.13 and section 4 updated; `RULES.md` L § 5 (1) gains the one exception for include lines (#98).
 - Spec: the repository named in the page's address, `?repo=<owner>/<repo>`, `docs/SPEC.md` 3.16, with the product owner's intent approval of 2026-11-09 (PBI-1.35) (#99).
 - The repository in the page's address (PBI-1.35): at startup the page reads the first `repo` parameter (`src/address.ts`), writes it into the Repository field and opens it as "Open" does; it writes no address of its own; a help paragraph with the link form; `RULES.md` L § 5 (1) and the spec texts on startup requests follow (#100).
+- Records: PBI-1.35 done, PBI-1.12 started, changelog for #99 and #100 (#102).
+- The Saved repos list (PBI-1.12): "Save" on a loaded project, a list of saved repos on the start page that opens an entry with the right token or removes it with "×", kept in the browser as addresses only (`src/saved.ts`); other tabs follow; `docs/SPEC.md` 3.14 "As built" (#101).
 
 ## Project created
 
