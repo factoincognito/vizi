@@ -66,6 +66,15 @@ import {
   parse as parseProjects,
 } from "./projects";
 import {
+  createSavedStore,
+  displayText,
+  readSaved,
+  removeLabel,
+  SAVED_KEY,
+  type SavedRepo,
+  savedKey,
+} from "./saved";
+import {
   ACCESS_LINE,
   FONT_NOTICE,
   GUIDE_AFTER,
@@ -92,6 +101,8 @@ function browserStorage(): Storage | null {
 
 const storage = browserStorage();
 const tokens = createTokenStore(storage);
+/** The Saved repos list (3.14): drawn from storage, never from a list of its own; it holds no token. */
+const savedRepos = createSavedStore(storage);
 /** Whether the results on the page were loaded with a token: Forget hides them (3.8). */
 let projectUsedToken = false;
 /** The owner (in lower case) of the project on the page, whose token a "Show status" read uses; null with no project. */
@@ -730,8 +741,9 @@ function hideResults(): void {
     must(id).replaceChildren();
   }
   clearProjectStatus();
-  // The branch list lives with the results, and goes with them (3.13).
+  // The branch list lives with the results, and goes with them (3.13); so does what "Save" would save (3.14).
   loadedRef = null;
+  savedRef = null;
   branchList = null;
   must("branch-select").replaceChildren();
   must("branch-message").textContent = "";
@@ -942,6 +954,9 @@ async function openRef(ref: RepoRef, load: number, picked: boolean): Promise<voi
   show(p);
   projectUsedToken = token !== null;
   projectOwner = owner;
+  // "Save" saves the reference this load opened: the branch it named, or null for the default (3.14).
+  savedRef = { owner: ref.owner, repo: ref.repo, branch: ref.branch };
+  renderSaveButton(savedRepos.entries());
   const same =
     picked && branchList !== null && branchList.owner === ref.owner && branchList.repo === ref.repo;
   loadedRef = withBranch;
@@ -1405,6 +1420,127 @@ function mountPicker(): HTMLElement {
   );
 }
 
+// ---------------------------------------------------------------- saved repos
+
+/** The reference "Save" saves for the project on the page (3.14), or null with no project. */
+let savedRef: SavedRepo | null = null;
+
+/** "Save", or "Saved" with `aria-disabled` while the loaded reference is in the list (3.14). */
+function renderSaveButton(list: readonly SavedRepo[]): void {
+  const button = must("save-repo");
+  const ref = savedRef;
+  const saved = ref !== null && list.some((e) => savedKey(e) === savedKey(ref));
+  button.textContent = saved ? "Saved" : "Save";
+  if (saved) button.setAttribute("aria-disabled", "true");
+  else button.removeAttribute("aria-disabled");
+}
+
+function saveLoaded(): void {
+  const ref = savedRef;
+  if (ref === null || must("save-repo").getAttribute("aria-disabled") === "true") return;
+  const result = savedRepos.add(ref);
+  if (!result.ok) say(result.message);
+  renderSaved();
+}
+
+/** One entry: its open button and its "×" (3.14, "Where it sits"). */
+function savedEntry(entry: SavedRepo): HTMLElement {
+  const open = h(
+    "button",
+    { type: "button", class: "saved-open", "data-testid": "saved-open" },
+    displayText(entry),
+  );
+  // A load of the entry's reference, as an address's, with the token held for its owner now (3.14, 3.8).
+  open.addEventListener("click", () => {
+    void openRef({ ...entry }, nextLoad(), false);
+  });
+  const remove = h(
+    "button",
+    {
+      type: "button",
+      class: "saved-remove",
+      "data-testid": "saved-remove",
+      "aria-label": removeLabel(entry),
+    },
+    h("span", { "aria-hidden": "true" }, "×"),
+  );
+  const li = h(
+    "li",
+    { class: "saved-row", "data-testid": "saved-entry", "data-key": savedKey(entry) },
+    open,
+    remove,
+  );
+  // "×" names its entry and position itself, so where the focus goes does not depend on whether
+  // the click focused the button (WebKit does not focus a button on a click) (3.14).
+  remove.addEventListener("click", () => {
+    const index = savedRows().indexOf(li);
+    savedRepos.remove(entry);
+    renderSaved(savedRepos.entries(), { key: savedKey(entry), index });
+  });
+  return li;
+}
+
+/** The entries' rows as drawn. */
+function savedRows(): HTMLElement[] {
+  return [...must("saved-list").children].filter((r): r is HTMLElement => r instanceof HTMLElement);
+}
+
+/**
+ * The focus after an entry was removed, or its removal refused: on the
+ * entry's "×" while the entry is still listed; otherwise on the open button
+ * of the entry that took its place, or of the one before it when it was the
+ * last, or on the address section's heading when the list is empty (3.14).
+ */
+function focusAfterRemoval(key: string, index: number): void {
+  const now = savedRows();
+  const same = now.find((r) => r.dataset.key === key);
+  if (same) {
+    same.querySelector<HTMLElement>("[data-testid=saved-remove]")?.focus();
+    return;
+  }
+  const next = now[Math.min(index, now.length - 1)];
+  (
+    next?.querySelector<HTMLElement>("[data-testid=saved-open]") ?? must("open-project-title")
+  ).focus();
+}
+
+/**
+ * Draws the list from what is stored (or from a `storage` event's new
+ * value), and "Save" with it. After "×", `removal` names the entry and its
+ * position, and the focus follows `focusAfterRemoval`. Otherwise the focus
+ * stays on the same control of the same entry, and moves as after a removal
+ * only when it was on an entry that is gone (another tab removed it).
+ */
+function renderSaved(
+  list: readonly SavedRepo[] = savedRepos.entries(),
+  removal: { key: string; index: number } | null = null,
+): void {
+  const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const activeKey = active?.closest<HTMLElement>("[data-testid=saved-entry]")?.dataset.key;
+  const oldIndex = savedRows().findIndex((r) => r.dataset.key === activeKey);
+  must("saved-list").replaceChildren(...list.map(savedEntry));
+  must("saved-repos").hidden = list.length === 0;
+  renderSaveButton(list);
+  if (removal !== null) {
+    focusAfterRemoval(removal.key, removal.index);
+    return;
+  }
+  if (activeKey === undefined || !active) return;
+  const same = savedRows().find((r) => r.dataset.key === activeKey);
+  if (same) same.querySelector<HTMLElement>(`[data-testid="${active.dataset.testid}"]`)?.focus();
+  else focusAfterRemoval(activeKey, oldIndex);
+}
+
+/** The section (3.14): its heading and the list, hidden while the list is empty. */
+function mountSaved(): HTMLElement {
+  return h(
+    "section",
+    { id: "saved-repos", "aria-labelledby": "saved-repos-title", hidden: "" },
+    h("h2", { id: "saved-repos-title" }, "Saved repos"),
+    h("ul", { id: "saved-list" }),
+  );
+}
+
 // ------------------------------------------------------------ opening guide
 
 /**
@@ -1796,6 +1932,10 @@ function mount(): void {
   const filter = h("select", { id: "marker-filter", "aria-label": "Marker" });
   filter.addEventListener("change", renderList);
 
+  // "Save" is with the loaded project, in the results (3.14).
+  const saveButton = h("button", { id: "save-repo", type: "button", class: "secondary" }, "Save");
+  saveButton.addEventListener("click", saveLoaded);
+
   // The start content sits in one wrapper, which the help view hides while it is open (3.10).
   const start = h("div", { id: "start" });
   const footer = h(
@@ -1827,18 +1967,21 @@ function mount(): void {
       h(
         "section",
         { id: "open-project", "aria-labelledby": "open-project-title" },
-        h("h2", { id: "open-project-title" }, "Open a project from GitHub"),
+        // tabindex -1: removing the last saved repo moves the focus here (3.14).
+        h("h2", { id: "open-project-title", tabindex: "-1" }, "Open a project from GitHub"),
         form,
         h("p", { id: "access-line" }, ACCESS_LINE),
       ),
       // tabindex -1: a failed pick may move the focus here (3.13).
       h("div", { id: "message", role: "status", tabindex: "-1" }),
+      mountSaved(),
       mountPanel(),
     ),
     h(
       "div",
       { id: "results", hidden: "" },
       h("h2", { id: "project-name" }),
+      saveButton,
       mountPicker(),
       h("section", { id: "status", "aria-label": "Status" }),
       h(
@@ -1883,11 +2026,20 @@ function mount(): void {
 mount();
 tokens.start();
 renderTokens();
+savedRepos.start();
+renderSaved();
 // After the tokens are known, so a token saved for the address's owner is used (3.16).
 openFromAddress();
-// Another open tab saved, forgot or removed tokens (3.8). Following an event never writes to storage.
+// Another open tab saved, forgot or removed tokens (3.8), or saved repos (3.14). Following an event never writes to storage.
 window.addEventListener("storage", (event) => {
   if (storage === null || (event.storageArea !== null && event.storageArea !== storage)) return;
+  // The list is drawn from the event's new value (3.14); an event of its key is about nothing else.
+  if (event.key === SAVED_KEY) {
+    renderSaved(readSaved(event.newValue));
+    return;
+  }
+  // Cleared storage: no entry, and the tokens follow below (3.8).
+  if (event.key === null) renderSaved([]);
   const outcome = tokens.onStorage(event.key, event.oldValue, event.newValue);
   renderTokens();
   if (outcome.allForgotten) {

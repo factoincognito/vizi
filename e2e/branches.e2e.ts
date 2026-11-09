@@ -173,9 +173,10 @@ test.describe("where the picker sits (3.13)", () => {
     await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
     const order = await page.evaluate(() => {
       const ids = [...(document.getElementById("results")?.children ?? [])].map((e) => e.id);
-      return ids.slice(0, 3);
+      return ids.slice(0, 4);
     });
-    expect(order).toEqual(["project-name", "branch-picker", "status"]);
+    // 3.14's "Save" sits between the heading and the picker's row.
+    expect(order).toEqual(["project-name", "save-repo", "branch-picker", "status"]);
     expect(await optionTexts(page)).toEqual([
       "main (default)",
       "B-upper",

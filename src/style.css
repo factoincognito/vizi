@@ -323,6 +323,81 @@ main {
   margin: 0 0 6px;
 }
 
+/* The Saved repos list (docs/SPEC.md 3.14): a section of the start column, shown only while it holds an entry. */
+#saved-repos h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+#saved-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.saved-row {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 6px 0 14px;
+}
+
+.saved-row + .saved-row {
+  border-top: 1px solid var(--line);
+}
+
+/* An entry's open button: the row's width but the last 40 px, styled as a row, not a link. */
+#saved-list .saved-open {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 8px 8px 0;
+  font-size: 16px;
+  color: var(--fg);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+/* "×": the secondary style without its border. */
+#saved-list .saved-remove {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--fg);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* "Save" with the loaded project: at the right of its heading on desktop (3.14). */
+/* No vertical margin on desktop: the heading is centred on "Save", and the row's foot is "Save"'s. */
+#project-name {
+  display: inline-block;
+  max-width: 100%;
+  margin: 0 12px 0 0;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
+#save-repo {
+  height: 40px;
+  padding: 0 16px;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
 /* The "Private repos" panel. */
 #private-repos {
   border: 1px solid var(--line);
@@ -822,8 +897,9 @@ footer {
 }
 
 /* The branch picker (docs/SPEC.md 3.13): label, select and button on one row on desktop. */
+/* 12 px under the row of the heading and "Save", at both widths (3.14). */
 #branch-picker {
-  margin: 0 0 12px;
+  margin: 12px 0;
 }
 
 .branch-row {
@@ -987,6 +1063,23 @@ footer {
 
   #token-guide-toggle {
     min-height: 44px;
+  }
+
+  /* The Saved repos list on a phone: "×" 44 × 44 px; "Save" under the heading, across the width (3.14). */
+  #saved-list .saved-remove {
+    width: 44px;
+    height: 44px;
+  }
+
+  #project-name {
+    display: block;
+    margin: 0 0 8px;
+  }
+
+  #save-repo {
+    display: block;
+    width: 100%;
+    height: 44px;
   }
 }
 

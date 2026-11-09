@@ -2408,9 +2408,10 @@ paragraph.
     `<section>` labelled by its `h2`. The five steps are an ordered list;
     the closing link is after it. (3.7 keeps `h1` and `h2` for the page.
     The hidden wrapper holds the page's own `h2` "Open a project from
-    GitHub", the "Private repos" panel's `h2` and its "Add a token"
-    `h3` (3.12), the `h2` of the results, and a loaded project's
-    headings from `h3`; none is read while the wrapper is hidden.)
+    GitHub", the `h2` "Saved repos" (3.14), the "Private repos" panel's
+    `h2` and its "Add a token" `h3` (3.12), the `h2` of the results, and
+    a loaded project's headings from `h3`; none is read while the
+    wrapper is hidden.)
   - Keyboard: the control, the Back buttons and the final link are native
     elements in the page's tab order, and work with Enter and Space. On
     opening, the focus moves to the view's `h2` (`tabindex="-1"`). Escape
@@ -3172,8 +3173,10 @@ columns; the mockup's phone board, at 390 px; tested at 375 px):
 - **Keyboard.** Every control is a native element in the page's tab
   order, in the order of the page: the help control, the address field,
   the opening guide's select when shown (from PBI-1.19, 3.1 "Guided
-  opening"), "Open", the panel's toggle, then, when opened, each row's
-  checkbox and "Forget", the migration block's field, "Keep" and "Forget
+  opening"), "Open", each saved repo's open button and "×" when the
+  list is shown (from PBI-1.12, 3.14), the panel's toggle, then, when
+  opened, each row's checkbox and "Forget", the migration block's
+  field, "Keep" and "Forget
   it", the Add fields, "Remember in this browser", "Add", the guide's
   toggle, "Forget all tokens", and the footer's link. Enter and Space
   work on buttons and checkboxes. No key is caught by the start page;
@@ -3460,7 +3463,8 @@ accept.
 #### Where it sits, and the current branch
 
 - Inside `#results`, right under the project's heading `#project-name`
-  and before the status, one row (`#branch-picker`): the label
+  (and, from PBI-1.12, its "Save", 3.14) and before the status, one row
+  (`#branch-picker`): the label
   "Branch", a native `<select id="branch-select">` and a button
   `#branch-open`, "Open branch"; under the row, the picker's message
   line `#branch-message` (`role="status"`), which takes no space while
@@ -4126,7 +4130,66 @@ Test first (2.2), with GitHub stubbed and synthetic data.
   - phone: no sideways scroll with a long entry; the buttons at least
     44 px high;
   - the CSP test of `e2e/csp.e2e.ts` passes with entries shown, with no
-    violation and no console error.
+    violation and no console error;
+  - "Save" after a guided open (3.1, "Guided opening"; PBI-1.12 is built
+    after PBI-1.19): `null` for a guided open of the default branch, the
+    name for another branch.
+
+#### As built (PBI-1.12)
+
+Clead's design, as the build reads the points above leave open:
+
+- **The code.** `src/saved.ts` holds the entry rules (`isSavedName`,
+  `isSavedBranch`), the de-duplication key (`savedKey`), reading and
+  cleaning (`readSaved`), the texts (`displayText`, `removeLabel`) and
+  the messages, and `createSavedStore(storage)`, whose `start`,
+  `entries`, `has`, `add` and `remove` read the stored value on every
+  call and keep nothing in memory. `src/main.ts` draws the section from
+  `entries()` after its own writes, and from the event's `newValue` on a
+  `storage` event of `vizi.savedRepos`, which the token code then does
+  not handle (an event whose `key` is null, all of storage cleared,
+  empties the list and goes on to the tokens, 3.8); each entry's `li`
+  carries its de-duplication key as `data-key`, which the focus rule
+  follows.
+- **Cleaning.** Entries are read in order; one that breaks the rules or
+  repeats an earlier one is dropped, and the first 50 that remain are
+  kept. At startup the value is written back when the cleaned entries,
+  written, differ from the stored text (so a value that only differs in
+  layout is written once in the page's own form); an object whose
+  `repos` leaves no entry is removed. Lengths are counted as JavaScript
+  counts a string (UTF-16 code units).
+- **Owners as stored.** "Save" writes the owner in lower case. An entry
+  stored with another case (by another site of the origin, or by hand)
+  is kept and shown as stored; it is the same entry as the lower-case
+  one by the de-duplication key.
+- **"Saved".** Using it (Enter, Space or a click) does nothing: the
+  page checks its `aria-disabled` before saving. A successful "Save"
+  writes nothing in `#message`; a refused one writes its message there
+  and leaves the results as they are.
+- **"×" refused by storage.** 3.14 gives a message for "Save" only. A
+  removal whose write the browser refuses changes nothing and writes no
+  message; the list, drawn from storage, still shows the entry, and the
+  focus is put on that entry's "×".
+- **The layout.** "Save" is the next sibling of `#project-name` in
+  `#results`, before `#branch-picker`. On desktop the heading is an
+  inline block with no vertical margin and "Save" sits after it on the
+  same line, centred on it; on a phone both are blocks, the heading 8 px
+  above "Save", which is at the full width, 44 px high. At both widths
+  `#branch-picker` starts 12 px under the lower of the two. The `h2`
+  "Open a project from GitHub" has `tabindex="-1"` for the focus rule
+  of "Removing an entry".
+- **The focus when an entry goes.** "×" gives the removed entry's key
+  and its position in the list as drawn, so where the focus goes does
+  not depend on whether the click focused the button (WebKit does not
+  focus a button on a click). The entry that took its place is the one
+  now at that position, or the last entry when that position is past the
+  end. A removal in another tab moves the focus by the same rule, and
+  only when the focus was on that entry's buttons.
+- **Tests.** `src/saved.test.ts`, `e2e/saved.e2e.ts`, and one test in
+  `e2e/csp.e2e.ts`. Two tests of earlier items change with the new
+  elements: 3.13's order of `#results` (`e2e/branches.e2e.ts`) has
+  `#save-repo` between the heading and the picker, and 3.10's heading
+  test (`e2e/help.e2e.ts`) lists the hidden `h2` "Saved repos".
 
 ### 3.15 The include keyword (PO-105)
 
