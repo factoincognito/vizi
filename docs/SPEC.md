@@ -3173,9 +3173,10 @@ columns; the mockup's phone board, at 390 px; tested at 375 px):
 - **Keyboard.** Every control is a native element in the page's tab
   order, in the order of the page: the help control, the address field,
   the opening guide's select when shown (from PBI-1.19, 3.1 "Guided
-  opening"), "Open", each saved repo's open button and "×" when the list
-  is shown (from PBI-1.12, 3.14), the panel's toggle, then, when opened, each row's
-  checkbox and "Forget", the migration block's field, "Keep" and "Forget
+  opening"), "Open", each saved repo's open button and "×" when the
+  list is shown (from PBI-1.12, 3.14), the panel's toggle, then, when
+  opened, each row's checkbox and "Forget", the migration block's
+  field, "Keep" and "Forget
   it", the Add fields, "Remember in this browser", "Add", the guide's
   toggle, "Forget all tokens", and the footer's link. Enter and Space
   work on buttons and checkboxes. No key is caught by the start page;

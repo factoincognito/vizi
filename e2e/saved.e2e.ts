@@ -487,6 +487,31 @@ test.describe("opening an entry (3.14)", () => {
     await expect(page.locator("#guide-message")).toHaveText("");
   });
 
+  test("opening an entry stops a running opening-guide branch read: no branch request after its request 1, and no select (3.1)", async ({
+    page,
+    context,
+  }) => {
+    const guideRepo = `${API}/widgets`;
+    const guideBranches = `${API}/widgets/branches?per_page=100&page=1`;
+    const stub = await stubGithub(context, { hold: (u) => u === guideRepo });
+    await plant(page, { repos: [e("plain")] });
+    await page.locator("#url-input").fill("acme/widgets");
+    await page.locator("#url-input").press("Tab");
+    // The guide's request 1 is made and held back.
+    await expect.poll(() => urls(stub)).toContain(guideRepo);
+    await expect(page.locator("#guide-message")).toHaveText("Reading the branches…");
+    await openOf(page, 0).click();
+    await expect(heading(page)).toHaveText("acme/plain (main)");
+    await branchListRead(page);
+    stub.release(guideRepo);
+    await settle(page);
+    await settle(page);
+    expect(urls(stub)).not.toContain(guideBranches);
+    await expect(page.locator("#guide-select")).toBeHidden();
+    await expect(page.locator("#guide-message")).toHaveText("");
+    await expect(heading(page)).toHaveText("acme/plain (main)");
+  });
+
   test("drawing the list makes no request: with entries stored, the page requests only its own document", async ({
     page,
     context,
@@ -719,6 +744,19 @@ test.describe("other open vizi tabs (3.14)", () => {
     await addFirst("y");
     await expect(entries(page)).toHaveCount(4);
     expect(await focused(page)).toBe("saved-remove@acme/b!");
+  });
+
+  test("the last entry removed in another tab while the focus is on it: the focus moves to the address section's heading", async ({
+    page,
+    context,
+  }) => {
+    await plant(page, { repos: [e("a")] });
+    const other = await context.newPage();
+    await other.goto("/");
+    await removeOf(page, 0).focus();
+    await removeOf(other, 0).click();
+    await expect(section(page)).toBeHidden();
+    expect(await focused(page)).toBe("open-project-title");
   });
 
   test("another entry removed in another tab leaves the focus where it is: on B's open button, and on B's ×", async ({
