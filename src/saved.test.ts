@@ -150,7 +150,9 @@ describe("reading a stored value (3.14)", () => {
     expect(read[49]).toEqual(entry("acme", "r49"));
   });
 
-  test("a top-level __proto__ key is ignored, and an inherited repos is not read", () => {
+  // JSON.parse makes a "__proto__" key an own data property, not the object's prototype: these
+  // two check that such a key is an unknown key like any other, not the own-property reads.
+  test("a top-level __proto__ key in the JSON is an unknown key: ignored, and what it holds is not read as repos", () => {
     expect(readSaved('{"__proto__": {"repos": [{"owner":"a","repo":"b","branch":null}]}}')).toEqual(
       [],
     );
@@ -161,9 +163,40 @@ describe("reading a stored value (3.14)", () => {
     ).toEqual([entry("a", "b")]);
   });
 
-  test("an entry's fields are read as own properties only", () => {
+  test("an entry's __proto__ key in the JSON is an unknown key: what it holds is not read as fields", () => {
     const raw = '{"repos": [{"__proto__": {"owner": "a", "repo": "b", "branch": null}}]}';
     expect(readSaved(raw)).toEqual([]);
+  });
+
+  /** Runs `check` while `Object.prototype` has the given properties, then deletes them. */
+  function withInherited(props: Record<string, unknown>, check: () => void): void {
+    const proto = Object.prototype as unknown as Record<string, unknown>;
+    try {
+      for (const [name, value] of Object.entries(props)) {
+        Object.defineProperty(proto, name, { value, configurable: true, writable: true });
+      }
+      check();
+    } finally {
+      for (const name of Object.keys(props)) delete proto[name];
+    }
+  }
+
+  test("an inherited repos is not read: only the value's own repos counts", () => {
+    withInherited({ repos: [{ owner: "a", repo: "b", branch: null }] }, () => {
+      expect(readSaved("{}")).toEqual([]);
+      expect(readSaved('{"other": 1}')).toEqual([]);
+    });
+    expect(Object.hasOwn(Object.prototype, "repos")).toBe(false);
+  });
+
+  test("inherited owner, repo and branch are not read: only an entry's own fields count", () => {
+    withInherited({ owner: "a", repo: "b", branch: null }, () => {
+      expect(readSaved('{"repos": [{}]}')).toEqual([]);
+      // An own field next to inherited ones does not complete the entry either.
+      expect(readSaved('{"repos": [{"owner": "acme"}]}')).toEqual([]);
+    });
+    for (const name of ["owner", "repo", "branch"])
+      expect(Object.hasOwn(Object.prototype, name)).toBe(false);
   });
 
   test("owners and repos named like Object's own properties are read as names", () => {

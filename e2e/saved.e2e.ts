@@ -721,6 +721,23 @@ test.describe("other open vizi tabs (3.14)", () => {
     expect(await focused(page)).toBe("saved-remove@acme/b!");
   });
 
+  test("another entry removed in another tab leaves the focus where it is: on B's open button, and on B's ×", async ({
+    page,
+    context,
+  }) => {
+    await plant(page, { repos: [e("a"), e("b"), e("c")] });
+    const other = await context.newPage();
+    await other.goto("/");
+    await openOf(page, 1).focus();
+    await removeOf(other, 0).click();
+    await expect(entries(page)).toHaveCount(2);
+    expect(await focused(page)).toBe("saved-open@acme/b!");
+    await removeOf(page, 0).focus();
+    await removeOf(other, 1).click();
+    await expect(entries(page)).toHaveCount(1);
+    expect(await focused(page)).toBe("saved-remove@acme/b!");
+  });
+
   test("an entry removed in another tab while the focus is on it moves the focus as × does; with the help view open no focus moves", async ({
     page,
     context,
