@@ -5193,8 +5193,9 @@ PBI-1.2's; their outcome after it (PR #9):
 Items 9 to 15 are PBI-1.8's (3.8). The product owner tried a
 fine-grained token against real GitHub on 2026-11-11, in Edge (not
 Chrome), on the published page, with the private repo
-`factoincognito/product-office`; items 9 to 12 and 15 record what that try
-showed. Items 13 and 14 were not part of it.
+`factoincognito/product-office`; items 9 to 12 record what that try
+showed, and item 15 notes what it did not record. Items 13 and 14 were
+not part of it.
 
 9. **Settled for the published page in Edge (PBI-1.8, 2026-11-11); open
    for a page opened from disk and for other browsers, PBI-1.4.** CORS
@@ -5238,7 +5239,7 @@ showed. Items 13 and 14 were not part of it.
     token made by an owner of the organisation is approved at once, and
     whether the product owner is one was not recorded. What GitHub
     answers under a policy that requires approval was not seen.
-13. **Open; PBI-1.8.** Whether `localStorage` keeps the token on a page
+13. **Open; PBI-1.4.** Whether `localStorage` keeps the token on a page
     opened from disk (`file://`); browsers treat that origin
     differently.
 14. **Settled for Chromium (PBI-1.8, PR #30); open for other
@@ -5250,11 +5251,12 @@ showed. Items 13 and 14 were not part of it.
     request to another host, an image from another host and a form post
     all blocked. Whether every other browser the page targets applies
     the policy the same way was not checked.
-15. **Open; PBI-1.8.** Whether a browser's password manager offers to
+15. **Open; PBI-1.4.** Whether a browser's password manager offers to
     save the token from a password field outside any `<form>`, and so
     may keep it, perhaps synced to an account. Browsers often ignore
     `autocomplete="off"` on password fields. The try of 2026-11-11 in
-    Edge did not record whether Edge made such an offer.
+    Edge did not record whether Edge made such an offer, so the
+    question stays open, with PBI-1.4.
 
 Also seen in that try (not items of this section): the token was made
 in GitHub without trouble; opening the private repo without a token
@@ -5299,9 +5301,8 @@ Item 19 is PBI-1.13's (3.10):
     label GitHub's token page shows for the read level (the
     documentation does not give it, so the guide does not use one), and
     whether the live page matches the documentation. Items 10 and 11
-    settle what GitHub answers to such a token; the product owner's
-    first try against real GitHub was on 2026-11-11 and its results are
-    in those items. The help text and the guide are corrected if GitHub's
+    record what the product owner's first try against real GitHub, on
+    2026-11-11, showed of what GitHub answers to such a token. The help text and the guide are corrected if GitHub's
     page says otherwise.
 
 Items 20 to 23 are PBI-1.16's (3.12):
