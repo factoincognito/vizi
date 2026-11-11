@@ -196,7 +196,7 @@ async function pageContents(page: Page): Promise<string> {
 }
 
 test.describe("entering the token (3.8)", () => {
-  test("the field is a password field outside any form, with autocomplete and spellcheck off; the note names the shared origin", async ({
+  test("the field is a password field outside any form, with autocomplete and spellcheck off; the note names the shared origin; the one-token note stands under the heading, before the fields", async ({
     page,
   }) => {
     await page.goto("/");
@@ -217,6 +217,20 @@ test.describe("entering the token (3.8)", () => {
     await expect(page.locator("label[for=token-input]")).toBeVisible();
     await expect(page.locator("label[for=owner-input]")).toHaveText("Owner");
     await expect(page.getByTestId("token-note")).toContainText("factoincognito Pages sites");
+    // One token per owner, and a new one replaces the old (3.8, 3.12): said under "Add a token", before the fields.
+    const replaceNote = page.getByTestId("token-replace-note");
+    await expect(replaceNote).toBeVisible();
+    await expect(replaceNote).toHaveCSS("font-size", "13px");
+    await expect(replaceNote).toHaveText(
+      "vizi keeps one token per owner. If you add a token for an owner that already has one, the new token replaces the old one.",
+    );
+    expect(
+      await replaceNote.evaluate(
+        (el) =>
+          el.previousElementSibling?.id === "token-add-title" &&
+          el.nextElementSibling?.classList.contains("add-fields") === true,
+      ),
+    ).toBe(true);
     await expect(anyLine(page)).toBeHidden();
     await expect(forgetAll(page)).toBeHidden();
   });
@@ -1030,6 +1044,24 @@ test.describe("the Owner field (3.8)", () => {
     await expect(anyLine(page)).toHaveCount(1);
     await expectLine(page, "acme", "github_pat_…9876", true);
     expect((await saved(page))?.tokens).toEqual({ acme: TOKEN2 });
+  });
+
+  test("a token used without Remember for an owner whose old token is saved removes the saved copy: after a reload the old token is gone", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context);
+    await page.goto("/");
+    await openPanel(page);
+    await useToken(page, TOKEN, true);
+    expect((await saved(page))?.tokens).toEqual({ acme: TOKEN });
+    await useToken(page, TOKEN2, false);
+    await expect(anyLine(page)).toHaveCount(1);
+    await expectLine(page, "acme", "github_pat_…9876", false);
+    expect((await saved(page))?.tokens ?? {}).toEqual({});
+    await page.reload();
+    await openPanel(page);
+    await expect(anyLine(page)).toHaveCount(0);
   });
 });
 

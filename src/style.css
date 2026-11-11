@@ -556,6 +556,12 @@ label.check {
   font-weight: 600;
 }
 
+#token-replace-note {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 .add-fields {
   display: grid;
   grid-template-columns: 170px minmax(0, 1fr);

@@ -84,6 +84,7 @@ import {
   migrateSentence,
   NOTICES_LINK,
   TOKEN_NOTE,
+  TOKEN_REPLACE_NOTE,
   tokenSummary,
 } from "./start";
 import { parse as parseStatus, type StatusResult } from "./status";
@@ -1268,6 +1269,7 @@ function mountPanel(): HTMLElement {
       "div",
       { id: "token-add", role: "group", "aria-labelledby": "token-add-title" },
       h("h3", { id: "token-add-title" }, "Add a token"),
+      h("p", { id: "token-replace-note", "data-testid": "token-replace-note" }, TOKEN_REPLACE_NOTE),
       h(
         "div",
         { class: "add-fields" },
