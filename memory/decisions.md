@@ -6,6 +6,7 @@ founding decisions are in `docs/decisions/0001-rebuild-workflow.md`.
 
 | Date | Decision | Rationale |
 |---|---|---|
+| 2026-11-11 | Definition of done for Phase 1: the four conditions in `memory/project.md`. | Product owner, in chat, "apyr" to Clead's proposal; it replaced the parked proposal, which assumed a page opened locally. |
 
 ## Open questions
 

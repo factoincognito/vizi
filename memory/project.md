@@ -35,9 +35,21 @@ approved on 2026-11-04.
   in the first version.
 - A backlog format spec ships with it.
 
-**Definition of done for this phase:**
-[Product Owner decides] (Clead's proposal is parked as a question in
-`docs/NEXT_SESSION.md`, entry 1.)
+**Definition of done for this phase** (product owner, 2026-11-11,
+"apyr" to Clead's proposal): Phase 1 is done when all of these hold.
+1. The published page, https://factoincognito.github.io/vizi/, opens a
+   public repo by `owner/repo` or by `?repo=`, and for the public
+   template's backlog shows the list, the board, the status, the
+   documentation links and the report of what could not be read.
+2. The product owner's first try of tokens against real GitHub is done
+   and its result recorded in the spec (`docs/SPEC.md` section 4,
+   items 9 to 15).
+3. CI `build` is green on `main` and the latest Pages deploy succeeded.
+4. Every Phase 1 item that changes what the product does is `DONE`.
+
+Not part of it: the optional review points (PBI-1.10, PBI-1.6), the
+remaining unknowns of section 4 (PBI-1.4), the `LATER` items, and the
+re-checks of the audit findings (PBI-1.31 to PBI-1.33).
 
 ## Migration source
 N/A — new project.

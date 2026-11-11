@@ -1,6 +1,6 @@
 # Vizi - backlog visualizer — Next Session Planning
 
-**Last Updated:** 2026-11-07
+**Last Updated:** 2026-11-11
 **Author:** Clead (Tech Owner)
 **Purpose:** Staging area for reasoning, revised assumptions, and plan-adaptation thoughts that aren't yet mature enough to be a PBI, a decision, a strategy update, or a vision-doc change. Complements `docs/BACKLOG.md` — it does not replace it. How it is read and kept: product-office Process P-1 § 4 (3), P-8 § 4 and P-9 § 1 (2).
 
@@ -25,23 +25,6 @@ below.
 **Impact on plan:** what this changes, if adopted.
 **Action:** the next step and who takes it.
 -->
-
-### 1. Definition of done for Phase 1 — new, a question for the product owner
-
-**Previous assumption:** none; `memory/project.md` leaves it as
-"[Product Owner decides]".
-**Revised assessment:** Clead's proposal, not decided: Phase 1 is done
-when the page, built with `npm run build` and opened locally from
-`dist/index.html`, shows the public template's `docs/BACKLOG.md` and
-`STATUS.md`, from the template's GitHub URL (the local folder was
-dropped on 2026-11-04, `docs/SPEC.md` "What is decided", item 9), as
-the list, the board and the status, with documentation links and a
-report of what it could not read; and CI `build` is green on `main`.
-**Impact on plan:** sets when PBI-1.1 and PBI-1.2 together close the
-phase; it adds no new PBI.
-**Action:** Clead asks the product owner to accept, change or replace
-this; once he decides, Clead writes it into `memory/project.md` and
-removes this entry.
 
 ### 2. What the CI reviewer sees — a question for the product owner
 
