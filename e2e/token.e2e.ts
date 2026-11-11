@@ -220,6 +220,7 @@ test.describe("entering the token (3.8)", () => {
     // One token per owner, and a new one replaces the old (3.8, 3.12): said under "Add a token", before the fields.
     const replaceNote = page.getByTestId("token-replace-note");
     await expect(replaceNote).toBeVisible();
+    await expect(replaceNote).toHaveCSS("font-size", "13px");
     await expect(replaceNote).toHaveText(
       "vizi keeps one token per owner. If you add a token for an owner that already has one, the new token replaces the old one.",
     );
@@ -1043,6 +1044,24 @@ test.describe("the Owner field (3.8)", () => {
     await expect(anyLine(page)).toHaveCount(1);
     await expectLine(page, "acme", "github_pat_…9876", true);
     expect((await saved(page))?.tokens).toEqual({ acme: TOKEN2 });
+  });
+
+  test("a token used without Remember for an owner whose old token is saved removes the saved copy: after a reload the old token is gone", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context);
+    await page.goto("/");
+    await openPanel(page);
+    await useToken(page, TOKEN, true);
+    expect((await saved(page))?.tokens).toEqual({ acme: TOKEN });
+    await useToken(page, TOKEN2, false);
+    await expect(anyLine(page)).toHaveCount(1);
+    await expectLine(page, "acme", "github_pat_…9876", false);
+    expect((await saved(page))?.tokens ?? {}).toEqual({});
+    await page.reload();
+    await openPanel(page);
+    await expect(anyLine(page)).toHaveCount(0);
   });
 });
 

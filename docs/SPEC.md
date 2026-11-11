@@ -3446,8 +3446,11 @@ Test first, as everywhere (2.2). With GitHub stubbed, synthetic tokens
   `token-text` "`github_pat_…1234`", and the row's box ticked (or not);
   the label "GitHub token (for private repos)" becomes "Fine-grained
   token, read-only"; the note's "factoincognito Pages sites" check stays,
-  and from PBI-1.38 the same test checks the one-token note's text and
-  that it sits between the `h3` and the fields.
+  and from PBI-1.38 the same test checks the one-token note's text, its
+  size (13 px) and that it sits between the `h3` and the fields; a new
+  test there checks that a token added without Remember for an owner
+  whose old token is saved removes the saved copy, and that after a
+  reload no token is held.
   The unit tests of `src/token.ts` and `src/github.ts` do not change.
 - **The policy still blocks everything else.** `e2e/csp.e2e.ts` runs as
   today, with no violation and no console error, with the panel and the
