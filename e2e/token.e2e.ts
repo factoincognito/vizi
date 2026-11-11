@@ -196,7 +196,7 @@ async function pageContents(page: Page): Promise<string> {
 }
 
 test.describe("entering the token (3.8)", () => {
-  test("the field is a password field outside any form, with autocomplete and spellcheck off; the note names the shared origin", async ({
+  test("the field is a password field outside any form, with autocomplete and spellcheck off; the note names the shared origin; the one-token note stands under the heading, before the fields", async ({
     page,
   }) => {
     await page.goto("/");

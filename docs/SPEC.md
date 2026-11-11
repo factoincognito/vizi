@@ -3285,6 +3285,9 @@ changes to approved copy.
     used, so the box comes first in the page and in the tab order;
     putting it first only visually (CSS order) would make the tab order
     differ from what is seen. The phone board already has this order.
+13. **The one-token note is not on the boards.** It was added on
+    2026-11-11 (PBI-1.38; item 19 of "What is decided") under the "Add a
+    token" heading, in the note's style (13 px, muted).
 
 #### Changes to the help view at the PBI-1.16 build
 
