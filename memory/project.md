@@ -43,7 +43,7 @@ approved on 2026-11-04.
    documentation links and the report of what could not be read.
 2. The product owner's first try of tokens against real GitHub is done
    and its result recorded in the spec (`docs/SPEC.md` section 4,
-   items 9 to 15).
+   items 9 to 12 and 15; items 13 and 14 stay with PBI-1.4).
 3. CI `build` is green on `main` and the latest Pages deploy succeeded.
 4. Every Phase 1 item that changes what the product does is `DONE`,
    except the items named under "Not part of it" below.

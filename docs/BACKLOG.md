@@ -60,7 +60,7 @@ Build order: Clead's proposal, from the design the spec is taken from.
   approval of 2026-11-04 recorded on it. Every Pages site of the
   factoincognito account shares the `factoincognito.github.io` browser
   storage; a custom domain can isolate vizi later if needed.
-- **[DONE] PBI-1.8** (2026-11-04: CSP PR #30, merge `f9427c5`, and token PR #31, merge `122d641`, each approved by a Clead-role review; live on Pages with the policy; the checks against real GitHub with a real token, SPEC section 4 items 9 to 15, are open for the product owner's first try) (product owner, 2026-11-04, after PBI-1.7) — Private
+- **[DONE] PBI-1.8** (2026-11-04: CSP PR #30, merge `f9427c5`, and token PR #31, merge `122d641`, each approved by a Clead-role review; live on Pages with the policy; the checks against real GitHub with a real token, SPEC section 4 items 9 to 12 and 15, were tried by the product owner on 2026-11-11, with the results in the spec; items 13 and 14 stay with PBI-1.4) (product owner, 2026-11-04, after PBI-1.7) — Private
   repos by address: a fine-grained, read-only GitHub token, limited to
   chosen repos and with an expiry, pasted into vizi and, behind a
   "Remember the token" box, saved in the browser's storage, with a
