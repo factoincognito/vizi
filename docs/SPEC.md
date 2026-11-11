@@ -5209,29 +5209,35 @@ showed. Items 13 and 14 were not part of it.
 10. **Settled for a private backlog (PBI-1.8, 2026-11-11); the file-size
     limit is open, PBI-1.4.** Whether the contents API with the raw media
     type reads a private file with a fine-grained token: it did, for the
-    backlog of `factoincognito/product-office`, which the page showed in
-    full (the board, NOW 2 and NEXT 28). Up to what file size it works
-    was not tried.
-11. **The 401 settled (PBI-1.8, 2026-11-11); 404 and 403 open,
-    PBI-1.4.** Whether GitHub answers 401 for an expired or revoked
-    fine-grained token, 404 for a repo outside its selection, and 403
-    for a missing permission, as 3.8 expects. The product owner deleted
-    the token in GitHub while vizi still held it and then opened the
-    repo: the page said that the token was forgotten (his report; the
-    exact text was not recorded). In the code, an answer to a request
-    makes the page forget the token only through a 401 (`src/github.ts`,
-    the `token-refused` failure), and he pressed no Forget button, so
-    GitHub answers 401 for a deleted token. An expired
-    token was not tried, nor a repo outside the token's selection, nor a
-    missing permission.
+    backlog of `factoincognito/product-office`, which the page showed
+    (the board and the list). Up to what file size it works was not
+    tried.
+11. **The 401 likely, not shown (PBI-1.8, 2026-11-11); 404 and 403
+    open, PBI-1.4.** Whether GitHub answers 401 for an expired or
+    revoked fine-grained token, 404 for a repo outside its selection,
+    and 403 for a missing permission, as 3.8 expects. The product owner
+    deleted the token in GitHub while vizi still held it and then opened
+    the repo: the page said that the token was forgotten (his report;
+    the exact text was not recorded). In the code, an answer to a
+    request makes the page forget the token only through a 401
+    (`src/github.ts`, the `token-refused` failure). 3.8 also has the
+    page forget a token on "Forget", on "Forget all" and on another vizi
+    tab's `storage` event; his report names none of these, but the
+    message text, which would tell the 401 message ("GitHub refused the
+    token for …") from them, was not recorded. So a 401 for a deleted
+    token is likely, not shown. An expired token was not tried, nor a
+    repo outside the token's selection, nor a missing permission.
 12. **Partly settled (PBI-1.8, 2026-11-11); the case of a policy that
     requires approval is open, PBI-1.4.** Whether an organisation's
     policy, such as requiring approval of fine-grained tokens, stops a
     token from reading that organisation's private repos, and what
     GitHub answers then. For the token made for the `factoincognito`
     organisation's repo, GitHub asked for no approval and the token read
-    the private repo at once. What GitHub answers under a policy that
-    requires approval was not seen.
+    the private repo at once. That does not show that the organisation
+    has no such policy: GitHub's documentation, quoted in 3.12, says a
+    token made by an owner of the organisation is approved at once, and
+    whether the product owner is one was not recorded. What GitHub
+    answers under a policy that requires approval was not seen.
 13. **Open; PBI-1.8.** Whether `localStorage` keeps the token on a page
     opened from disk (`file://`); browsers treat that origin
     differently.
@@ -5254,10 +5260,11 @@ Also seen in that try (not items of this section): the token was made
 in GitHub without trouble; opening the private repo without a token
 failed; pasting a second token for the same owner replaced the first
 one (3.8: one token per owner); and the product owner can change an
-existing fine-grained token's permissions in GitHub, so a new private
-repo of the same owner does not need a new token. GitHub's page
-"Managing your personal access tokens", read on 2026-11-11, does not
-say whether this can be done, so the last point rests on his report.
+existing fine-grained token's **Repository access** (the **Selected
+repositories**) in GitHub, so a new private repo of the same owner does
+not need a new token. GitHub's page "Managing your personal access
+tokens", read on 2026-11-11, does not say whether this can be done, so
+the last point rests on his report.
 
 Item 16 is PBI-1.9's (3.9):
 
