@@ -24,10 +24,10 @@ phase one is phase 1, item 1. Numbers are never reused.
 
 ## Phase 1 — First version
 
-**Goal:** the first version of vizi, a generated web page opened
-locally, not deployed (product owner, 2026-11-03). When it counts as
-done is the product owner's call (`memory/project.md`); Clead's
-proposal is a question in `docs/NEXT_SESSION.md`, entry 1.
+**Goal:** the first version of vizi, a web page published on GitHub
+Pages (product owner, 2026-11-04, PBI-1.7; it replaced the decision of
+2026-11-03 of a page opened locally, not deployed). It is done when the
+definition in `memory/project.md` holds (product owner, 2026-11-11).
 
 Build order: Clead's proposal, from the design the spec is taken from.
 
