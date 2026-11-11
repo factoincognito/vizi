@@ -217,6 +217,19 @@ test.describe("entering the token (3.8)", () => {
     await expect(page.locator("label[for=token-input]")).toBeVisible();
     await expect(page.locator("label[for=owner-input]")).toHaveText("Owner");
     await expect(page.getByTestId("token-note")).toContainText("factoincognito Pages sites");
+    // One token per owner, and a new one replaces the old (3.8, 3.12): said under "Add a token", before the fields.
+    const replaceNote = page.getByTestId("token-replace-note");
+    await expect(replaceNote).toBeVisible();
+    await expect(replaceNote).toHaveText(
+      "Vizi keeps one token per owner. If you add a token for an owner that already has one, the new token replaces the old one.",
+    );
+    expect(
+      await replaceNote.evaluate(
+        (el) =>
+          el.previousElementSibling?.id === "token-add-title" &&
+          el.nextElementSibling?.classList.contains("add-fields") === true,
+      ),
+    ).toBe(true);
     await expect(anyLine(page)).toBeHidden();
     await expect(forgetAll(page)).toBeHidden();
   });

@@ -2788,6 +2788,13 @@ token.
 3. **"Add a token"**, a group labelled by its `h3` "Add a token" (15 px,
    weight 600), with 18 px above it, a 1 px line above that, and 14 px
    between the migration block and the line:
+   - under the `h3`, the one-token note `#token-replace-note`
+     (`data-testid="token-replace-note"`, 13 px, muted, 10 px below it),
+     from the product owner's request of 2026-11-11 12:20, in chat (PBI-1.38),
+     which makes 3.8's "replaces it" visible; the wording is Clead's from
+     his text, word for word: "Vizi keeps one token per owner. If you
+     add a token for an owner that already has one, the new token
+     replaces the old one.";
    - on desktop, one grid row of two columns, 170 px and the rest, 8 px
      apart, aligned at the bottom:
      - the label "Owner" (13 px, muted) over `#owner-input` (44 px high,
@@ -3309,7 +3316,7 @@ help always names controls the page has:
   The ids of today's controls stay (`#url-input`, `#open-url`,
   `#owner-input`, `#token-input`, `#token-remember`, `#token-use`,
   `#token-forget-all`, `#token-message`, `#token-note`,
-  `#token-migrate`, `#migrate-owner`, `#migrate-keep`,
+  `#token-replace-note` (PBI-1.38), `#token-migrate`, `#migrate-owner`, `#migrate-keep`,
   `#migrate-forget`, `#message`, `#results`), and so do the
   `data-testid`s, with `token-owner` added; `#token-status` and its
   "Tokens in use" heading go.
@@ -3336,7 +3343,8 @@ Test first, as everywhere (2.2). With GitHub stubbed, synthetic tokens
 (1280 px) width, as the other page tests run.
 
 - **Unit (Jest):**
-  - `src/start.test.ts`: the access line and the note, word for word;
+  - `src/start.test.ts`: the access line and the note, and from PBI-1.38 the
+    one-token note, word for word;
     the summary for no token, one, three, folded and opened, with and
     without an earlier token, and that it holds no `github_pat_`; the
     guide: six steps in order; every bold part is one of GitHub's labels
@@ -3416,7 +3424,9 @@ Test first, as everywhere (2.2). With GitHub stubbed, synthetic tokens
   page only") becomes three checks, `token-owner` "`<owner>`",
   `token-text` "`github_pat_…1234`", and the row's box ticked (or not);
   the label "GitHub token (for private repos)" becomes "Fine-grained
-  token, read-only"; the note's "factoincognito Pages sites" check stays.
+  token, read-only"; the note's "factoincognito Pages sites" check stays,
+  and from PBI-1.38 the same test checks the one-token note's text and
+  that it sits between the `h3` and the fields.
   The unit tests of `src/token.ts` and `src/github.ts` do not change.
 - **The policy still blocks everything else.** `e2e/csp.e2e.ts` runs as
   today, with no violation and no console error, with the panel and the
