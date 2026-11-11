@@ -13,7 +13,7 @@ Build: the first version is built and published at https://factoincognito.github
 None in progress. Of the audit findings of 2026-11-06, PBI-1.31 to PBI-1.33 are re-checked at the next audit.
 
 ## Next step
-PBI-1.10 and PBI-1.6, in the backlog's order. Then the product owner's first try of tokens against real GitHub (`docs/SPEC.md` section 4, items 9 to 15) whenever he has time, then PBI-1.4.
+PBI-1.10 and PBI-1.6, in the backlog's order, then PBI-1.4. The product owner's first try of tokens against real GitHub was done on 2026-11-11; its results are in `docs/SPEC.md` section 4, items 9 to 12 and 15.
 
 ## Blockers
 None.

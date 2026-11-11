@@ -5190,26 +5190,48 @@ PBI-1.2's; their outcome after it (PR #9):
    requests" rule changes as well (2.3). That is a template change,
    through the template's review flow.
 
-Items 9 to 15 are PBI-1.8's (3.8); PBI-1.8 says to check first that
-GitHub accepts such a token from the published page. None is checked
-yet:
+Items 9 to 15 are PBI-1.8's (3.8). The product owner tried a
+fine-grained token against real GitHub on 2026-11-11, in Edge (not
+Chrome), on the published page, with the private repo
+`factoincognito/product-office`; items 9 to 12 and 15 record what that try
+showed. Items 13 and 14 were not part of it.
 
-9. **Open; PBI-1.8.** CORS with an `Authorization` header: whether
-   `api.github.com` answers the browser's preflight from
-   `https://factoincognito.github.io`, and from a page opened from disk.
-   A preflight sent from this session's proxy got 405 from
-   `api.github.com` and 403 from `raw.githubusercontent.com`, which
-   proves nothing about a browser: the proxy may cause both.
-10. **Open; PBI-1.8.** Whether the contents API with the raw media type
-    reads a private file with a fine-grained token, and up to what file
-    size. It was checked only without a token, on one public file.
-11. **Open; PBI-1.8.** Whether GitHub answers 401 for an expired or
-    revoked fine-grained token, 404 for a repo outside its selection,
-    and 403 for a missing permission, as 3.8 expects.
-12. **Open; PBI-1.8.** Whether an organisation's policy, such as
-    requiring approval of fine-grained tokens, stops a token from
-    reading that organisation's private repos, and what GitHub answers
-    then.
+9. **Settled for the published page in Edge (PBI-1.8, 2026-11-11); open
+   for a page opened from disk and for other browsers, PBI-1.4.** CORS
+   with an `Authorization` header: with a token saved for the owner
+   `factoincognito`, the published page,
+   `https://factoincognito.github.io/vizi/`, opened the private repo
+   `factoincognito/product-office` (the board and the list were shown), so
+   GitHub answered the requests that carry the header. The preflight
+   itself was not looked at in the browser's network tab. A preflight sent
+   from this session's proxy got 405 from `api.github.com` and 403 from
+   `raw.githubusercontent.com`, which proved nothing about a browser.
+10. **Settled for a private backlog (PBI-1.8, 2026-11-11); the file-size
+    limit is open, PBI-1.4.** Whether the contents API with the raw media
+    type reads a private file with a fine-grained token: it did, for the
+    backlog of `factoincognito/product-office`, which the page showed in
+    full (the board, NOW 2 and NEXT 28). Up to what file size it works
+    was not tried.
+11. **The 401 settled (PBI-1.8, 2026-11-11); 404 and 403 open,
+    PBI-1.4.** Whether GitHub answers 401 for an expired or revoked
+    fine-grained token, 404 for a repo outside its selection, and 403
+    for a missing permission, as 3.8 expects. The product owner deleted
+    the token in GitHub while vizi still held it and then opened the
+    repo: the page said that the token was forgotten (his report; the
+    exact text was not recorded). In the code, an answer to a request
+    makes the page forget the token only through a 401 (`src/github.ts`,
+    the `token-refused` failure), and he pressed no Forget button, so
+    GitHub answers 401 for a deleted token. An expired
+    token was not tried, nor a repo outside the token's selection, nor a
+    missing permission.
+12. **Partly settled (PBI-1.8, 2026-11-11); the case of a policy that
+    requires approval is open, PBI-1.4.** Whether an organisation's
+    policy, such as requiring approval of fine-grained tokens, stops a
+    token from reading that organisation's private repos, and what
+    GitHub answers then. For the token made for the `factoincognito`
+    organisation's repo, GitHub asked for no approval and the token read
+    the private repo at once. What GitHub answers under a policy that
+    requires approval was not seen.
 13. **Open; PBI-1.8.** Whether `localStorage` keeps the token on a page
     opened from disk (`file://`); browsers treat that origin
     differently.
@@ -5225,7 +5247,17 @@ yet:
 15. **Open; PBI-1.8.** Whether a browser's password manager offers to
     save the token from a password field outside any `<form>`, and so
     may keep it, perhaps synced to an account. Browsers often ignore
-    `autocomplete="off"` on password fields.
+    `autocomplete="off"` on password fields. The try of 2026-11-11 in
+    Edge did not record whether Edge made such an offer.
+
+Also seen in that try (not items of this section): the token was made
+in GitHub without trouble; opening the private repo without a token
+failed; pasting a second token for the same owner replaced the first
+one (3.8: one token per owner); and the product owner can change an
+existing fine-grained token's permissions in GitHub, so a new private
+repo of the same owner does not need a new token. GitHub's page
+"Managing your personal access tokens", read on 2026-11-11, does not
+say whether this can be done, so the last point rests on his report.
 
 Item 16 is PBI-1.9's (3.9):
 
@@ -5260,9 +5292,10 @@ Item 19 is PBI-1.13's (3.10):
     label GitHub's token page shows for the read level (the
     documentation does not give it, so the guide does not use one), and
     whether the live page matches the documentation. Items 10 and 11
-    still settle what GitHub answers to such a token, when the product
-    owner first tries one against real GitHub; the help text and the
-    guide are corrected if GitHub's page says otherwise.
+    settle what GitHub answers to such a token; the product owner's
+    first try against real GitHub was on 2026-11-11 and its results are
+    in those items. The help text and the guide are corrected if GitHub's
+    page says otherwise.
 
 Items 20 to 23 are PBI-1.16's (3.12):
 
