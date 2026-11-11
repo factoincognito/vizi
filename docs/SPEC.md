@@ -221,6 +221,17 @@ The backlog file format the parser reads is in `docs/BACKLOG-FORMAT.md`.
     request and no change to the Content-Security-Policy. How vizi does it
     is 3.16.
 
+19. His request of 2026-11-11 (12:20, in chat, "Add text clarifying that
+    only one token per owner is allowed. When uploading a token for an
+    owner who already has a token the new one will overwrite the old
+    one", on the condition that his text is correct, which 3.8 and his
+    try of the same day confirm; recorded in `memory/decisions.md` and
+    as PBI-1.38 in `docs/BACKLOG.md`): the page says that vizi keeps one
+    token per owner and that a token added for an owner that already has
+    one replaces the old one. The wording and the place (under the "Add
+    a token" heading) are Clead's; see 3.12, "The 'Private repos'
+    panel".
+
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
 Clead's call, not a question for the product owner, and it does not
@@ -293,6 +304,8 @@ project's documentation.
   names another file vizi reads too (3.15; product-office PO-105).
 - Added on 2026-11-09: the repository to open given in the page's
   address, `?repo=<owner>/<repo>` (3.16; PBI-1.35).
+- Added on 2026-11-11: a note in the "Private repos" panel that there is
+  one token per owner and that a new one replaces the old (3.12; PBI-1.38).
 
 Not decided: a lint mode beyond the page's report (Clead's suggestion,
 which the product owner found worth considering). The parser is
@@ -2602,7 +2615,7 @@ is of the canvas version 1793803575-d7d4. What it shows is the approved
 look and copy: the structure, spacing, colours and font, and the texts
 of the header, the address section's line, the panel's toggle and
 summary, the owner rows, the earlier-token block, "Add a token" and its
-labels, and "Forget all tokens". Three parts came after it, so they are
+labels, and "Forget all tokens". Parts came after it, so they are
 not in the approved version:
 
 - the token guide carries out the decision of 16:11, and the
@@ -2610,6 +2623,9 @@ not in the approved version:
   texts below are **Clead's drafts within those decisions**, not
   approved copy; the boards read for this spec (a later version of the
   canvas) show an earlier draft of both, by Clead too;
+- the one-token note under "Add a token" (PBI-1.38, 2026-11-11) is the
+  product owner's request in content, with wording and place by Clead;
+  it is not in the approved version either;
 - the prefilled address on the boards carries out the decision of
   16:36, which the decision of 17:07 replaced (a "Repository" field for
   `owner/repo`, PBI-1.17), so it is no one's now; see "Not in this
@@ -2789,12 +2805,15 @@ token.
    weight 600), with 18 px above it, a 1 px line above that, and 14 px
    between the migration block and the line:
    - under the `h3`, the one-token note `#token-replace-note`
-     (`data-testid="token-replace-note"`, 13 px, muted, 10 px below it),
-     from the product owner's request of 2026-11-11 12:20, in chat (PBI-1.38),
-     which makes 3.8's "replaces it" visible; the wording is Clead's from
-     his text, word for word: "Vizi keeps one token per owner. If you
-     add a token for an owner that already has one, the new token
-     replaces the old one.";
+     (`data-testid="token-replace-note"`, 13 px, muted; the `h3`'s own
+     10 px bottom margin is the gap above it, and it has 10 px below it).
+     Its content is the product owner's request of 2026-11-11 12:20, in
+     chat (item 19 of "What is decided"; PBI-1.38): say that there is one
+     token per owner and that a token added for an owner that already has
+     one replaces the old one, which makes 3.8's "replaces it" visible.
+     The wording and the place are Clead's; the note reads, word for
+     word: "vizi keeps one token per owner. If you add a token for an
+     owner that already has one, the new token replaces the old one.";
    - on desktop, one grid row of two columns, 170 px and the rest, 8 px
      apart, aligned at the bottom:
      - the label "Owner" (13 px, muted) over `#owner-input` (44 px high,
@@ -3316,9 +3335,11 @@ help always names controls the page has:
   The ids of today's controls stay (`#url-input`, `#open-url`,
   `#owner-input`, `#token-input`, `#token-remember`, `#token-use`,
   `#token-forget-all`, `#token-message`, `#token-note`,
-  `#token-replace-note` (PBI-1.38), `#token-migrate`, `#migrate-owner`, `#migrate-keep`,
+  `#token-migrate`, `#migrate-owner`, `#migrate-keep`,
   `#migrate-forget`, `#message`, `#results`), and so do the
-  `data-testid`s, with `token-owner` added; `#token-status` and its
+  `data-testid`s, with `token-owner` added; PBI-1.38 adds the element
+  `#token-replace-note` (`data-testid="token-replace-note"`);
+  `#token-status` and its
   "Tokens in use" heading go.
 - `src/start.ts` (new, a pure module): the static texts (the access
   line, the note, the guide's steps and paragraph as text and bold

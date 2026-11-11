@@ -30,7 +30,7 @@ export const TOKEN_NOTE =
 
 /** The note under the "Add a token" heading: one token per owner, a new one replaces the old (the product owner, 2026-11-11 12:20; 3.8, 3.12). */
 export const TOKEN_REPLACE_NOTE =
-  "Vizi keeps one token per owner. If you add a token for an owner that already has one, the new token replaces the old one.";
+  "vizi keeps one token per owner. If you add a token for an owner that already has one, the new token replaces the old one.";
 
 /** The token guide's toggle. */
 export const GUIDE_TITLE = "How do I make a read-only token?";

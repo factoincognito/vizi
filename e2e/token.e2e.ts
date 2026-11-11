@@ -221,7 +221,7 @@ test.describe("entering the token (3.8)", () => {
     const replaceNote = page.getByTestId("token-replace-note");
     await expect(replaceNote).toBeVisible();
     await expect(replaceNote).toHaveText(
-      "Vizi keeps one token per owner. If you add a token for an owner that already has one, the new token replaces the old one.",
+      "vizi keeps one token per owner. If you add a token for an owner that already has one, the new token replaces the old one.",
     );
     expect(
       await replaceNote.evaluate(

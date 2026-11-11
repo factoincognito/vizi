@@ -38,7 +38,7 @@ describe("the static texts (3.12)", () => {
 
   test("the one-token-per-owner note, word for word, and no token in it", () => {
     expect(TOKEN_REPLACE_NOTE).toBe(
-      "Vizi keeps one token per owner. If you add a token for an owner that already has one, the new token replaces the old one.",
+      "vizi keeps one token per owner. If you add a token for an owner that already has one, the new token replaces the old one.",
     );
     expect(TOKEN_REPLACE_NOTE).not.toMatch(REAL_LOOKING_TOKEN);
   });
