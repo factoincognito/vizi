@@ -4,11 +4,11 @@ Written 2026-11-11 by a Clead session as a read-only check of the 79 points of [
 
 - Line numbers are those of `7bdbad9`. Since then #104 to #109 merged; #107 changed `e2e/token.e2e.ts`, `src/main.ts`, `src/start.ts`, `src/style.css` and `docs/SPEC.md` (3.8, 3.12, section 4), so re-check points 3, 4, 24, 35 and every SPEC line number before using them.
 - Nothing was run. Every status below comes from reading files.
-- Adam's go-line is needed before the test-only PRs start (see `STATUS.md`, Blockers).
+- Adam's go-line is needed before the PRs of groups D to I start; they change no behaviour, but G, H and I also edit `src/` and `playwright.config.ts` (see `STATUS.md`, Blockers).
 
-Repo /home/claude/vizi at main 7bdbad9. Entry: docs/BACKLOG.md:180. Each point checked against the files as they are now.
+Repository at main `7bdbad9`. Entry: docs/BACKLOG.md:180 at that commit. Each point was checked against the files as they were at `7bdbad9`.
 79 points. FIXED 22, OPEN-CODE 20, OPEN-SPEC 19, DECISION 15, UNCLEAR 3.
-Line numbers are current lines. Where a point named an old line number, I mapped it by content and say so.
+Line numbers are those of `7bdbad9`. Where a point named an old line number, I mapped it by content and say so.
 Nothing was run (no tests, no browser): every status is from reading files, and for three points that is not enough (47, 57, 70).
 
 ## Table
@@ -107,7 +107,7 @@ Behaviour-changing = needs a failing test first. All others are test, spec or ti
 | D. Token e2e hardening | 3, 4, 35 | e2e/token.e2e.ts | No |
 | E. CSP e2e polling | 34 | e2e/csp.e2e.ts | No |
 | F. Umbrella / help test hardening | 43, 58, 59, 60, 61 | e2e/help.e2e.ts, e2e/umbrella.e2e.ts, src/help.test.ts | No |
-| G. Branch picker tests and tidy-up | 49, 50, 56 | e2e/branches.e2e.ts (or a new contrast test), src/main.ts `hideResults` | No (50 is invisible) |
+| G. Branch picker tests and tidy-up (add the missing `%` branch case of point 65, which is marked FIXED above) | 49, 50, 56 | e2e/branches.e2e.ts (or a new contrast test), src/main.ts `hideResults` | No (50 is invisible) |
 | H. Guide robustness | 74, 76 | e2e/guide.e2e.ts, src/guide.ts, src/main.ts | 76 no visible change normally; 74 test only |
 | I. Small code/test items | 33, 44, 77, 79 | playwright.config.ts, src/markdown.test.ts, src/github.test.ts, src/include.ts | No |
 | J. Phone row layout | 46 (and 47 once measured) | src/style.css, e2e/start.e2e.ts | Yes (visual) |
@@ -137,4 +137,4 @@ Decision list (what the choice is):
 - Point 39: whether GitHub owner names can hold dots.
 - SPEC lines I cite for 3.8 are from reading; a few are given as "~" where I did not grep the exact number.
 - I used `gh api` read-only to read the PR descriptions and comments of #31, #35, #42 and #80, to identify points whose entry text is short. No other external call.
-- No file inside /home/claude/vizi was changed.
+- No file of the repository was changed by the check.
