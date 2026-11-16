@@ -5231,8 +5231,8 @@ Items 9 to 15 are PBI-1.8's (3.8). The product owner tried a
 fine-grained token against real GitHub on 2026-11-11, in Edge (not
 Chrome), on the published page, with the private repo
 `factoincognito/product-office`; items 9 to 12 record what that try
-showed, and item 15 notes what it did not record. Items 13 and 14 were
-not part of it.
+showed. Item 15 was tried on 2026-11-16, also in Edge. Items 13 and 14
+were not part of either try.
 
 9. **Settled for the published page in Edge (PBI-1.8, 2026-11-11); open
    for a page opened from disk and for other browsers, PBI-1.4.** CORS
@@ -5288,14 +5288,27 @@ not part of it.
     request to another host, an image from another host and a form post
     all blocked. Whether every other browser the page targets applies
     the policy the same way was not checked.
-15. **Open; PBI-1.4.** Whether a browser's password manager offers to
-    save the token from a password field outside any `<form>`, and so
-    may keep it, perhaps synced to an account. Browsers often ignore
-    `autocomplete="off"` on password fields. The try of 2026-11-11 in
-    Edge did not record whether Edge made such an offer, so the
-    question stays open, with PBI-1.4.
+15. **Tried in Edge (PBI-1.8, 2026-11-16), not settled; PBI-1.4.**
+    Whether a browser's password manager offers to save the
+    token from a password field outside any `<form>`, and so may keep
+    it, perhaps synced to an account. Browsers often ignore
+    `autocomplete="off"` on password fields. On 2026-11-16 the product
+    owner pressed "Add" with a value in the token field, in Edge on the
+    published page, and Edge showed no "Save password" popup. His
+    screenshot of Edge's password settings shows "Ask to save passwords
+    and passkeys" on, and "Declined sites and apps" holds one site, not
+    `factoincognito.github.io`. Whether the value was a real token or a
+    made-up one was not recorded in his report. Two gaps keep it from
+    being settled: whether "Add" accepted the value (it matches the
+    token rule of 3.8, the field is cleared and a masked row appears) was
+    not recorded, and a value that breaks the rule is refused with the
+    field keeping its text, which is not the path on which a password
+    manager offers to save; and whether Edge offered later, for example
+    on a reload or on leaving the page, was not recorded. The try of
+    2026-11-11 did not record whether Edge made such an offer. No other
+    browser was tried.
 
-Also seen in that try (not items of this section): the token was made
+Also seen in the try of 2026-11-11 (not items of this section): the token was made
 in GitHub without trouble; opening the private repo without a token
 failed; pasting a second token for the same owner replaced the first
 one (3.8: one token per owner); and the product owner can change an
