@@ -109,6 +109,7 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Spec: what the product owner's first try of a token against real GitHub showed, `docs/SPEC.md` section 4, items 9 to 12 (#106).
 - The one-token note (PBI-1.38): a note under "Add a token" in the "Private repos" panel that vizi keeps one token per owner and that a new token replaces the old one, with a browser test that a token added without Remember removes the older saved copy; `docs/SPEC.md` 3.12 and decision 19 (#107).
 - Spec: item 15 of section 4 tried in Edge; changelog for #103 to #107 (#108).
+- Backlog: PBI-1.40, a version history like the Snake demo's, `LATER` (#109).
 
 ## Project created
 
