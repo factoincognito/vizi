@@ -5288,8 +5288,8 @@ were not part of either try.
     request to another host, an image from another host and a form post
     all blocked. Whether every other browser the page targets applies
     the policy the same way was not checked.
-15. **Settled for Edge (PBI-1.8, 2026-11-16); open for other browsers,
-    PBI-1.4.** Whether a browser's password manager offers to save the
+15. **Tried in Edge (PBI-1.8, 2026-11-16), not settled; PBI-1.4.**
+    Whether a browser's password manager offers to save the
     token from a password field outside any `<form>`, and so may keep
     it, perhaps synced to an account. Browsers often ignore
     `autocomplete="off"` on password fields. On 2026-11-16 the product
@@ -5298,11 +5298,17 @@ were not part of either try.
     screenshot of Edge's password settings shows "Ask to save passwords
     and passkeys" on, and "Declined sites and apps" holds one site, not
     `factoincognito.github.io`. Whether the value was a real token or a
-    made-up one was not recorded in his report. The try of 2026-11-11
-    did not record whether Edge made such an offer. No other browser
-    was tried.
+    made-up one was not recorded in his report. Two gaps keep it from
+    being settled: whether "Add" accepted the value (it matches the
+    token rule of 3.8, the field is cleared and a masked row appears) was
+    not recorded, and a value that breaks the rule is refused with the
+    field keeping its text, which is not the path on which a password
+    manager offers to save; and whether Edge offered later, for example
+    on a reload or on leaving the page, was not recorded. The try of
+    2026-11-11 did not record whether Edge made such an offer. No other
+    browser was tried.
 
-Also seen in that try (not items of this section): the token was made
+Also seen in the try of 2026-11-11 (not items of this section): the token was made
 in GitHub without trouble; opening the private repo without a token
 failed; pasting a second token for the same owner replaced the first
 one (3.8: one token per owner); and the product owner can change an
