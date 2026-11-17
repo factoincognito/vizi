@@ -888,3 +888,53 @@ test("an index of more than 100 files is refused before any model call", async (
   assert.equal(query.seen.params.length, 0);
   assert.equal(posts(fetchImpl).length, 0);
 });
+
+// Second fix round on the CI verdict of PR #111: no way to drop a section silently.
+test("an indented table row is read like any other row", async () => {
+  const rows = [
+    "  | front | Front | `docs/spec/front.md` |",
+    "   | 1 | One | `docs/spec/1-one.md` |",
+  ];
+  const { deps, query } = setupSplitSpec(indexWith(rows));
+  await run(deps);
+  const fixed = fixedPrompt(query);
+  assert.ok(fixed.includes("FRONT-TEXT") && fixed.includes("ONE-TEXT"));
+});
+
+test("an index that names a section file outside a table row is refused before any model call", async () => {
+  const index = [
+    "# Title",
+    "",
+    "- [Front](docs/spec/front.md)",
+    "- [One](docs/spec/1-one.md)",
+  ].join("\n");
+  const { deps, query, fetchImpl } = setupSplitSpec(index);
+  await assert.rejects(run(deps), /outside a table row/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+test("a section file listed twice is refused before any model call", async () => {
+  const rows = [
+    "| front | Front | `docs/spec/front.md` |",
+    "| front | Front again | `docs/spec/front.md` |",
+  ];
+  const { deps, query, fetchImpl } = setupSplitSpec(indexWith(rows));
+  await assert.rejects(run(deps), /listed twice/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+test("a row inside a fenced code block of the index is an example, not a row", async () => {
+  const index = [
+    indexWith(["| front | Front | `docs/spec/front.md` |"]),
+    "",
+    "```",
+    "| 9 | Nine | `docs/spec/9-nine.md` |",
+    "```",
+  ].join("\n");
+  const { deps, query, asked } = setupSplitSpec(index);
+  await run(deps);
+  assert.ok(fixedPrompt(query).includes("FRONT-TEXT"));
+  assert.ok(!asked.some((a) => a[0] === "docs/spec/9-nine.md"));
+});

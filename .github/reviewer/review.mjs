@@ -40,9 +40,23 @@ const MAX_SECTION_FILES = 100;
 export function withSpecSections(index, readSection) {
   const paths = [];
   const files = []; // the last cell of every table row that ends in a path in backticks
+  let fenced = false;
   for (const raw of index.split("\n")) {
-    const line = raw.trimEnd();
-    if (!line.startsWith("|")) continue;
+    const line = raw.trim();
+    if (line.startsWith("```") || line.startsWith("~~~")) {
+      fenced = !fenced;
+      continue;
+    }
+    if (fenced) continue;
+    const mentionsFile = /docs\/spec\/\S*\.md/.test(line);
+    if (!line.startsWith("|")) {
+      if (mentionsFile) {
+        throw new Error(
+          `the specification index names a section file outside a table row: ${line}`,
+        );
+      }
+      continue;
+    }
     const cell = /\|\s*`([^`|]+)`\s*\|$/.exec(line);
     if (cell) files.push(cell[1]);
     if (cell?.[1].startsWith("docs/spec/")) paths.push(cell[1]);
@@ -60,6 +74,9 @@ export function withSpecSections(index, readSection) {
   }
   for (const path of files) {
     if (!SECTION_FILE.test(path)) throw new Error(`${path} is not a section file of docs/spec/`);
+  }
+  if (new Set(paths).size !== paths.length) {
+    throw new Error("the specification index has a section file listed twice");
   }
   const parts = [index.trim()];
   for (const path of paths) {

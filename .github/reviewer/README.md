@@ -16,8 +16,9 @@ and is not part of the built page or the root `package.json`.
   and, where `docs/SPEC.md` is an index, the section files in `docs/spec/` that
   its table rows name (read from the same base commit, in the table's order; a
   row whose last cell is a path that is not such a file, a row that names
-  `docs/spec/` and does not end in its file cell, more than 100 files, or a
-  file that cannot be read fails the job like a missing document), calls the
+  `docs/spec/` and does not end in its file cell, a section file named
+  outside a table row or listed twice, more than 100 files, or a file that
+  cannot be read fails the job like a missing document), calls the
   model, posts one comment. The only GitHub calls: read the compare (its file
   list, then its diff), list the PR's comments, post a comment. A
   document missing on the base commit (a PR based on a commit before `RULES.md`
