@@ -31,15 +31,26 @@ const MAX_SECTION_FILES = 100;
  * The index of the specification followed by the section files its table
  * rows name (a row ends in the file's path in backticks), in the table's
  * order, each as a document of its own. An index with no such rows is the
- * whole specification and is returned as it is. A row that does not name a
- * file in `docs/spec/`, or a file that cannot be read, throws: the head was
- * not reviewed with the whole specification (`RULES.md` L § 4 (3)).
+ * whole specification and is returned as it is. In an index, a row whose last
+ * cell is a path that is not a file in `docs/spec/`, a row that names
+ * `docs/spec/` without ending in its file cell, more than 100 files, and a
+ * file that cannot be read all throw: the head was not reviewed with the whole
+ * specification (`RULES.md` L § 4 (3)).
  */
 export function withSpecSections(index, readSection) {
   const paths = [];
-  for (const line of index.split("\n")) {
-    const m = /^\|.*`([^`]+)` \|$/.exec(line);
-    if (m?.[1].startsWith("docs/spec/")) paths.push(m[1]);
+  const files = []; // the last cell of every table row that ends in a path in backticks
+  for (const raw of index.split("\n")) {
+    const line = raw.trimEnd();
+    if (!line.startsWith("|")) continue;
+    const cell = /\|\s*`([^`|]+)`\s*\|$/.exec(line);
+    if (cell) files.push(cell[1]);
+    if (cell?.[1].startsWith("docs/spec/")) paths.push(cell[1]);
+    else if (line.includes("docs/spec/")) {
+      throw new Error(
+        `a row of the specification index names docs/spec/ but does not end in its file cell: ${line}`,
+      );
+    }
   }
   if (paths.length === 0) return index;
   if (paths.length > MAX_SECTION_FILES) {
@@ -47,9 +58,11 @@ export function withSpecSections(index, readSection) {
       `the specification index lists ${paths.length} files, over ${MAX_SECTION_FILES}`,
     );
   }
+  for (const path of files) {
+    if (!SECTION_FILE.test(path)) throw new Error(`${path} is not a section file of docs/spec/`);
+  }
   const parts = [index.trim()];
   for (const path of paths) {
-    if (!SECTION_FILE.test(path)) throw new Error(`${path} is not a section file of docs/spec/`);
     parts.push(`# ${path} (on the base branch)\n\n${readSection(path).trim()}`);
   }
   return parts.join("\n\n---\n\n");

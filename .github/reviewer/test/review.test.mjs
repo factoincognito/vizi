@@ -836,3 +836,55 @@ test("the instructions tell the model that the specification's section files are
   const end = instructions.indexOf("You have no tools.");
   assert.ok(instructions.slice(start, end).includes("docs/spec/"));
 });
+
+// Fix round on the CI verdict of PR #111: an index that cannot be read exactly
+// must fail the job, not give the model a partial specification.
+function indexWith(rows, eol = "\n") {
+  return ["# Title", "", "| Section | Heading | File |", "|---|---|---|", ...rows].join(eol);
+}
+
+test("an index row whose file cell names a path outside docs/spec/ is refused before any model call", async () => {
+  const { deps, query, fetchImpl } = setupSplitSpec(
+    indexWith(["| front | Front | `docs/spec/front.md` |", "| 1 | One | `docs/other.md` |"]),
+  );
+  await assert.rejects(run(deps), /not a section file/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+test("rows with CRLF line endings or trailing spaces are read like any other row", async () => {
+  const rows = [
+    "| front | Front | `docs/spec/front.md` |  ",
+    "| 1 | One | `docs/spec/1-one.md` |\t",
+  ];
+  for (const eol of ["\n", "\r\n"]) {
+    const { deps, query } = setupSplitSpec(indexWith(rows, eol));
+    await run(deps);
+    const fixed = fixedPrompt(query);
+    assert.ok(
+      fixed.includes("FRONT-TEXT") && fixed.includes("ONE-TEXT"),
+      `both sections with ${JSON.stringify(eol)}`,
+    );
+  }
+});
+
+test("a table row that names docs/spec/ but does not end in its file cell is refused before any model call", async () => {
+  const { deps, query, fetchImpl } = setupSplitSpec(
+    indexWith([
+      "| front | Front | `docs/spec/front.md` | extra |",
+      "| 1 | One | `docs/spec/1-one.md` |",
+    ]),
+  );
+  await assert.rejects(run(deps), /does not end in its file cell/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+test("an index of more than 100 files is refused before any model call", async () => {
+  const rows = Array.from({ length: 101 }, (_, i) => `| ${i} | S${i} | \`docs/spec/${i}.md\` |`);
+  const sections = Object.fromEntries(rows.map((_, i) => [`docs/spec/${i}.md`, `T${i}`]));
+  const { deps, query, fetchImpl } = setupSplitSpec(indexWith(rows), sections);
+  await assert.rejects(run(deps), /over 100/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
