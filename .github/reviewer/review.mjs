@@ -26,6 +26,9 @@ export const REVIEW_DOCS = ["CLAUDE.md", "RULES.md", "memory/standards.md", "doc
 const SPEC_INDEX = "docs/SPEC.md";
 const SECTION_FILE = /^docs\/spec\/[A-Za-z0-9._-]+\.md$/;
 const MAX_SECTION_FILES = 100;
+// A `spec/…md` path, with or without `docs/` or `./` before it.
+const SPEC_PATH = /(?:^|[^A-Za-z0-9._-])spec\/[^\s`|)\]]*\.md/;
+const SPEC_PATH_ALL = new RegExp(SPEC_PATH.source, "g");
 
 /**
  * The index of the specification followed by the section files its table
@@ -33,12 +36,16 @@ const MAX_SECTION_FILES = 100;
  * order, each as a document of its own. An index with no such rows is the
  * whole specification and is returned as it is. In an index, all of these
  * throw: a row whose last cell is a path that is not a file in `docs/spec/`;
- * a row that names `docs/spec/` without ending in its file cell; a section
- * file named outside a table row or listed twice; a code fence; more than
+ * a row that names a `spec/…md` path (with or without `docs/`) without
+ * ending in its file cell, or names two; a section file named outside a table
+ * row or listed twice; a code fence; more than
  * 100 files; a file that cannot be read. The head was not reviewed with the
  * whole specification (`RULES.md` L § 4 (3)).
  */
 export function withSpecSections(index, readSection) {
+  // A specification that names no `spec/…md` path anywhere is the whole
+  // specification, with or without code fences, and is returned as it is.
+  if (!SPEC_PATH.test(index)) return index;
   const paths = [];
   const files = []; // the last cell of every table row that ends in a path in backticks
   for (const raw of index.split("\n")) {
@@ -48,7 +55,11 @@ export function withSpecSections(index, readSection) {
     if (line.startsWith("```") || line.startsWith("~~~")) {
       throw new Error("the specification index has a code fence, which this reader does not read");
     }
-    const mentionsFile = /docs\/spec\/\S*\.md/.test(line);
+    // Any `spec/…md` path, with or without `docs/`, is a section file: an
+    // index that names its sections another way must fail, not pass as a
+    // whole specification.
+    const named = line.match(SPEC_PATH_ALL) ?? [];
+    const mentionsFile = named.length > 0;
     if (!line.startsWith("|")) {
       if (mentionsFile) {
         throw new Error(
@@ -57,10 +68,13 @@ export function withSpecSections(index, readSection) {
       }
       continue;
     }
+    if (named.length > 1) {
+      throw new Error(`a row of the specification index names more than one section file: ${line}`);
+    }
     const cell = /\|\s*`([^`|]+)`\s*\|$/.exec(line);
     if (cell) files.push(cell[1]);
     if (cell?.[1].startsWith("docs/spec/")) paths.push(cell[1]);
-    else if (line.includes("docs/spec/")) {
+    else if (mentionsFile || line.includes("docs/spec/")) {
       throw new Error(
         `a row of the specification index names docs/spec/ but does not end in its file cell: ${line}`,
       );

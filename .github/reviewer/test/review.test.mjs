@@ -948,3 +948,29 @@ test("exactly 100 section files are accepted", async () => {
   await run(deps);
   assert.ok(fixedPrompt(query).includes("T99"));
 });
+
+test("an index that names its sections without the docs/ prefix is refused, not passed through", async () => {
+  for (const cell of ["`spec/a.md`", "[A](spec/a.md)", "`./spec/a.md`"]) {
+    const { deps, query, fetchImpl } = setupSplitSpec(indexWith([`| 1 | One | ${cell} |`]));
+    await assert.rejects(run(deps), /spec\/a\.md/, cell);
+    assert.equal(query.seen.params.length, 0);
+    assert.equal(posts(fetchImpl).length, 0);
+  }
+});
+
+test("a row that names two section files is refused, so none is dropped", async () => {
+  const { deps, query, fetchImpl } = setupSplitSpec(
+    indexWith(["| `docs/spec/x.md` | One | `docs/spec/front.md` |"]),
+  );
+  await assert.rejects(run(deps), /more than one/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+test("a monolithic specification with code fences is passed through unchanged", async () => {
+  const mono = ["# Spec", "", "```", "| 1 | x | `y` |", "```", "", "Text."].join("\n");
+  const { deps, query } = setupSplitSpec(mono);
+  await run(deps);
+  assert.ok(fixedPrompt(query).includes("Text."));
+  assert.ok(!fixedPrompt(query).includes("# docs/spec/"));
+});
