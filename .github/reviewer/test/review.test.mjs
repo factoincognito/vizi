@@ -752,3 +752,225 @@ test("the real dependencies main() uses: base-commit documents and the real inst
   assert.equal(typeof real.fetch, "function");
   assert.equal(typeof real.query, "function");
 });
+
+// PO-187 fix 1: when docs/SPEC.md is an index of section files in docs/spec/,
+// the review documents hold the index and every section file it lists.
+const SPEC_INDEX = [
+  "# Title",
+  "",
+  "| Section | Heading | File |",
+  "|---|---|---|",
+  "| front | Front | `docs/spec/front.md` |",
+  "| 1 | 1. One | `docs/spec/1-one.md` |",
+].join("\n");
+const SPEC_SECTIONS = {
+  "docs/spec/front.md": "FRONT-TEXT",
+  "docs/spec/1-one.md": "ONE-TEXT",
+};
+
+function setupSplitSpec(index = SPEC_INDEX, sections = SPEC_SECTIONS) {
+  const s = setup();
+  const asked = [];
+  const all = { ...DOCS, "docs/SPEC.md": index, ...sections };
+  s.deps.readDoc = (path, ref) => {
+    asked.push([path, ref]);
+    if (!(path in all)) throw new Error(`missing doc ${path}`);
+    return all[path];
+  };
+  return { ...s, asked };
+}
+
+function fixedPrompt(query) {
+  const blocks = query.seen.params[0].options.systemPrompt;
+  return blocks.slice(0, blocks.indexOf(BOUNDARY_MARKER)).join("\n");
+}
+
+test("the section files an index lists are read from the base commit and given to the model, in the index's order", async () => {
+  const { deps, query, asked } = setupSplitSpec();
+  await run(deps);
+  const fixed = fixedPrompt(query);
+  assert.ok(fixed.includes("| 1 | 1. One |"), "the index is in the prompt");
+  const front = fixed.indexOf("FRONT-TEXT");
+  const one = fixed.indexOf("ONE-TEXT");
+  assert.ok(front >= 0 && one > front, "both sections are in the prompt, in the index's order");
+  for (const path of Object.keys(SPEC_SECTIONS)) {
+    assert.ok(
+      asked.some((a) => a[0] === path && a[1] === BASE),
+      `${path} is read from the base commit`,
+    );
+  }
+});
+
+test("an index row that names a missing section file stops the run before any model call", async () => {
+  const { deps, query, fetchImpl } = setupSplitSpec(SPEC_INDEX, {
+    "docs/spec/front.md": "FRONT-TEXT",
+  });
+  await assert.rejects(run(deps), /missing doc docs\/spec\/1-one\.md/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+test("an index row that names a file outside docs/spec/ is refused before any model call", async () => {
+  const index = SPEC_INDEX.replace("docs/spec/1-one.md", "docs/spec/../../RULES.md");
+  const { deps, query, fetchImpl } = setupSplitSpec(index);
+  await assert.rejects(run(deps), /not a section file/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+test("a docs/SPEC.md without index rows is the whole specification", async () => {
+  const { deps, query } = setup();
+  const seen = [];
+  deps.readDoc = (path, ref) => {
+    seen.push([path, ref]);
+    return DOCS[path];
+  };
+  await run(deps);
+  assert.ok(fixedPrompt(query).includes("SPEC-TEXT"));
+  assert.deepEqual(seen.map((a) => a[0]).sort(), Object.keys(DOCS).sort());
+});
+
+test("the instructions tell the model that the specification's section files are inputs", () => {
+  const instructions = readFileSync(new URL("../instructions.md", import.meta.url), "utf8");
+  const start = instructions.indexOf("You have exactly these inputs:");
+  const end = instructions.indexOf("You have no tools.");
+  assert.ok(instructions.slice(start, end).includes("docs/spec/"));
+});
+
+// Fix round on the CI verdict of PR #111: an index that cannot be read exactly
+// must fail the job, not give the model a partial specification.
+function indexWith(rows, eol = "\n") {
+  return ["# Title", "", "| Section | Heading | File |", "|---|---|---|", ...rows].join(eol);
+}
+
+test("an index row whose file cell names a path outside docs/spec/ is refused before any model call", async () => {
+  const { deps, query, fetchImpl } = setupSplitSpec(
+    indexWith(["| front | Front | `docs/spec/front.md` |", "| 1 | One | `docs/other.md` |"]),
+  );
+  await assert.rejects(run(deps), /not a section file/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+test("rows with CRLF line endings or trailing spaces are read like any other row", async () => {
+  const rows = [
+    "| front | Front | `docs/spec/front.md` |  ",
+    "| 1 | One | `docs/spec/1-one.md` |\t",
+  ];
+  for (const eol of ["\n", "\r\n"]) {
+    const { deps, query } = setupSplitSpec(indexWith(rows, eol));
+    await run(deps);
+    const fixed = fixedPrompt(query);
+    assert.ok(
+      fixed.includes("FRONT-TEXT") && fixed.includes("ONE-TEXT"),
+      `both sections with ${JSON.stringify(eol)}`,
+    );
+  }
+});
+
+test("a table row that names docs/spec/ but does not end in its file cell is refused before any model call", async () => {
+  const { deps, query, fetchImpl } = setupSplitSpec(
+    indexWith([
+      "| front | Front | `docs/spec/front.md` | extra |",
+      "| 1 | One | `docs/spec/1-one.md` |",
+    ]),
+  );
+  await assert.rejects(run(deps), /does not end in its file cell/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+test("an index of more than 100 files is refused before any model call", async () => {
+  const rows = Array.from({ length: 101 }, (_, i) => `| ${i} | S${i} | \`docs/spec/${i}.md\` |`);
+  const sections = Object.fromEntries(rows.map((_, i) => [`docs/spec/${i}.md`, `T${i}`]));
+  const { deps, query, fetchImpl } = setupSplitSpec(indexWith(rows), sections);
+  await assert.rejects(run(deps), /over 100/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+// Second fix round on the CI verdict of PR #111: no way to drop a section silently.
+test("an indented table row is read like any other row", async () => {
+  const rows = [
+    "  | front | Front | `docs/spec/front.md` |",
+    "   | 1 | One | `docs/spec/1-one.md` |",
+  ];
+  const { deps, query } = setupSplitSpec(indexWith(rows));
+  await run(deps);
+  const fixed = fixedPrompt(query);
+  assert.ok(fixed.includes("FRONT-TEXT") && fixed.includes("ONE-TEXT"));
+});
+
+test("an index that names a section file outside a table row is refused before any model call", async () => {
+  const index = [
+    "# Title",
+    "",
+    "- [Front](docs/spec/front.md)",
+    "- [One](docs/spec/1-one.md)",
+  ].join("\n");
+  const { deps, query, fetchImpl } = setupSplitSpec(index);
+  await assert.rejects(run(deps), /outside a table row/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+test("a section file listed twice is refused before any model call", async () => {
+  const rows = [
+    "| front | Front | `docs/spec/front.md` |",
+    "| front | Front again | `docs/spec/front.md` |",
+  ];
+  const { deps, query, fetchImpl } = setupSplitSpec(indexWith(rows));
+  await assert.rejects(run(deps), /listed twice/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+test("an index with a code fence is refused before any model call", async () => {
+  for (const fence of ["```", "~~~", "````", "  ```text"]) {
+    const index = [
+      indexWith(["| front | Front | `docs/spec/front.md` |"]),
+      "",
+      fence,
+      "| 9 | Nine | `docs/spec/9-nine.md` |",
+      fence.trim(),
+    ].join("\n");
+    const { deps, query, fetchImpl } = setupSplitSpec(index);
+    await assert.rejects(run(deps), /code fence/, fence);
+    assert.equal(query.seen.params.length, 0);
+    assert.equal(posts(fetchImpl).length, 0);
+  }
+});
+
+test("exactly 100 section files are accepted", async () => {
+  const rows = Array.from({ length: 100 }, (_, i) => `| ${i} | S${i} | \`docs/spec/${i}.md\` |`);
+  const sections = Object.fromEntries(rows.map((_, i) => [`docs/spec/${i}.md`, `T${i}`]));
+  const { deps, query } = setupSplitSpec(indexWith(rows), sections);
+  await run(deps);
+  assert.ok(fixedPrompt(query).includes("T99"));
+});
+
+test("an index that names its sections without the docs/ prefix is refused, not passed through", async () => {
+  for (const cell of ["`spec/a.md`", "[A](spec/a.md)", "`./spec/a.md`"]) {
+    const { deps, query, fetchImpl } = setupSplitSpec(indexWith([`| 1 | One | ${cell} |`]));
+    await assert.rejects(run(deps), /spec\/a\.md/, cell);
+    assert.equal(query.seen.params.length, 0);
+    assert.equal(posts(fetchImpl).length, 0);
+  }
+});
+
+test("a row that names two section files is refused, so none is dropped", async () => {
+  const { deps, query, fetchImpl } = setupSplitSpec(
+    indexWith(["| `docs/spec/x.md` | One | `docs/spec/front.md` |"]),
+  );
+  await assert.rejects(run(deps), /more than one/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+test("a monolithic specification with code fences is passed through unchanged", async () => {
+  const mono = ["# Spec", "", "```", "| 1 | x | `y` |", "```", "", "Text."].join("\n");
+  const { deps, query } = setupSplitSpec(mono);
+  await run(deps);
+  assert.ok(fixedPrompt(query).includes("Text."));
+  assert.ok(!fixedPrompt(query).includes("# docs/spec/"));
+});

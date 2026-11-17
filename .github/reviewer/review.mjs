@@ -22,6 +22,83 @@ export const BOUNDARY_MARKER = SYSTEM_PROMPT_DYNAMIC_BOUNDARY;
 // RULES.md L § 3 (1)).
 export const REVIEW_DOCS = ["CLAUDE.md", "RULES.md", "memory/standards.md", "docs/SPEC.md"];
 
+/** The specification's index. When it lists section files, those are review documents too. */
+const SPEC_INDEX = "docs/SPEC.md";
+const SECTION_FILE = /^docs\/spec\/[A-Za-z0-9._-]+\.md$/;
+const MAX_SECTION_FILES = 100;
+// A `spec/…md` path, with or without `docs/` or `./` before it.
+const SPEC_PATH = /(?:^|[^A-Za-z0-9._-])spec\/[^\s`|)\]]*\.md/;
+const SPEC_PATH_ALL = new RegExp(SPEC_PATH.source, "g");
+
+/**
+ * The index of the specification followed by the section files its table
+ * rows name (a row ends in the file's path in backticks), in the table's
+ * order, each as a document of its own. An index with no such rows is the
+ * whole specification and is returned as it is. In an index, all of these
+ * throw: a row whose last cell is a path that is not a file in `docs/spec/`;
+ * a row that names a `spec/…md` path (with or without `docs/`) without
+ * ending in its file cell, or names two; a section file named outside a table
+ * row or listed twice; a code fence; more than
+ * 100 files; a file that cannot be read. The head was not reviewed with the
+ * whole specification (`RULES.md` L § 4 (3)).
+ */
+export function withSpecSections(index, readSection) {
+  // A specification that names no `spec/…md` path anywhere is the whole
+  // specification, with or without code fences, and is returned as it is.
+  if (!SPEC_PATH.test(index)) return index;
+  const paths = [];
+  const files = []; // the last cell of every table row that ends in a path in backticks
+  for (const raw of index.split("\n")) {
+    const line = raw.trim();
+    // No fences: telling a fence from text takes a Markdown parser, and a
+    // mistake would drop rows silently. The index is a table and prose.
+    if (line.startsWith("```") || line.startsWith("~~~")) {
+      throw new Error("the specification index has a code fence, which this reader does not read");
+    }
+    // Any `spec/…md` path, with or without `docs/`, is a section file: an
+    // index that names its sections another way must fail, not pass as a
+    // whole specification.
+    const named = line.match(SPEC_PATH_ALL) ?? [];
+    const mentionsFile = named.length > 0;
+    if (!line.startsWith("|")) {
+      if (mentionsFile) {
+        throw new Error(
+          `the specification index names a section file outside a table row: ${line}`,
+        );
+      }
+      continue;
+    }
+    if (named.length > 1) {
+      throw new Error(`a row of the specification index names more than one section file: ${line}`);
+    }
+    const cell = /\|\s*`([^`|]+)`\s*\|$/.exec(line);
+    if (cell) files.push(cell[1]);
+    if (cell?.[1].startsWith("docs/spec/")) paths.push(cell[1]);
+    else if (mentionsFile || line.includes("docs/spec/")) {
+      throw new Error(
+        `a row of the specification index names docs/spec/ but does not end in its file cell: ${line}`,
+      );
+    }
+  }
+  if (paths.length === 0) return index;
+  if (paths.length > MAX_SECTION_FILES) {
+    throw new Error(
+      `the specification index lists ${paths.length} files, over ${MAX_SECTION_FILES}`,
+    );
+  }
+  for (const path of files) {
+    if (!SECTION_FILE.test(path)) throw new Error(`${path} is not a section file of docs/spec/`);
+  }
+  if (new Set(paths).size !== paths.length) {
+    throw new Error("the specification index has a section file listed twice");
+  }
+  const parts = [index.trim()];
+  for (const path of paths) {
+    parts.push(`# ${path} (on the base branch)\n\n${readSection(path).trim()}`);
+  }
+  return parts.join("\n\n---\n\n");
+}
+
 // Files with no review gate (product-office RULES.md § 28 (1)(c): backlog,
 // changelog, STATUS.md, notes; RULES.md L § 4 (5)). A PR that changes only these
 // is not reviewed (product owner, 2026-11-04 23:02, product-office DECISIONS.md).
@@ -299,6 +376,7 @@ export async function run(deps) {
 
   const docs = {};
   for (const path of REVIEW_DOCS) docs[path] = deps.readDoc(path, cfg.base);
+  docs[SPEC_INDEX] = withSpecSections(docs[SPEC_INDEX], (path) => deps.readDoc(path, cfg.base));
   const instructions = deps.readInstructions();
 
   const env = {};

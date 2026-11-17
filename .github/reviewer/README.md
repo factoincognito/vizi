@@ -12,9 +12,18 @@ and is not part of the built page or the root `package.json`.
 
 - `review.mjs`: reads the changed files and the diff of base...head from the
   GitHub API (pinned to the two SHAs) and four documents from the base commit
-  (`REVIEW_DOCS`: `CLAUDE.md`, `RULES.md`, `memory/standards.md`, `docs/SPEC.md`),
-  calls the model, posts one comment. The only GitHub calls: read the compare
-  (its file list, then its diff), list the PR's comments, post a comment. A
+  (`REVIEW_DOCS`: `CLAUDE.md`, `RULES.md`, `memory/standards.md`, `docs/SPEC.md`)
+  and, where `docs/SPEC.md` is an index, the section files in `docs/spec/` that
+  its table rows name (read from the same base commit, in the table's order; a
+  row whose last cell is a path that is not such a file, a row that names a
+  `spec/…md` path (with or without `docs/`) and does not end in its file
+  cell, or names two, a section file named
+  outside a table row or listed twice, a code fence in an index, more than
+  100 files, or a file that cannot be read fails the job like a missing
+  document; any other table in the index must not end its rows in a path in
+  backticks), calls the
+  model, posts one comment. The only GitHub calls: read the compare (its file
+  list, then its diff), list the PR's comments, post a comment. A
   document missing on the base commit (a PR based on a commit before `RULES.md`
   existed) fails the job before the model is called, and nothing is posted:
   a head the workflow did not review (`RULES.md` L § 4 (3) and (4)).
