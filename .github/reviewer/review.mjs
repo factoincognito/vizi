@@ -31,23 +31,23 @@ const MAX_SECTION_FILES = 100;
  * The index of the specification followed by the section files its table
  * rows name (a row ends in the file's path in backticks), in the table's
  * order, each as a document of its own. An index with no such rows is the
- * whole specification and is returned as it is. In an index, a row whose last
- * cell is a path that is not a file in `docs/spec/`, a row that names
- * `docs/spec/` without ending in its file cell, more than 100 files, and a
- * file that cannot be read all throw: the head was not reviewed with the whole
- * specification (`RULES.md` L § 4 (3)).
+ * whole specification and is returned as it is. In an index, all of these
+ * throw: a row whose last cell is a path that is not a file in `docs/spec/`;
+ * a row that names `docs/spec/` without ending in its file cell; a section
+ * file named outside a table row or listed twice; a code fence; more than
+ * 100 files; a file that cannot be read. The head was not reviewed with the
+ * whole specification (`RULES.md` L § 4 (3)).
  */
 export function withSpecSections(index, readSection) {
   const paths = [];
   const files = []; // the last cell of every table row that ends in a path in backticks
-  let fenced = false;
   for (const raw of index.split("\n")) {
     const line = raw.trim();
+    // No fences: telling a fence from text takes a Markdown parser, and a
+    // mistake would drop rows silently. The index is a table and prose.
     if (line.startsWith("```") || line.startsWith("~~~")) {
-      fenced = !fenced;
-      continue;
+      throw new Error("the specification index has a code fence, which this reader does not read");
     }
-    if (fenced) continue;
     const mentionsFile = /docs\/spec\/\S*\.md/.test(line);
     if (!line.startsWith("|")) {
       if (mentionsFile) {

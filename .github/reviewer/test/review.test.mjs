@@ -925,16 +925,26 @@ test("a section file listed twice is refused before any model call", async () =>
   assert.equal(posts(fetchImpl).length, 0);
 });
 
-test("a row inside a fenced code block of the index is an example, not a row", async () => {
-  const index = [
-    indexWith(["| front | Front | `docs/spec/front.md` |"]),
-    "",
-    "```",
-    "| 9 | Nine | `docs/spec/9-nine.md` |",
-    "```",
-  ].join("\n");
-  const { deps, query, asked } = setupSplitSpec(index);
+test("an index with a code fence is refused before any model call", async () => {
+  for (const fence of ["```", "~~~", "````", "  ```text"]) {
+    const index = [
+      indexWith(["| front | Front | `docs/spec/front.md` |"]),
+      "",
+      fence,
+      "| 9 | Nine | `docs/spec/9-nine.md` |",
+      fence.trim(),
+    ].join("\n");
+    const { deps, query, fetchImpl } = setupSplitSpec(index);
+    await assert.rejects(run(deps), /code fence/, fence);
+    assert.equal(query.seen.params.length, 0);
+    assert.equal(posts(fetchImpl).length, 0);
+  }
+});
+
+test("exactly 100 section files are accepted", async () => {
+  const rows = Array.from({ length: 100 }, (_, i) => `| ${i} | S${i} | \`docs/spec/${i}.md\` |`);
+  const sections = Object.fromEntries(rows.map((_, i) => [`docs/spec/${i}.md`, `T${i}`]));
+  const { deps, query } = setupSplitSpec(indexWith(rows), sections);
   await run(deps);
-  assert.ok(fixedPrompt(query).includes("FRONT-TEXT"));
-  assert.ok(!asked.some((a) => a[0] === "docs/spec/9-nine.md"));
+  assert.ok(fixedPrompt(query).includes("T99"));
 });
