@@ -752,3 +752,87 @@ test("the real dependencies main() uses: base-commit documents and the real inst
   assert.equal(typeof real.fetch, "function");
   assert.equal(typeof real.query, "function");
 });
+
+// PO-187 fix 1: when docs/SPEC.md is an index of section files in docs/spec/,
+// the review documents hold the index and every section file it lists.
+const SPEC_INDEX = [
+  "# Title",
+  "",
+  "| Section | Heading | File |",
+  "|---|---|---|",
+  "| front | Front | `docs/spec/front.md` |",
+  "| 1 | 1. One | `docs/spec/1-one.md` |",
+].join("\n");
+const SPEC_SECTIONS = {
+  "docs/spec/front.md": "FRONT-TEXT",
+  "docs/spec/1-one.md": "ONE-TEXT",
+};
+
+function setupSplitSpec(index = SPEC_INDEX, sections = SPEC_SECTIONS) {
+  const s = setup();
+  const asked = [];
+  const all = { ...DOCS, "docs/SPEC.md": index, ...sections };
+  s.deps.readDoc = (path, ref) => {
+    asked.push([path, ref]);
+    if (!(path in all)) throw new Error(`missing doc ${path}`);
+    return all[path];
+  };
+  return { ...s, asked };
+}
+
+function fixedPrompt(query) {
+  const blocks = query.seen.params[0].options.systemPrompt;
+  return blocks.slice(0, blocks.indexOf(BOUNDARY_MARKER)).join("\n");
+}
+
+test("the section files an index lists are read from the base commit and given to the model, in the index's order", async () => {
+  const { deps, query, asked } = setupSplitSpec();
+  await run(deps);
+  const fixed = fixedPrompt(query);
+  assert.ok(fixed.includes("| 1 | 1. One |"), "the index is in the prompt");
+  const front = fixed.indexOf("FRONT-TEXT");
+  const one = fixed.indexOf("ONE-TEXT");
+  assert.ok(front >= 0 && one > front, "both sections are in the prompt, in the index's order");
+  for (const path of Object.keys(SPEC_SECTIONS)) {
+    assert.ok(
+      asked.some((a) => a[0] === path && a[1] === BASE),
+      `${path} is read from the base commit`,
+    );
+  }
+});
+
+test("an index row that names a missing section file stops the run before any model call", async () => {
+  const { deps, query, fetchImpl } = setupSplitSpec(SPEC_INDEX, {
+    "docs/spec/front.md": "FRONT-TEXT",
+  });
+  await assert.rejects(run(deps), /missing doc docs\/spec\/1-one\.md/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+test("an index row that names a file outside docs/spec/ is refused before any model call", async () => {
+  const index = SPEC_INDEX.replace("docs/spec/1-one.md", "docs/spec/../../RULES.md");
+  const { deps, query, fetchImpl } = setupSplitSpec(index);
+  await assert.rejects(run(deps), /not a section file/);
+  assert.equal(query.seen.params.length, 0);
+  assert.equal(posts(fetchImpl).length, 0);
+});
+
+test("a docs/SPEC.md without index rows is the whole specification", async () => {
+  const { deps, query } = setup();
+  const seen = [];
+  deps.readDoc = (path, ref) => {
+    seen.push([path, ref]);
+    return DOCS[path];
+  };
+  await run(deps);
+  assert.ok(fixedPrompt(query).includes("SPEC-TEXT"));
+  assert.deepEqual(seen.map((a) => a[0]).sort(), Object.keys(DOCS).sort());
+});
+
+test("the instructions tell the model that the specification's section files are inputs", () => {
+  const instructions = readFileSync(new URL("../instructions.md", import.meta.url), "utf8");
+  const start = instructions.indexOf("You have exactly these inputs:");
+  const end = instructions.indexOf("You have no tools.");
+  assert.ok(instructions.slice(start, end).includes("docs/spec/"));
+});

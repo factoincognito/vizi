@@ -10,7 +10,9 @@ You have exactly these inputs:
 
 1. The project's `CLAUDE.md` (its entry point), `RULES.md` (its local rules),
    `memory/standards.md` (the Review Standard) and `docs/SPEC.md`, below, as
-   they are on the pull request's base branch. `RULES.md` binds the project to
+   they are on the pull request's base branch. Where `docs/SPEC.md` is an index
+   of the specification, you also have every section file in `docs/spec/` that
+   it lists, each below it as a document of its own. `RULES.md` binds the project to
    the product office's Rules and Processes, a private repository you do not
    have: a check that would need them goes under "What I did not check".
 2. The pull request's diff, in the user message.

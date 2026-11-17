@@ -22,6 +22,39 @@ export const BOUNDARY_MARKER = SYSTEM_PROMPT_DYNAMIC_BOUNDARY;
 // RULES.md L § 3 (1)).
 export const REVIEW_DOCS = ["CLAUDE.md", "RULES.md", "memory/standards.md", "docs/SPEC.md"];
 
+/** The specification's index. When it lists section files, those are review documents too. */
+const SPEC_INDEX = "docs/SPEC.md";
+const SECTION_FILE = /^docs\/spec\/[A-Za-z0-9._-]+\.md$/;
+const MAX_SECTION_FILES = 100;
+
+/**
+ * The index of the specification followed by the section files its table
+ * rows name (a row ends in the file's path in backticks), in the table's
+ * order, each as a document of its own. An index with no such rows is the
+ * whole specification and is returned as it is. A row that does not name a
+ * file in `docs/spec/`, or a file that cannot be read, throws: the head was
+ * not reviewed with the whole specification (`RULES.md` L § 4 (3)).
+ */
+export function withSpecSections(index, readSection) {
+  const paths = [];
+  for (const line of index.split("\n")) {
+    const m = /^\|.*`([^`]+)` \|$/.exec(line);
+    if (m?.[1].startsWith("docs/spec/")) paths.push(m[1]);
+  }
+  if (paths.length === 0) return index;
+  if (paths.length > MAX_SECTION_FILES) {
+    throw new Error(
+      `the specification index lists ${paths.length} files, over ${MAX_SECTION_FILES}`,
+    );
+  }
+  const parts = [index.trim()];
+  for (const path of paths) {
+    if (!SECTION_FILE.test(path)) throw new Error(`${path} is not a section file of docs/spec/`);
+    parts.push(`# ${path} (on the base branch)\n\n${readSection(path).trim()}`);
+  }
+  return parts.join("\n\n---\n\n");
+}
+
 // Files with no review gate (product-office RULES.md § 28 (1)(c): backlog,
 // changelog, STATUS.md, notes; RULES.md L § 4 (5)). A PR that changes only these
 // is not reviewed (product owner, 2026-11-04 23:02, product-office DECISIONS.md).
@@ -299,6 +332,7 @@ export async function run(deps) {
 
   const docs = {};
   for (const path of REVIEW_DOCS) docs[path] = deps.readDoc(path, cfg.base);
+  docs[SPEC_INDEX] = withSpecSections(docs[SPEC_INDEX], (path) => deps.readDoc(path, cfg.base));
   const instructions = deps.readInstructions();
 
   const env = {};

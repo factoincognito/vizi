@@ -26,8 +26,9 @@ repository secret `ANTHROPIC_API_KEY` on Opus 5.5 and paid by the Console
 organization's monthly API credits (product-office PO-68).
 
 - Input: the diff of base...head, and `CLAUDE.md`, `RULES.md`,
-  `memory/standards.md` and `docs/SPEC.md` as they are on the base commit.
-  Nothing else: not the PR description, comments or commit messages, and no
+  `memory/standards.md` and `docs/SPEC.md` as they are on the base commit,
+  with the section files of `docs/spec/` that `docs/SPEC.md` lists. Nothing
+  else: not the PR description, comments or commit messages, and no
   tools.
 - Output: one comment that starts `Crog review: APPROVE` or
   `Crog review: CHANGES NEEDED` and ends `Head reviewed: <SHA>`. A head that
