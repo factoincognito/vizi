@@ -15,9 +15,10 @@ and is not part of the built page or the root `package.json`.
   (`REVIEW_DOCS`: `CLAUDE.md`, `RULES.md`, `memory/standards.md`, `docs/SPEC.md`)
   and, where `docs/SPEC.md` is an index, the section files in `docs/spec/` that
   its table rows name (read from the same base commit, in the table's order; a
-  row whose last cell is a path that is not such a file, a row that names
-  `docs/spec/` and does not end in its file cell, a section file named
-  outside a table row or listed twice, a code fence in the index, more than
+  row whose last cell is a path that is not such a file, a row that names a
+  `spec/…md` path (with or without `docs/`) and does not end in its file
+  cell, or names two, a section file named
+  outside a table row or listed twice, a code fence in an index, more than
   100 files, or a file that cannot be read fails the job like a missing
   document; any other table in the index must not end its rows in a path in
   backticks), calls the
