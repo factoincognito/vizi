@@ -189,11 +189,11 @@ function resetTime(seconds: string | null): string | null {
   return `${date.toISOString().slice(0, 19).replace("T", " ")} UTC`;
 }
 
-/** The wait that GitHub's Retry-After header gives, in whole seconds from 1 to a day; null for anything else. */
+/** The wait that GitHub's Retry-After header gives, in whole seconds from 1 to a day (at most six digits, zeros in front allowed); null for anything else. */
 function retryAfterSeconds(value: string | null): number | null {
-  if (value === null || !/^[1-9]\d{0,5}$/.test(value)) return null;
+  if (value === null || !/^\d{1,6}$/.test(value)) return null;
   const seconds = Number(value);
-  return seconds <= 86400 ? seconds : null;
+  return seconds >= 1 && seconds <= 86400 ? seconds : null;
 }
 
 /**
@@ -225,14 +225,19 @@ function makeGet(owner: string, fetcher: Fetcher, token: string | null) {
         `GitHub refused the token for ${owner.toLowerCase()}: it may have expired. It has been forgotten; enter a new one.`,
       );
     }
-    // GitHub limiting requests (its secondary limit): a 429, or a 403 with Retry-After. The token is fine.
+    const remaining = answer.headers?.get("X-RateLimit-Remaining");
+    // No requests left: the rate limit, with its reset time (GitHub answers a 403 or a 429 for it).
+    if ((answer.status === 403 || answer.status === 429) && remaining === "0") {
+      const when = resetTime(answer.headers?.get("X-RateLimit-Reset") ?? null);
+      return failure(
+        "rate-limit",
+        answer.status,
+        `GitHub's rate limit is reached.${when === null ? "" : ` It resets at ${when}.`}`,
+      );
+    }
+    // GitHub limiting requests while some are left: a 429, or a 403 with Retry-After. The token is fine.
     const retryAfter = answer.headers?.get("Retry-After") ?? null;
-    if (
-      answer.status === 429 ||
-      (answer.status === 403 &&
-        answer.headers?.get("X-RateLimit-Remaining") !== "0" &&
-        retryAfter !== null)
-    ) {
+    if (answer.status === 429 || (answer.status === 403 && retryAfter !== null)) {
       const wait = retryAfterSeconds(retryAfter);
       return failure(
         "rate-limit",
@@ -241,14 +246,6 @@ function makeGet(owner: string, fetcher: Fetcher, token: string | null) {
       );
     }
     if (answer.status === 403) {
-      if (answer.headers?.get("X-RateLimit-Remaining") === "0") {
-        const when = resetTime(answer.headers.get("X-RateLimit-Reset"));
-        return failure(
-          "rate-limit",
-          403,
-          `GitHub's rate limit is reached.${when === null ? "" : ` It resets at ${when}.`}`,
-        );
-      }
       return failure(
         "forbidden",
         403,

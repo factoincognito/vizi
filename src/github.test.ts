@@ -534,6 +534,13 @@ describe("loadRepo with a token (3.8): the answers", () => {
     ],
     ["one second", 429, "1", `${LIMITED} GitHub allows requests again in about 1 second.`],
     ["a day", 429, "86400", `${LIMITED} GitHub allows requests again in about 86400 seconds.`],
+    ["leading zeros", 429, "060", `${LIMITED} GitHub allows requests again in about 60 seconds.`],
+    [
+      "leading zeros on a 403",
+      403,
+      "007",
+      `${LIMITED} GitHub allows requests again in about 7 seconds.`,
+    ],
   ])(
     "%s with Retry-After: says when requests are allowed again",
     async (_n, status, after, message) => {
@@ -547,6 +554,9 @@ describe("loadRepo with a token (3.8): the answers", () => {
   it.each([
     ["a date", "Wed, 21 Oct 2026 07:28:00 GMT"],
     ["zero", "0"],
+    ["only zeros", "000"],
+    ["an empty value", ""],
+    ["more than six digits", "0000060"],
     ["more than a day", "86401"],
     ["a fraction", "1.5"],
     ["a negative number", "-5"],
@@ -579,7 +589,7 @@ describe("loadRepo with a token (3.8): the answers", () => {
     );
   });
 
-  it("a 429 at no remaining requests is still the secondary message, not the primary's", async () => {
+  it("a 429 at no remaining requests is the primary limit: the reset time, as for a 403", async () => {
     const { fetcher } = fakeWithInit({
       [API]: {
         status: 429,
@@ -587,7 +597,18 @@ describe("loadRepo with a token (3.8): the answers", () => {
       },
     });
     const r = await loadRepo(ref, fetcher, TOKEN);
-    expect(!r.ok && r.message).toBe(LIMITED);
+    expect(r).toMatchObject({ ok: false, kind: "rate-limit", status: 429 });
+    expect(!r.ok && r.message).toBe(
+      "GitHub's rate limit is reached. It resets at 2026-11-03 10:00:00 UTC.",
+    );
+  });
+
+  it("a 429 with requests left and a Retry-After is the limiting message", async () => {
+    const { fetcher } = fakeWithInit({
+      [API]: { status: 429, headers: { "X-RateLimit-Remaining": "12", "Retry-After": "20" } },
+    });
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(!r.ok && r.message).toBe(`${LIMITED} GitHub allows requests again in about 20 seconds.`);
   });
 
   it("without a token a 429 is an ordinary HTTP status, as in 3.1", async () => {
