@@ -514,6 +514,88 @@ describe("loadRepo with a token (3.8): the answers", () => {
     expect(!r.ok && r.message).toBe("GitHub's rate limit is reached.");
   });
 
+  const LIMITED = "GitHub is limiting requests for now. Wait a minute and try again.";
+
+  it("429 with a token: GitHub is limiting requests, not a bad token (PBI-1.10 point 5)", async () => {
+    const { fetcher } = fakeWithInit({ [API]: { status: 429 } });
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(r).toMatchObject({ ok: false, kind: "rate-limit", status: 429 });
+    expect(!r.ok && r.message).toBe(LIMITED);
+    expect(JSON.stringify(r)).not.toContain(TOKEN);
+  });
+
+  it.each([
+    ["a 429", 429, "30", `${LIMITED} GitHub allows requests again in about 30 seconds.`],
+    [
+      "a 403 that is not at the primary limit",
+      403,
+      "60",
+      `${LIMITED} GitHub allows requests again in about 60 seconds.`,
+    ],
+    ["one second", 429, "1", `${LIMITED} GitHub allows requests again in about 1 second.`],
+    ["a day", 429, "86400", `${LIMITED} GitHub allows requests again in about 86400 seconds.`],
+  ])(
+    "%s with Retry-After: says when requests are allowed again",
+    async (_n, status, after, message) => {
+      const { fetcher } = fakeWithInit({ [API]: { status, headers: { "Retry-After": after } } });
+      const r = await loadRepo(ref, fetcher, TOKEN);
+      expect(r).toMatchObject({ ok: false, kind: "rate-limit", status });
+      expect(!r.ok && r.message).toBe(message);
+    },
+  );
+
+  it.each([
+    ["a date", "Wed, 21 Oct 2026 07:28:00 GMT"],
+    ["zero", "0"],
+    ["more than a day", "86401"],
+    ["a fraction", "1.5"],
+    ["a negative number", "-5"],
+    ["words", "soon"],
+    ["a number with a sign", "+30"],
+    ["markup", "<img src=x onerror=alert(1)>"],
+  ])("Retry-After that is %s: the limit is stated and no time is given", async (_n, after) => {
+    for (const status of [403, 429]) {
+      const { fetcher } = fakeWithInit({ [API]: { status, headers: { "Retry-After": after } } });
+      const r = await loadRepo(ref, fetcher, TOKEN);
+      expect(r).toMatchObject({ ok: false, kind: "rate-limit", status });
+      expect(!r.ok && r.message).toBe(LIMITED);
+    }
+  });
+
+  it("a 403 at the primary limit with Retry-After keeps the reset time (the primary limit's message wins)", async () => {
+    const { fetcher } = fakeWithInit({
+      [API]: {
+        status: 403,
+        headers: {
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": "1793700000",
+          "Retry-After": "60",
+        },
+      },
+    });
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(!r.ok && r.message).toBe(
+      "GitHub's rate limit is reached. It resets at 2026-11-03 10:00:00 UTC.",
+    );
+  });
+
+  it("a 429 at no remaining requests is still the secondary message, not the primary's", async () => {
+    const { fetcher } = fakeWithInit({
+      [API]: {
+        status: 429,
+        headers: { "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "1793700000" },
+      },
+    });
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(!r.ok && r.message).toBe(LIMITED);
+  });
+
+  it("without a token a 429 is an ordinary HTTP status, as in 3.1", async () => {
+    const { fetcher } = fakeWithInit({ [API]: { status: 429, headers: { "Retry-After": "30" } } });
+    const r = await loadRepo(ref, fetcher);
+    expect(r).toMatchObject({ ok: false, kind: "http", status: 429 });
+  });
+
   it.each([
     ["requests left", { "X-RateLimit-Remaining": "42" }],
     ["no rate limit header", {}],
@@ -847,6 +929,18 @@ describe("listBranches (3.13, the branch list)", () => {
       "GitHub's rate limit is reached. It resets at 2026-11-05 00:00:00 UTC.",
     ],
     [
+      "a 429",
+      { status: 429 },
+      "rate-limit",
+      "GitHub is limiting requests for now. Wait a minute and try again.",
+    ],
+    [
+      "a 403 with Retry-After",
+      { status: 403, headers: { "Retry-After": "60" } },
+      "rate-limit",
+      "GitHub is limiting requests for now. Wait a minute and try again. GitHub allows requests again in about 60 seconds.",
+    ],
+    [
       "another 403",
       { status: 403 },
       "forbidden",
@@ -1010,6 +1104,12 @@ describe("getOwnerKind and listRepos: the opening guide's requests (3.1, Guided 
       { status: 403, headers: { "X-RateLimit-Remaining": "0" } },
       "rate-limit",
       "GitHub's rate limit is reached.",
+    ],
+    [
+      "a 429",
+      { status: 429 },
+      "rate-limit",
+      "GitHub is limiting requests for now. Wait a minute and try again.",
     ],
     [
       "another 403",
@@ -1249,6 +1349,7 @@ describe("loadRepo: included files (3.15)", () => {
       { status: 403, headers: { "X-RateLimit-Remaining": "0" } },
       "GitHub's rate limit is reached.",
     ],
+    ["a 429", { status: 429 }, "GitHub is limiting requests for now. Wait a minute and try again."],
     [
       "another 403",
       { status: 403 },
