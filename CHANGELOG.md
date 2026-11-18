@@ -117,6 +117,7 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Tests (PBI-1.10, point 33): a failing test keeps its Playwright trace in CI only, in the HTML report that CI already uploads; local runs are unchanged (#121).
 - Spec (PBI-1.10, spec PRs A and B, no behaviour change): 3.8 says what is built for tokens: the Owner fill as typed, "Use" without "Remember", lower-casing and duplicate owners at startup, a Forget dropping every running load, and the two new messages (#122); 3.9, 3.10, 3.12 and 3.13 are corrected where they were stale, and say what the code does for a `.git` pointer, the order of the branch marks, the hashes that change with a build and which Forgets drop the branch list (#123).
 - Phone (PBI-1.10, point 46): a token row's "Forget" keeps its own width at the row's end and its box's label stays on one line, as 3.12's "Phone" has the two lines (#126).
+- Spec (PBI-1.10, point 48, no behaviour change): 3.12 lists three more differences on a phone from the design canvas's boards: the help control is 44 px high, "Forget all tokens" is shown, the guide is in its box (#127).
 
 ## Project created
 
