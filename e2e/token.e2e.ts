@@ -1381,6 +1381,15 @@ test.describe("a token saved by an earlier vizi (3.8, migration)", () => {
     await openPanel(page);
   }
 
+  test("Forget all removes the old key and hides the line", async ({ page }) => {
+    await withOldKey(page, TOKEN);
+    await expect(migrateLine(page)).toBeVisible();
+    await useToken(page, TOKEN2, true, "acme");
+    await forgetAll(page).click();
+    await expect(migrateLine(page)).toBeHidden();
+    expect(await page.evaluate(() => localStorage.length)).toBe(0);
+  });
+
   test("is listed with its masked form, an Owner field and two buttons, and is used for no load until it has an owner", async ({
     page,
     context,
