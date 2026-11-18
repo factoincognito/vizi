@@ -1026,19 +1026,35 @@ footer {
     padding: 0 14px 14px;
   }
 
+  /*
+   * Two lines (3.12, "Phone", as the phone board has them): the owner and the
+   * masked token at both ends of the first, the box's label and "Forget" at
+   * both ends of the second. The masked token spans the last two columns, so
+   * the width it needs does not fix the width of "Forget" (PBI-1.10 point 46).
+   */
   #token-list li {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 8px;
     padding: 12px 0;
   }
 
   #token-list .token-text {
+    grid-column: 2 / 4;
     justify-self: end;
     font-size: 13px;
   }
 
+  #token-list button {
+    grid-column: 3;
+    justify-self: end;
+  }
+
   label.check {
     min-height: 44px;
+  }
+
+  #token-list label.check {
+    grid-column: 1 / 3;
   }
 
   #token-list button,

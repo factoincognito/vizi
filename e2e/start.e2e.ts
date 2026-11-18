@@ -574,4 +574,35 @@ test.describe("the phone (3.12, below 800 px)", () => {
     );
     expect(small).toEqual([]);
   });
+
+  test("a token row's Forget keeps its own width at the row's end and its box's label stays on one line (PBI-1.10 point 46)", async ({
+    page,
+  }) => {
+    test.skip(!isPhone(page), "the phone layout only");
+    await page.goto("/");
+    await addToken(page, "acme", TOKEN, true);
+    const measured = await row(page, "acme").evaluate((li) => {
+      const forget = li.querySelector("button")?.getBoundingClientRect();
+      const masked = li.querySelector("[data-testid=token-text]")?.getBoundingClientRect();
+      const words = li.querySelector("label span");
+      const range = document.createRange();
+      if (words) range.selectNodeContents(words);
+      const lineTops = new Set(
+        [...range.getClientRects()].filter((r) => r.width > 0).map((r) => Math.round(r.top)),
+      );
+      return {
+        forgetWidth: forget?.width ?? 0,
+        forgetRight: forget?.right ?? 0,
+        maskedWidth: masked?.width ?? 0,
+        maskedRight: masked?.right ?? 0,
+        lines: lineTops.size,
+      };
+    });
+    // The button is as wide as its text and padding, not as wide as the masked token above it.
+    expect(measured.forgetWidth).toBeLessThan(measured.maskedWidth);
+    // Both end at the row's end, as the phone board has them.
+    expect(Math.abs(measured.forgetRight - measured.maskedRight)).toBeLessThanOrEqual(0.5);
+    // "Remember in this browser" fits on one line beside it.
+    expect(measured.lines).toBe(1);
+  });
 });
