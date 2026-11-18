@@ -1626,6 +1626,25 @@ test.describe("accessibility and layout (3.1)", () => {
     );
   });
 
+  test("a branch name with %, in the guide's select: shown as text and disabled (cannotOpen)", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context, { branches: { "acme/widgets": ["main", "a%2Fb", "50%"] } });
+    await page.goto("/");
+    await field(page).fill("acme/widgets");
+    await clickAway(page);
+    await expect(label(page)).toHaveText("Branch of acme/widgets");
+    expect(await selectTexts(page)).toEqual([
+      "main (default)",
+      "50% (cannot be opened in vizi)",
+      "a%2Fb (cannot be opened in vizi)",
+    ]);
+    await expect(select(page).locator('option[value="a%2Fb"]')).toBeDisabled();
+    await expect(select(page).locator('option[value="50%"]')).toBeDisabled();
+    await expect(select(page).locator('option[value="main"]')).toBeEnabled();
+  });
+
   test("on a phone: no sideways scroll with a 100-character repo name; the select and Open full width, at least 44 px high", async ({
     page,
     context,

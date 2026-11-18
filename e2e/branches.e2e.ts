@@ -254,8 +254,28 @@ test.describe("picking a branch (3.13)", () => {
     await openWidgets(page);
     await settle(page);
     const mark = stub.seen.length;
+    // Count the `change` events of the select, so the keys are known to fire them in this browser: without that, "no request" would also hold for keys that changed nothing.
+    await select(page).evaluate((el) => {
+      const w = window as unknown as { branchChanges: number };
+      w.branchChanges = 0;
+      el.addEventListener("change", () => {
+        w.branchChanges += 1;
+      });
+    });
+    const changes = () =>
+      page.evaluate(() => (window as unknown as { branchChanges: number }).branchChanges);
     await select(page).focus();
-    for (const key of ["ArrowDown", "ArrowDown", "ArrowUp"]) await page.keyboard.press(key);
+
+    // main, dev, feat/x: down to dev, down to feat/x, up to dev.
+    const afterKey: number[] = [];
+    for (const key of ["ArrowDown", "ArrowDown", "ArrowUp"]) {
+      await page.keyboard.press(key);
+      afterKey.push(await changes());
+    }
+    expect(afterKey, "Chromium fires one change per arrow key on a closed select").toEqual([
+      1, 2, 3,
+    ]);
+    await expect(select(page)).toHaveValue("dev");
     await select(page).selectOption("dev");
     await settle(page);
     expect(urls(stub).slice(mark)).toEqual([]);
@@ -696,5 +716,180 @@ test.describe("layout (3.13)", () => {
       expect(s.width).toBeLessThanOrEqual(420);
       expect(Math.abs(b.y - s.y)).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+test.describe("contrast (3.13, as in 3.12)", () => {
+  const many = Array.from({ length: 300 }, (_, i) => `b${String(i).padStart(3, "0")}`);
+
+  test("the picker's texts at least 4.5:1, the select's and the button's borders 3:1, with the cap message shown", async ({
+    page,
+    context,
+  }) => {
+    // 300 names fill three pages, so the cap message shows; "a#b" is a disabled option (exempt from the ratio, as a disabled control is under WCAG 1.4.3).
+    await stubGithub(context, { branches: { widgets: ["main", "a#b", ...many] } });
+    await page.goto("/");
+    await openWidgets(page);
+    await expect(page.locator("#branch-message")).not.toHaveText("");
+    for (const el of [
+      page.locator("#branch-label"),
+      select(page),
+      openBranch(page),
+      page.locator("#branch-message"),
+    ])
+      await expect(el).toBeVisible();
+    const measured = await page.evaluate(() => {
+      const rgba = (c: string): number[] => {
+        const m = /rgba?\(([^)]+)\)/.exec(c);
+        if (!m?.[1]) throw new Error(`cannot read the colour ${c}`);
+        const p = m[1]
+          .split(/[\s,/]+/)
+          .filter(Boolean)
+          .map(Number);
+        return [p[0] ?? 0, p[1] ?? 0, p[2] ?? 0, p[3] ?? 1];
+      };
+      const lum = (c: number[]) => {
+        const ch = c.slice(0, 3).map((v) => {
+          const s = v / 255;
+          return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * (ch[0] ?? 0) + 0.7152 * (ch[1] ?? 0) + 0.0722 * (ch[2] ?? 0);
+      };
+      const ratio = (a: number[], b: number[]) => {
+        const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m);
+        return ((x ?? 0) + 0.05) / ((y ?? 0) + 0.05);
+      };
+      /** The nearest opaque background: the element's own, else its nearest ancestor's (3.12). */
+      const background = (el: Element | null): number[] => {
+        for (let e = el; e; e = e.parentElement) {
+          const c = rgba(getComputedStyle(e).backgroundColor);
+          if (c[3] === 1) return c;
+        }
+        return rgba(getComputedStyle(document.documentElement).backgroundColor);
+      };
+      const checked: string[] = [];
+      const problems: string[] = [];
+      const textRatio = (el: Element) => ratio(rgba(getComputedStyle(el).color), background(el));
+      const text = (el: Element, name: string) => {
+        const r = textRatio(el);
+        checked.push(`text ${name}`);
+        if (r < 4.5) problems.push(`text ${name} ${r.toFixed(2)}`);
+      };
+      const border = (el: Element, name: string) => {
+        const r = ratio(rgba(getComputedStyle(el).borderTopColor), background(el.parentElement));
+        checked.push(`border ${name}`);
+        if (r < 3) problems.push(`border ${name} ${r.toFixed(2)}`);
+      };
+      const query = (selector: string): Element => {
+        const el = document.querySelector(selector);
+        if (!el) throw new Error(`no ${selector}`);
+        return el;
+      };
+      text(query("#branch-label"), "#branch-label");
+      text(query("#branch-select"), "#branch-select");
+      text(query("#branch-open"), "#branch-open");
+      text(query("#branch-message"), "#branch-message");
+      // One line for all the options, with the worst one, so a failure stays readable.
+      const options = [
+        ...document.querySelectorAll<HTMLOptionElement>("#branch-select option:not(:disabled)"),
+      ];
+      let worst = { name: "", r: Number.POSITIVE_INFINITY };
+      for (const option of options) {
+        checked.push(`text option ${option.value}`);
+        const r = textRatio(option);
+        if (r < worst.r) worst = { name: option.value, r };
+      }
+      if (worst.r < 4.5)
+        problems.push(`text of the options, worst "${worst.name}" ${worst.r.toFixed(2)}`);
+      border(query("#branch-select"), "#branch-select");
+      border(query("#branch-open"), "#branch-open");
+      return { checked, problems };
+    });
+    expect(measured.problems).toEqual([]);
+    // The check really looked at each part, the options included (the cap's 300 names, less the disabled one).
+    expect(measured.checked).toEqual(
+      expect.arrayContaining([
+        "text #branch-label",
+        "text #branch-select",
+        "text #branch-open",
+        "text #branch-message",
+        "text option main",
+        "text option b000",
+        "border #branch-select",
+        "border #branch-open",
+      ]),
+    );
+    expect(measured.checked.filter((c) => c.startsWith("text option "))).toHaveLength(299);
+  });
+});
+
+test.describe("results hidden while the list is read (3.13, Errors)", () => {
+  const due = branchesUrl("widgets", 1);
+  const plainTree = `${API}/plain/git/trees/main?recursive=1`;
+
+  /** Opens widgets with its list due, then a load of plain that fails once and hides the results. */
+  async function hideWhileReading(page: Page, context: BrowserContext) {
+    let failures = 1;
+    const stub = await stubGithub(context, {
+      hold: (u) => u === due,
+      status: (u) => (u === plainTree && failures-- > 0 ? { status: 500 } : undefined),
+    });
+    await page.goto("/");
+    await open(page, WIDGETS);
+    await expect(page.locator("#branch-picker")).toHaveAttribute("aria-busy", "true");
+    await expect(openBranch(page)).toBeDisabled();
+    await open(page, PLAIN);
+    await expect(page.locator("#results")).toBeHidden();
+    return stub;
+  }
+
+  test("the results shown again show a picker like a fresh one, the held answer is dropped, and the requests are the same", async ({
+    page,
+    context,
+  }) => {
+    const stub = await hideWhileReading(page, context);
+    await open(page, PLAIN);
+    await expect(page.locator("#project-name")).toHaveText("acme/plain (main)");
+    await expect(page.locator("#branch-picker")).not.toHaveAttribute("aria-busy", "true");
+    await expect(openBranch(page)).toBeEnabled();
+    await expect(page.locator("#branch-message")).toHaveText("");
+    expect(await optionTexts(page)).toEqual(["main (default)", "plain-only"]);
+    // The widgets list, answered after the results of plain are shown, changes nothing: wait for that answer to finish, then one turn of the page's event loop for what it would do.
+    const answered = page.waitForEvent("requestfinished", (r) => r.url() === due);
+    stub.release(due);
+    await answered;
+    await page.evaluate(() => new Promise<void>((r) => setTimeout(r, 0)));
+    await expect(page.locator("#project-name")).toHaveText("acme/plain (main)");
+    await expect(page.locator("#branch-picker")).not.toHaveAttribute("aria-busy", "true");
+    await expect(openBranch(page)).toBeEnabled();
+    await expect(page.locator("#branch-message")).toHaveText("");
+    expect(await optionTexts(page)).toEqual(["main (default)", "plain-only"]);
+    expect([...urls(stub)].sort()).toEqual(
+      [
+        `${API}/widgets`,
+        `${API}/widgets/git/trees/main?recursive=1`,
+        "https://raw.githubusercontent.com/acme/widgets/main/docs/BACKLOG.md",
+        "https://raw.githubusercontent.com/acme/widgets/main/STATUS.md",
+        due,
+        `${API}/plain`,
+        plainTree,
+        `${API}/plain`,
+        plainTree,
+        "https://raw.githubusercontent.com/acme/plain/main/docs/BACKLOG.md",
+        "https://raw.githubusercontent.com/acme/plain/main/STATUS.md",
+        branchesUrl("plain", 1),
+      ].sort(),
+    );
+  });
+
+  test("while hidden, the picker is not busy and Open branch is enabled", async ({
+    page,
+    context,
+  }) => {
+    await hideWhileReading(page, context);
+    await expect(page.locator("#branch-picker")).not.toHaveAttribute("aria-busy", "true");
+    await expect(openBranch(page)).toBeEnabled();
+    await expect(select(page).locator("option")).toHaveCount(0);
+    await expect(page.locator("#branch-message")).toHaveText("");
   });
 });
