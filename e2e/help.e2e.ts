@@ -18,6 +18,7 @@ import {
   REPO_LINK_HELP,
 } from "../src/help";
 import { isAllowedRequest } from "./guard";
+import { openPanel } from "./panel";
 import { branchesUrl, branchListRead } from "./picker";
 
 /** Every test: any request other than the page's own document and GitHub's two hosts fails it (2.3). */
@@ -41,6 +42,7 @@ const project = join(__dirname, "fixtures", "project");
 const read = (p: string) => readFileSync(join(project, p), "utf8");
 const REPO = "https://github.com/acme/widgets";
 const cors = { "access-control-allow-origin": "*" };
+const TOKEN = "github_pat_TEST_help_abcd1234";
 
 /**
  * Answers GitHub for acme/widgets. While `gate` is pending, every answer
@@ -80,9 +82,11 @@ async function stubGithub(
             })),
           }),
         });
-      if (url.endsWith("/docs/BACKLOG.md"))
+      // With a token the files come from the contents API, with `?ref=main` after the path (3.8).
+      const file = url.replace(/\?ref=main$/, "");
+      if (file.endsWith("/docs/BACKLOG.md"))
         return route.fulfill({ status: 200, headers: cors, body: read("docs/BACKLOG.md") });
-      if (url.endsWith("/STATUS.md"))
+      if (file.endsWith("/STATUS.md"))
         return route.fulfill({ status: 200, headers: cors, body: read("STATUS.md") });
       return route.fulfill({ status: 404, headers: cors, body: "" });
     },
@@ -525,6 +529,46 @@ test.describe("loads while the help view is open (3.10)", () => {
     // The load's own requests only (3.1): repo, file list, backlog, STATUS.md; then its branch list (3.13).
     expect(requested).toHaveLength(5);
     expect(requested[4]).toBe(branchesUrl("acme", "widgets"));
+  });
+});
+
+test.describe("a token forgotten in another tab while the help view is open (3.8, 3.10)", () => {
+  test("the view stays open and keeps the focus; the token and the results it loaded are gone unseen, and show gone after closing", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(page);
+    await page.goto("/");
+    await openPanel(page);
+    await page.locator("#owner-input").fill("acme");
+    await page.locator("#token-input").fill(TOKEN);
+    await page.locator("#token-remember").setChecked(true);
+    await page.locator("#token-use").click();
+    await load(page);
+    await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
+    await expect(page.getByTestId("token-line")).toHaveCount(1);
+    await openView(page);
+
+    const other = await context.newPage();
+    await other.goto("/");
+    await openPanel(other);
+    await other.getByTestId("token-forget").click();
+
+    // The view hides the wrapper that holds the row and the message: count the row and read the text.
+    await expect(page.getByTestId("token-line")).toHaveCount(0);
+    await expect(page.locator("#message")).toHaveText("The token for acme has been forgotten.");
+    expect(await page.locator("#results").evaluate((el) => (el as HTMLElement).hidden)).toBe(true);
+    await expect(view(page)).toBeVisible();
+    await expect(start(page)).toBeHidden();
+    expect(await focused(page)).toBe("help-title");
+
+    await page.keyboard.press("Escape");
+    await expect(start(page)).toBeVisible();
+    expect(await focused(page)).toBe("help-open");
+    await expect(page.locator("#results")).toBeHidden();
+    await expect(page.locator("#message")).toBeVisible();
+    await expect(page.locator("#message")).toHaveText("The token for acme has been forgotten.");
+    await expect(page.getByTestId("token-line")).toHaveCount(0);
   });
 });
 
