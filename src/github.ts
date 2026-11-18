@@ -151,7 +151,7 @@ export type LoadResult =
         | "bad-response"
         /** 401 for a token: it is dead and must be forgotten (3.8). */
         | "token-refused"
-        /** 403 at the rate limit, or GitHub limiting requests: a 429, or a 403 with Retry-After (3.8). */
+        /** A 403 or a 429 at the rate limit, or GitHub limiting requests: a 429, or a 403 with Retry-After (3.8). */
         | "rate-limit"
         /** 403 otherwise, with a token (3.8). */
         | "forbidden";

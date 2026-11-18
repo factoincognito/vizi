@@ -603,6 +603,24 @@ describe("loadRepo with a token (3.8): the answers", () => {
     );
   });
 
+  it("a 429 at no remaining requests with a Retry-After: the primary limit's reset time wins", async () => {
+    const { fetcher } = fakeWithInit({
+      [API]: {
+        status: 429,
+        headers: {
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": "1793700000",
+          "Retry-After": "60",
+        },
+      },
+    });
+    const r = await loadRepo(ref, fetcher, TOKEN);
+    expect(r).toMatchObject({ ok: false, kind: "rate-limit", status: 429 });
+    expect(!r.ok && r.message).toBe(
+      "GitHub's rate limit is reached. It resets at 2026-11-03 10:00:00 UTC.",
+    );
+  });
+
   it("a 429 with requests left and a Retry-After is the limiting message", async () => {
     const { fetcher } = fakeWithInit({
       [API]: { status: 429, headers: { "X-RateLimit-Remaining": "12", "Retry-After": "20" } },
