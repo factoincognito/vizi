@@ -353,10 +353,17 @@ test.describe("the help text (3.9, PBI-1.18)", () => {
     await expect(page.getByRole("tab", { name: "Board" })).toHaveAttribute("aria-selected", "true");
     await branchListRead(page);
     const before = stub.seen.length;
+    // A timer the click starts runs on this clock at once; no real time is waited.
+    await page.clock.install();
     await umbrellaTab(page).click();
     await expect(help(page)).toHaveText(HELP_TEXT);
-    await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 200)));
-    expect(stub.seen.length).toBe(before);
+    await page.clock.runFor(1000);
+    // An absence needs an end to look up to, and no real time is one: the test makes one
+    // request of its own after the click, and that request is the end. A request the click
+    // had started would have reached the stub before it, so it is the only one after `before`.
+    const sentinel = `${API}/sentinel`;
+    await page.evaluate((url) => fetch(url).then((r) => r.status), sentinel);
+    expect(stub.seen.slice(before).map((s) => s.url)).toEqual([sentinel]);
   });
 
   test("its colour against its nearest opaque background is at least 4.5:1, and no sideways scroll", async ({
@@ -383,7 +390,8 @@ test.describe("the help text (3.9, PBI-1.18)", () => {
         });
         return 0.2126 * (ch[0] ?? 0) + 0.7152 * (ch[1] ?? 0) + 0.0722 * (ch[2] ?? 0);
       };
-      let bg = rgba(getComputedStyle(document.documentElement).backgroundColor);
+      // The nearest opaque background, <html> included; without one the colour is not known.
+      let bg: number[] | null = null;
       for (let e: Element | null = el; e; e = e.parentElement) {
         const c = rgba(getComputedStyle(e).backgroundColor);
         if (c[3] === 1) {
@@ -391,6 +399,7 @@ test.describe("the help text (3.9, PBI-1.18)", () => {
           break;
         }
       }
+      if (bg === null) throw new Error("no opaque background behind the paragraph");
       const [x, y] = [lum(rgba(getComputedStyle(el).color)), lum(bg)].sort((a, b) => b - a);
       return ((x ?? 0) + 0.05) / ((y ?? 0) + 0.05);
     });
@@ -412,6 +421,10 @@ test.describe("the help text (3.9, PBI-1.18)", () => {
     await expect(page.getByTestId("column").first()).toBeVisible();
     await expect(umbrellaTab(page)).toHaveCount(0);
     await expect(help(page)).toBeHidden();
+    // The paragraph is mounted in the panel, so it is hidden whenever the panel is: the panel itself.
+    // `hidden` too: an empty panel has no size, and `toBeHidden` takes it as hidden even when shown.
+    await expect(page.locator("#panel-umbrella")).toBeHidden();
+    await expect(page.locator("#panel-umbrella")).toHaveAttribute("hidden", "");
   });
 });
 

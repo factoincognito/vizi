@@ -295,7 +295,10 @@ describe("step 4: PROJECTS.md for an umbrella", () => {
       "A projects/<name>/ pointer is a pre-project: a project at an early stage, with no repo of its own yet, that lives in this repo for now.";
     const text = (HELP_STEPS[3]?.paragraphs ?? []).map(plainText).join(" ");
     expect(text).toContain(pre);
-    expect(text.indexOf(pre)).toBeGreaterThan(text.indexOf("to a folder of the same project."));
+    // Found first: an index of -1 would put any later sentence after it.
+    const earlier = text.indexOf("to a folder of the same project.");
+    expect(earlier).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf(pre)).toBeGreaterThan(earlier);
     // The form is code, as in the rest of the step.
     expect(codeParts(HELP_STEPS[3]?.paragraphs ?? [])).toContain("projects/<name>/");
   });
