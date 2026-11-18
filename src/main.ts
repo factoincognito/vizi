@@ -748,6 +748,9 @@ function hideResults(): void {
   branchList = null;
   must("branch-select").replaceChildren();
   must("branch-message").textContent = "";
+  // Hidden while its list is read, the picker is left idle; renderPicker sets both when the results come back.
+  must("branch-picker").removeAttribute("aria-busy");
+  must<HTMLButtonElement>("branch-open").disabled = false;
 }
 
 // ------------------------------------------------------------ branch picker
