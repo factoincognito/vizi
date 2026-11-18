@@ -12,7 +12,11 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
-  use: { baseURL: "http://localhost:4173" },
+  use: {
+    baseURL: "http://localhost:4173",
+    // A failing test keeps its trace in CI, where the HTML report carries it. Local runs stay without one.
+    trace: process.env.CI ? "retain-on-failure" : "off",
+  },
   // Every test runs at phone and desktop width, in light and dark mode.
   projects: Object.entries(viewports).flatMap(([name, viewport]) =>
     colorSchemes.map((colorScheme) => ({
