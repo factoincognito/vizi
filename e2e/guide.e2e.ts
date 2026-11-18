@@ -35,6 +35,8 @@ const project = join(__dirname, "fixtures", "project");
 const umbrella = join(__dirname, "fixtures", "umbrella");
 const read = (dir: string, p: string) => readFileSync(join(dir, p), "utf8");
 const TOKEN = "github_pat_TEST_guide_abcd1234";
+/** A second, different token, for a second owner. */
+const TOKEN_BETA = "github_pat_TEST_guide_wxyz9876";
 /** 3.8's message for a 401 with acme's token. */
 const REFUSED =
   "GitHub refused the token for acme: it may have expired. It has been forgotten; enter a new one.";
@@ -225,10 +227,10 @@ async function typeIn(page: Page, text: string) {
   await field(page).pressSequentially(text);
 }
 
-async function addToken(page: Page, owner = "acme", remember = false) {
+async function addToken(page: Page, owner = "acme", remember = false, token = TOKEN) {
   await openPanel(page);
   await page.locator("#owner-input").fill(owner);
-  await page.locator("#token-input").fill(TOKEN);
+  await page.locator("#token-input").fill(token);
   await page.locator("#token-remember").setChecked(remember);
   await page.locator("#token-use").click();
   await expect(page.locator(`[data-testid=token-line][data-owner="${owner}"]`)).toBeVisible();
@@ -844,6 +846,52 @@ test.describe("tokens and the guide's requests (3.1, 3.8)", () => {
     const gamma = stub.seen.filter((x) => x.url.includes("gamma"));
     expect(gamma.map((x) => x.url)).toEqual([ownerUrl("gamma"), userPage("gamma")]);
     for (const s of gamma) expect(s.authorization).toBeUndefined();
+  });
+
+  test("two owners with two tokens: each owner's list and branch requests carry that owner's token and no other", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context, {
+      owners: {
+        acme: { type: "Organization", repos: ["widgets"] },
+        beta: { type: "User", repos: ["tools"] },
+      },
+      mine: [{ name: "tools", login: "beta" }],
+    });
+    await page.goto("/");
+    await addToken(page, "acme");
+    await addToken(page, "beta", false, TOKEN_BETA);
+    /** The requests made since `from`: every one carries `token`, and `expected` were made. */
+    const carried = (from: number, token: string, expected: string[]) => {
+      const made = stub.seen.slice(from);
+      expect(made.map((s) => s.url)).toEqual(expect.arrayContaining(expected));
+      for (const s of made) expect(s.authorization, s.url).toBe(`Bearer ${token}`);
+    };
+
+    // The owner lists.
+    await typeIn(page, "acme/");
+    await expect.poll(() => optionValues(page)).toEqual(["acme/widgets"]);
+    carried(0, TOKEN, [ownerUrl("acme"), orgPage("acme")]);
+    let from = stub.seen.length;
+    await field(page).fill("");
+    await field(page).pressSequentially("beta/");
+    await expect.poll(() => optionValues(page)).toEqual(["beta/tools"]);
+    carried(from, TOKEN_BETA, [ownerUrl("beta"), minePage()]);
+
+    // The branch reads, from the owners' kept lists: only the repo's own requests.
+    from = stub.seen.length;
+    await field(page).fill("");
+    await field(page).pressSequentially("acme/widgets");
+    await clickAway(page);
+    await expect(label(page)).toHaveText("Branch of acme/widgets");
+    carried(from, TOKEN, [repoUrl("acme", "widgets"), branchPage("acme", "widgets")]);
+    from = stub.seen.length;
+    await field(page).fill("");
+    await field(page).pressSequentially("beta/tools");
+    await clickAway(page);
+    await expect(label(page)).toHaveText("Branch of beta/tools");
+    carried(from, TOKEN_BETA, [repoUrl("beta", "tools"), branchPage("beta", "tools")]);
   });
 
   test("a token for acme from another account: /user/repos lists nothing, no further request, the with-its-token line; acme/<repo> still opens", async ({
