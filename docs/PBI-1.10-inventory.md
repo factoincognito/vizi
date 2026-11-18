@@ -4,6 +4,7 @@ Written 2026-11-11 by a Clead session as a read-only check of the 79 points of [
 
 - Line numbers are those of `7bdbad9`. Since then #104 to #109 merged; #107 changed `e2e/token.e2e.ts`, `src/main.ts`, `src/start.ts`, `src/style.css` and `docs/SPEC.md` (3.8, 3.12, section 4), so re-check points 3, 4, 24, 35 and every SPEC line number before using them.
 - Nothing was run. Every status below comes from reading files.
+- 2026-11-18: spec PR A (points 9, 20, 22, 23, 24, 25, 27, 29, 36, 75) merged in #122 and spec PR B (points 41, 42, 51, 55, 62, 68, 69, 72) in #123, both reviewed by a review agent and approved in intent by Adam. Point 48 was left out of B: it compares 3.12 with the phone board of the design canvas, which is not in the repository. The statuses below are as of 2026-11-11 and were not changed.
 - Adam's go-line is needed before the PRs of groups D to I start; they change no behaviour, but G, H and I also edit `src/` and `playwright.config.ts` (see `STATUS.md`, Blockers).
 
 Repository at main `7bdbad9`. Entry: docs/BACKLOG.md:180 at that commit. Each point was checked against the files as they were at `7bdbad9`.
