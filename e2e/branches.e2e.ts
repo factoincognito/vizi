@@ -854,9 +854,11 @@ test.describe("results hidden while the list is read (3.13, Errors)", () => {
     await expect(openBranch(page)).toBeEnabled();
     await expect(page.locator("#branch-message")).toHaveText("");
     expect(await optionTexts(page)).toEqual(["main (default)", "plain-only"]);
-    // The widgets list, answered after the results of plain are shown, changes nothing.
+    // The widgets list, answered after the results of plain are shown, changes nothing: wait for that answer to finish, then one turn of the page's event loop for what it would do.
+    const answered = page.waitForEvent("requestfinished", (r) => r.url() === due);
     stub.release(due);
-    await settle(page);
+    await answered;
+    await page.evaluate(() => new Promise<void>((r) => setTimeout(r, 0)));
     await expect(page.locator("#project-name")).toHaveText("acme/plain (main)");
     await expect(page.locator("#branch-picker")).not.toHaveAttribute("aria-busy", "true");
     await expect(openBranch(page)).toBeEnabled();
