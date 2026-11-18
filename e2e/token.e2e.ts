@@ -11,6 +11,10 @@ import { isAllowedRequest } from "./guard";
 import { openPanel } from "./panel";
 import { branchesUrl, branchListRead } from "./picker";
 
+/** The flag that planted markup sets when it runs as script; it must stay unset. */
+const pwned = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned);
+
 /** Every test: a request other than the page's own document and GitHub's two hosts fails it. */
 const test = base.extend<{ guard: undefined }>({
   guard: [
@@ -22,6 +26,8 @@ const test = base.extend<{ guard: undefined }>({
       });
       await use(undefined);
       expect(stray, "requests the page should not make").toEqual([]);
+      // Nothing the token flow reads or shows ran as script (e2e/csp.e2e.ts and e2e/guide.e2e.ts use the same flag).
+      if (!page.isClosed()) expect(await pwned(page), "window.__pwned").toBeUndefined();
     },
     { auto: true },
   ],
@@ -166,6 +172,23 @@ async function saved(
   return raw === null ? null : JSON.parse(raw);
 }
 
+/**
+ * Starts recording the key of every `storage` event this page receives. The
+ * page's own listener is older than this one, so it has handled an event
+ * when the event shows here.
+ */
+async function recordStorageEvents(page: Page) {
+  await page.evaluate(() => {
+    const keys: (string | null)[] = [];
+    (window as unknown as { __storageKeys?: (string | null)[] }).__storageKeys = keys;
+    window.addEventListener("storage", (event) => keys.push(event.key));
+  });
+}
+
+/** The keys of the `storage` events `recordStorageEvents` has seen. */
+const storageEventKeys = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __storageKeys?: (string | null)[] }).__storageKeys);
+
 /** A value of vizi.githubTokens as another tab would write it. */
 const value = (tokens: Record<string, string>, forgot: string[] = []) =>
   JSON.stringify({ tokens, forgot });
@@ -185,14 +208,27 @@ function watchConsole(page: Page): string[] {
   return texts;
 }
 
-/** Everything a person or a script could read from the page, apart from storage. */
+/** The source of the page's own scripts as built: code that is the same on every page, which holds "Bearer" and the prefix of a token. */
+function builtScripts(): string[] {
+  const built = readFileSync(join(__dirname, "..", "dist", "index.html"), "utf8");
+  return Array.from(built.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g), (m) => m[1] ?? "").filter(
+    (source) => source !== "",
+  );
+}
+
+/**
+ * Everything a person or a script could read from the page, apart from storage:
+ * the whole document, `<head>` and the attributes of `<html>` included, but not
+ * the source of the page's own scripts (`builtScripts`); a script added later is kept.
+ */
 async function pageContents(page: Page): Promise<string> {
-  return page.evaluate(() => {
-    const parts = [location.href, document.title, document.body.outerHTML];
+  const text = await page.evaluate(() => {
+    const parts = [location.href, document.title, document.documentElement.outerHTML];
     parts.push(document.body.innerText);
     for (const input of Array.from(document.querySelectorAll("input"))) parts.push(input.value);
     return parts.join("\n");
   });
+  return builtScripts().reduce((rest, source) => rest.split(source).join(""), text);
 }
 
 test.describe("entering the token (3.8)", () => {
@@ -500,6 +536,66 @@ test.describe("the token is never shown or logged (3.8)", () => {
     expect(urls.filter((u) => u.includes("github_pat_"))).toEqual([]);
     expect(console_.filter((t) => t.includes(TOKEN) || t.includes("github_pat_"))).toEqual([]);
     expect(stub.seen.filter((s) => s.url.includes("github_pat_"))).toEqual([]);
+  });
+
+  test("markup in the owner, the token, the stored value, a storage event or a rate-limit header stays inert: no row is made of it and no script runs", async ({
+    page,
+    context,
+  }) => {
+    // Made an element, the svg runs its script on insertion and the img after its request fails.
+    const markup = "<svg onload=window.__pwned=1><img src=x onerror=window.__pwned=2>";
+    await stubGithub(context, {
+      answer: (url) =>
+        url === API
+          ? {
+              status: 403,
+              headers: {
+                "x-ratelimit-remaining": "0",
+                "x-ratelimit-reset": markup,
+                "access-control-expose-headers": "x-ratelimit-remaining, x-ratelimit-reset",
+              },
+            }
+          : undefined,
+    });
+    await page.goto("/");
+    // A stored value whose owner and token are markup: the startup clean-up drops it.
+    await page.evaluate(
+      ([k, v]) => localStorage.setItem(k as string, v as string),
+      [KEY, value({ [markup]: TOKEN, acme: `github_pat_${markup}` })],
+    );
+    await page.reload();
+    await openPanel(page);
+    await expect(anyLine(page)).toHaveCount(0);
+
+    await useToken(page, TOKEN, true, markup);
+    await expect(page.getByTestId("token-message")).toContainText("Enter the owner");
+    await useToken(page, markup, true, "acme");
+    await expect(page.getByTestId("token-message")).toContainText("github_pat_");
+    await expect(anyLine(page)).toHaveCount(0);
+
+    // What another tab would write: the page follows the event at once, so nothing is awaited here.
+    await page.evaluate(
+      ([k, n]) =>
+        window.dispatchEvent(
+          new StorageEvent("storage", {
+            key: k,
+            oldValue: null,
+            newValue: n,
+            storageArea: localStorage,
+          }),
+        ),
+      [KEY, value({ [markup]: TOKEN })],
+    );
+    await expect(anyLine(page)).toHaveCount(0);
+
+    // A header the page reads with a token: only the fixed text of the message shows.
+    await useToken(page, TOKEN, false, "acme");
+    await openUrl(page);
+    await expect(page.locator("#message")).toHaveText("GitHub's rate limit is reached.");
+    await expect(line(page)).toBeVisible();
+
+    await expect(page.locator("#token-list").locator("svg, img")).toHaveCount(0);
+    expect(await pwned(page)).toBeUndefined();
   });
 
   test("a network failure names the host and says the request failed", async ({
@@ -934,12 +1030,14 @@ test.describe("a second tab (3.8)", () => {
       [KEY, JSON.stringify({ tokens: { ACME: TOKEN3 }, forgot: ["fomo-t"] })],
     );
     await useToken(page, TOKEN2, false, "fomo-t");
+    await recordStorageEvents(page);
     const other = await context.newPage();
     await other.goto("/");
     await openPanel(other);
     await expect(line(other, "acme")).toBeVisible();
     expect(await saved(other)).toEqual({ tokens: { acme: TOKEN3 }, forgot: [] });
-    await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 300)));
+    // This page has followed the other tab's clean-up once its event has come, so what stays is checked after it.
+    await expect.poll(() => storageEventKeys(page)).toContain(KEY);
     await expectLine(page, "fomo-t", "github_pat_…9876", false);
   });
 
