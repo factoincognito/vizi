@@ -650,6 +650,93 @@ describe("createOwnerLists: which owner lists are kept, and token changes (3.1)"
   });
 });
 
+/**
+ * A read that rejects cannot happen in the page today: the requests turn a
+ * failed fetch, a refused one (an abandoned read's included) and an unreadable
+ * answer into results. These tests make one reject (a reader that rejects, and
+ * an answer whose status cannot be read) and check that it ends as a failed
+ * read, as every other failure does, and leaves nothing behind.
+ */
+describe("a read that rejects ends as a failed read (3.1; cannot happen in the page today)", () => {
+  const SECRET = "github_pat_TEST_guide_secret";
+  const rejecting = () => Promise.reject(new Error(`boom with ${SECRET}`));
+  /** An answer whose status cannot be read, as a fetcher's would be if it broke. */
+  const poisoned: Fetcher = async () => ({
+    get status(): number {
+      throw new Error(`broken answer with ${SECRET}`);
+    },
+    text: async () => "",
+  });
+
+  it("a rejecting reader gives a failed outcome, nothing kept, nothing running, and the next ask reads again", async () => {
+    let reads = 0;
+    const lists = createOwnerLists(() => {
+      reads += 1;
+      return rejecting();
+    });
+    const outcome = await lists.read("acme");
+    expect(outcome.abandoned).toBe(false);
+    expect(outcome.read.owner).toBe("acme");
+    expect(outcome.read.failure?.kind).toBe("network");
+    expect(outcome.read.names).toEqual([]);
+    expect(lists.kept("acme")).toBeUndefined();
+    expect(lists.reading("acme")).toBe(false);
+    await lists.read("acme");
+    expect(reads).toBe(2);
+  });
+
+  it("the failed read's message is a fixed one, with nothing of the exception in it", async () => {
+    const lists = createOwnerLists(rejecting);
+    const { read } = await lists.read("acme");
+    expect(ownerView(read, true)).toEqual({
+      options: null,
+      message: "The repo list could not be read: The read failed unexpectedly.",
+    });
+    expect(JSON.stringify(read)).not.toContain(SECRET);
+    expect(JSON.stringify(read)).not.toContain("boom");
+  });
+
+  it("a rejection after a token change is an abandoned outcome and leaves the newer read running", async () => {
+    const rejects: ((e: Error) => void)[] = [];
+    const lists = createOwnerLists(
+      () =>
+        new Promise<OwnerRead>((_resolve, reject) => {
+          rejects.push(reject);
+        }),
+    );
+    const older = lists.read("acme");
+    lists.tokenChanged("acme");
+    const newer = lists.read("acme");
+    expect(rejects).toHaveLength(2);
+    rejects[0]?.(new Error("older"));
+    expect((await older).abandoned).toBe(true);
+    expect(lists.reading("acme")).toBe(true);
+    rejects[1]?.(new Error("newer"));
+    expect((await newer).abandoned).toBe(false);
+    expect(lists.reading("acme")).toBe(false);
+  });
+
+  it("a read whose answer cannot be read ends as a failed read through readOwnerRepos", async () => {
+    const lists = createOwnerLists((owner) => readOwnerRepos(owner, TOKEN, poisoned));
+    const outcome = await lists.read("acme");
+    expect(outcome.read.failure?.kind).toBe("network");
+    expect(lists.kept("acme")).toBeUndefined();
+    expect(lists.reading("acme")).toBe(false);
+  });
+
+  it("a branch read whose answer cannot be read gives a failed read, shown as the branch list's message", async () => {
+    const read = await readRepoBranches({ owner: "acme", repo: "widgets" }, TOKEN, poisoned);
+    expect(read.failure?.kind).toBe("network");
+    expect(read.defaultBranch).toBeNull();
+    expect(read.names).toEqual([]);
+    expect(branchView("acme", "widgets", read)).toEqual({
+      options: null,
+      message: "The branch list could not be read: The read failed unexpectedly.",
+    });
+    expect(JSON.stringify(read)).not.toContain(SECRET);
+  });
+});
+
 describe("tokenRefusal and the views of a 401 (3.1, Edge cases; 3.8)", () => {
   const refused = { ok: false, kind: "token-refused", status: 401, message: "refused" } as const;
   const other = { ok: false, kind: "http", status: 500, message: "HTTP 500" } as const;

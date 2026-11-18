@@ -257,6 +257,20 @@ export interface RepoBranchesRead {
   listFailure: LoadFailure | null;
 }
 
+/**
+ * What a read that rejects counts as. None does in the page today: the
+ * requests turn a failed fetch (an abandoned read's included) and an
+ * unreadable answer into results. If one ever did, it ends as a failed read,
+ * as every other failure does, so no line stays on "Reading…". The message is
+ * fixed: a token may be quoted in an exception's text.
+ */
+const READ_REJECTED: LoadFailure = {
+  ok: false,
+  kind: "network",
+  status: null,
+  message: "The read failed unexpectedly.",
+};
+
 /** Request 1 of 3.1 for `default_branch`, then the branch list with 3.13's request (listBranches). */
 export async function readRepoBranches(
   ref: { owner: string; repo: string },
@@ -272,17 +286,22 @@ export async function readRepoBranches(
     pagesRead: 0,
     listFailure: null,
   };
-  const r1 = await readDefaultBranch(ref, fetcher, token);
-  if (!r1.ok) return { ...base, failure: r1 };
-  const list = await listBranches(ref, fetcher, token);
-  return {
-    ...base,
-    defaultBranch: r1.branch,
-    names: list.names,
-    more: list.more,
-    pagesRead: list.pagesRead,
-    listFailure: list.failure,
-  };
+  try {
+    const r1 = await readDefaultBranch(ref, fetcher, token);
+    if (!r1.ok) return { ...base, failure: r1 };
+    const list = await listBranches(ref, fetcher, token);
+    return {
+      ...base,
+      defaultBranch: r1.branch,
+      names: list.names,
+      more: list.more,
+      pagesRead: list.pagesRead,
+      listFailure: list.failure,
+    };
+  } catch {
+    // None of the requests rejects today (see READ_REJECTED): a failed read, as any other failure.
+    return { ...base, failure: READ_REJECTED };
+  }
 }
 
 /** The first failure of a branch read that carries a 401, or null. */
@@ -367,12 +386,23 @@ export function createOwnerLists(
       if (already) return already;
       const at = changeCount(key);
       const abandoned = () => changeCount(key) !== at;
-      const promise = read(owner, abandoned).then((r) => {
+      const settle = (r: OwnerRead): OwnerOutcome => {
         if (running.get(key) === promise) running.delete(key);
         const gone = abandoned();
         if (!gone && isKept(r)) kept.set(key, r);
         return { read: r, abandoned: gone };
-      });
+      };
+      // A reader that rejects (none does today, see READ_REJECTED) is a failed read: not kept, not left running.
+      const promise: Promise<OwnerOutcome> = read(owner, abandoned).then(settle, () =>
+        settle({
+          owner,
+          token: null,
+          names: [],
+          failure: READ_REJECTED,
+          pagesRead: 0,
+          more: false,
+        }),
+      );
       running.set(key, promise);
       return promise;
     },
