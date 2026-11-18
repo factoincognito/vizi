@@ -76,22 +76,70 @@ test.describe("the browser enforces it", () => {
     return { seen, finished, failures };
   }
 
-  /** Records every policy violation the page reports. */
+  /**
+   * A request of the tests' own to a host the policy blocks. `expectNoViolations` uses
+   * it as a marker: the page does not report it as one of its violations, and
+   * `watchProblems` does not count its console error.
+   */
+  const MARKER_HOST = "csp-marker.invalid";
+
+  type ViolationWindow = Window & {
+    __violations: string[];
+    __markersAsked: number;
+    __markersSeen: number;
+  };
+
+  /** Records every policy violation the page reports, but not the marker's. */
   async function watchViolations(page: import("@playwright/test").Page) {
-    await page.addInitScript(() => {
-      const seen: string[] = [];
-      (window as unknown as { __violations: string[] }).__violations = seen;
-      document.addEventListener("securitypolicyviolation", (e) => seen.push(e.violatedDirective));
-    });
-    return () =>
-      page.evaluate(() => (window as unknown as { __violations: string[] }).__violations);
+    await page.addInitScript((markerHost) => {
+      const w = window as unknown as ViolationWindow;
+      w.__violations = [];
+      w.__markersAsked = 0;
+      w.__markersSeen = 0;
+      document.addEventListener("securitypolicyviolation", (e) => {
+        if (e.blockedURI.includes(markerHost)) w.__markersSeen++;
+        else w.__violations.push(e.violatedDirective);
+      });
+    }, MARKER_HOST);
+    return () => page.evaluate(() => (window as unknown as ViolationWindow).__violations);
+  }
+
+  /** The page's console errors and uncaught errors, but not the marker's console error. */
+  function watchProblems(page: import("@playwright/test").Page) {
+    const problems: string[] = [];
+    page.on(
+      "console",
+      (m) => m.type() === "error" && !m.text().includes(MARKER_HOST) && problems.push(m.text()),
+    );
+    page.on("pageerror", (e) => problems.push(e.message));
+    return problems;
+  }
+
+  /**
+   * Checks that the page has reported no violation. The browser fires
+   * securitypolicyviolation from a queued task, so a single read can come before a
+   * violation that the page already caused. This first makes the page cause one more of
+   * its own, a blocked image, and waits until its event has arrived: the events fire in
+   * the order they were queued, so every violation caused before it has arrived too.
+   */
+  async function expectNoViolations(page: import("@playwright/test").Page) {
+    const asked = await page.evaluate((markerHost) => {
+      const w = window as unknown as ViolationWindow;
+      w.__markersAsked++;
+      new Image().src = `https://${markerHost}/${w.__markersAsked}`;
+      return w.__markersAsked;
+    }, MARKER_HOST);
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as ViolationWindow).__markersSeen))
+      .toBeGreaterThanOrEqual(asked);
+    expect(await page.evaluate(() => (window as unknown as ViolationWindow).__violations)).toEqual(
+      [],
+    );
   }
 
   test("the page loads and works with no violation and no console error", async ({ page }) => {
-    const problems: string[] = [];
-    page.on("console", (m) => m.type() === "error" && problems.push(m.text()));
-    page.on("pageerror", (e) => problems.push(e.message));
-    const violations = await watchViolations(page);
+    const problems = watchProblems(page);
+    await watchViolations(page);
     await page.goto("/");
     await expect(page.locator("#url-input")).toBeVisible();
     await page.locator("#url-input").fill("not an address");
@@ -103,12 +151,12 @@ test.describe("the browser enforces it", () => {
     await page.locator("#private-repos-toggle").click();
     await page.locator("#token-guide-toggle").click();
     await expect(page.locator("#token-guide-body")).toBeVisible();
-    expect(await violations()).toEqual([]);
+    await expectNoViolations(page);
     expect(problems).toEqual([]);
   });
 
   test("the page's own fonts load under it, with no violation (3.12)", async ({ page }) => {
-    const violations = await watchViolations(page);
+    await watchViolations(page);
     await page.goto("/");
     const faces = await page.evaluate(async () => {
       await document.fonts.ready;
@@ -123,7 +171,7 @@ test.describe("the browser enforces it", () => {
       ["600", "loaded"],
       ["700", "loaded"],
     ]);
-    expect(await violations()).toEqual([]);
+    await expectNoViolations(page);
   });
 
   test("a font from another host, added at run time, is blocked", async ({ page }) => {
@@ -167,23 +215,21 @@ test.describe("the browser enforces it", () => {
   test("the page also loads and works under it when opened from disk (file://)", async ({
     page,
   }) => {
-    const violations = await watchViolations(page);
+    await watchViolations(page);
     await page.goto(pathToFileURL(BUILT).href);
     await page.locator("#url-input").fill("not an address");
     await page.locator("#open-url").click();
     await expect(page.locator("#message")).toContainText(
       "Type the repository as <owner>/<repo>, for example fomo-t/fomo-f",
     );
-    expect(await violations()).toEqual([]);
+    await expectNoViolations(page);
   });
 
   test("a loaded project with its branch picker shown: no violation and no console error (3.13)", async ({
     page,
   }) => {
-    const problems: string[] = [];
-    page.on("console", (m) => m.type() === "error" && problems.push(m.text()));
-    page.on("pageerror", (e) => problems.push(e.message));
-    const violations = await watchViolations(page);
+    const problems = watchProblems(page);
+    await watchViolations(page);
     const cors = { "access-control-allow-origin": "*" };
     await page.route(/^https:\/\/(api\.github\.com|raw\.githubusercontent\.com)\//, (route) => {
       const url = route.request().url();
@@ -208,17 +254,15 @@ test.describe("the browser enforces it", () => {
     await page.locator("#open-url").click();
     await expect(page.locator("#branch-select option")).toHaveText(["main (default)", "dev"]);
     await expect(page.locator("#branch-picker")).toBeVisible();
-    expect(await violations()).toEqual([]);
+    await expectNoViolations(page);
     expect(problems).toEqual([]);
   });
 
   test("the Saved repos list shown with entries: no violation and no console error (3.14)", async ({
     page,
   }) => {
-    const problems: string[] = [];
-    page.on("console", (m) => m.type() === "error" && problems.push(m.text()));
-    page.on("pageerror", (e) => problems.push(e.message));
-    const violations = await watchViolations(page);
+    const problems = watchProblems(page);
+    await watchViolations(page);
     await page.goto("/");
     await page.evaluate(() =>
       localStorage.setItem(
@@ -234,17 +278,15 @@ test.describe("the browser enforces it", () => {
     await page.reload();
     await expect(page.getByTestId("saved-entry")).toHaveCount(2);
     await expect(page.locator("#saved-repos")).toBeVisible();
-    expect(await violations()).toEqual([]);
+    await expectNoViolations(page);
     expect(problems).toEqual([]);
   });
 
   test("included entries shown, markup in an included description as text: no violation and no console error (3.15)", async ({
     page,
   }) => {
-    const problems: string[] = [];
-    page.on("console", (m) => m.type() === "error" && problems.push(m.text()));
-    page.on("pageerror", (e) => problems.push(e.message));
-    const violations = await watchViolations(page);
+    const problems = watchProblems(page);
+    await watchViolations(page);
     const cors = { "access-control-allow-origin": "*" };
     const included = [
       "## Old",
@@ -289,17 +331,15 @@ test.describe("the browser enforces it", () => {
     );
     await page.getByRole("tab", { name: "List" }).click();
     await expect(page.getByTestId("list-group")).toHaveText(["(no heading)", "Old — OLD.md"]);
-    expect(await violations()).toEqual([]);
+    await expectNoViolations(page);
     expect(problems).toEqual([]);
   });
 
   test("the opening guide's datalist and select shown: no violation and no console error (3.1, PBI-1.19)", async ({
     page,
   }) => {
-    const problems: string[] = [];
-    page.on("console", (m) => m.type() === "error" && problems.push(m.text()));
-    page.on("pageerror", (e) => problems.push(e.message));
-    const violations = await watchViolations(page);
+    const problems = watchProblems(page);
+    await watchViolations(page);
     const cors = { "access-control-allow-origin": "*" };
     await page.route(/^https:\/\/(api\.github\.com|raw\.githubusercontent\.com)\//, (route) => {
       const url = route.request().url();
@@ -319,17 +359,15 @@ test.describe("the browser enforces it", () => {
     await page.locator("#url-input").fill("acme");
     await page.locator("#access-line").click();
     await expect(page.locator("#guide-select")).toBeVisible();
-    expect(await violations()).toEqual([]);
+    await expectNoViolations(page);
     expect(problems).toEqual([]);
   });
 
   test("the Umbrella tab open with its help text: no violation and no console error (3.9, PBI-1.18)", async ({
     page,
   }) => {
-    const problems: string[] = [];
-    page.on("console", (m) => m.type() === "error" && problems.push(m.text()));
-    page.on("pageerror", (e) => problems.push(e.message));
-    const violations = await watchViolations(page);
+    const problems = watchProblems(page);
+    await watchViolations(page);
     const cors = { "access-control-allow-origin": "*" };
     await page.route(/^https:\/\/(api\.github\.com|raw\.githubusercontent\.com)\//, (route) => {
       const url = route.request().url();
@@ -354,7 +392,7 @@ test.describe("the browser enforces it", () => {
     await page.locator("#open-url").click();
     await expect(page.locator("#umbrella-help")).toBeVisible();
     await expect(page.locator("#umbrella-help code")).toHaveCount(4);
-    expect(await violations()).toEqual([]);
+    await expectNoViolations(page);
     expect(problems).toEqual([]);
   });
 
