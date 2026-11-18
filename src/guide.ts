@@ -262,14 +262,16 @@ export interface RepoBranchesRead {
  * requests turn a failed fetch (an abandoned read's included) and an
  * unreadable answer into results. If one ever did, it ends as a failed read,
  * as every other failure does, so no line stays on "Reading…". The message is
- * fixed: a token may be quoted in an exception's text.
+ * 3.8's for a request that fails with an exception, naming the host only: a
+ * token may be quoted in the exception's text. Every guide request goes to
+ * api.github.com (3.1). A new object each time, so no read shares one.
  */
-const READ_REJECTED: LoadFailure = {
+const readRejected = (): LoadFailure => ({
   ok: false,
   kind: "network",
   status: null,
-  message: "The read failed unexpectedly.",
-};
+  message: "The request to api.github.com failed.",
+});
 
 /** Request 1 of 3.1 for `default_branch`, then the branch list with 3.13's request (listBranches). */
 export async function readRepoBranches(
@@ -299,8 +301,8 @@ export async function readRepoBranches(
       listFailure: list.failure,
     };
   } catch {
-    // None of the requests rejects today (see READ_REJECTED): a failed read, as any other failure.
-    return { ...base, failure: READ_REJECTED };
+    // None of the requests rejects today (see readRejected): a failed read, as any other failure.
+    return { ...base, failure: readRejected() };
   }
 }
 
@@ -392,13 +394,13 @@ export function createOwnerLists(
         if (!gone && isKept(r)) kept.set(key, r);
         return { read: r, abandoned: gone };
       };
-      // A reader that rejects (none does today, see READ_REJECTED) is a failed read: not kept, not left running.
+      // A reader that rejects (none does today, see readRejected) is a failed read: not kept, not left running.
       const promise: Promise<OwnerOutcome> = read(owner, abandoned).then(settle, () =>
         settle({
           owner,
           token: null,
           names: [],
-          failure: READ_REJECTED,
+          failure: readRejected(),
           pagesRead: 0,
           more: false,
         }),

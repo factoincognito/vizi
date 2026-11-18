@@ -679,18 +679,20 @@ describe("a read that rejects ends as a failed read (3.1; cannot happen in the p
     expect(outcome.read.owner).toBe("acme");
     expect(outcome.read.failure?.kind).toBe("network");
     expect(outcome.read.names).toEqual([]);
+    // Not a 401, so the page's refusal rule (which reads the read's token) does not act on it.
+    expect(tokenRefusal(outcome.read)).toBeNull();
     expect(lists.kept("acme")).toBeUndefined();
     expect(lists.reading("acme")).toBe(false);
     await lists.read("acme");
     expect(reads).toBe(2);
   });
 
-  it("the failed read's message is a fixed one, with nothing of the exception in it", async () => {
+  it("the failed read's message is 3.8's for a failed request, with nothing of the exception in it", async () => {
     const lists = createOwnerLists(rejecting);
     const { read } = await lists.read("acme");
     expect(ownerView(read, true)).toEqual({
       options: null,
-      message: "The repo list could not be read: The read failed unexpectedly.",
+      message: "The repo list could not be read: The request to api.github.com failed.",
     });
     expect(JSON.stringify(read)).not.toContain(SECRET);
     expect(JSON.stringify(read)).not.toContain("boom");
@@ -731,9 +733,42 @@ describe("a read that rejects ends as a failed read (3.1; cannot happen in the p
     expect(read.names).toEqual([]);
     expect(branchView("acme", "widgets", read)).toEqual({
       options: null,
-      message: "The branch list could not be read: The read failed unexpectedly.",
+      message: "The branch list could not be read: The request to api.github.com failed.",
     });
     expect(JSON.stringify(read)).not.toContain(SECRET);
+  });
+
+  it("a branch read whose request 1 answered and whose branch-list answer cannot be read gives the failed read, with no default branch and no partial list", async () => {
+    const REPO = "https://api.github.com/repos/acme/widgets";
+    const fetcher: Fetcher = async (url) =>
+      url === REPO
+        ? { status: 200, text: async () => JSON.stringify({ default_branch: "main" }) }
+        : poisoned(url);
+    const read = await readRepoBranches({ owner: "acme", repo: "widgets" }, null, fetcher);
+    expect(read).toEqual({
+      owner: "acme",
+      repo: "widgets",
+      failure: {
+        ok: false,
+        kind: "network",
+        status: null,
+        message: "The request to api.github.com failed.",
+      },
+      defaultBranch: null,
+      names: [],
+      more: false,
+      pagesRead: 0,
+      listFailure: null,
+    });
+    expect(branchView("acme", "widgets", read).options).toBeNull();
+  });
+
+  it("each failed read has its own failure object", async () => {
+    const lists = createOwnerLists(rejecting);
+    const a = (await lists.read("acme")).read;
+    const b = (await lists.read("beta")).read;
+    expect(a.failure).toEqual(b.failure);
+    expect(a.failure).not.toBe(b.failure);
   });
 });
 
