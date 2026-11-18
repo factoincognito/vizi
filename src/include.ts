@@ -53,12 +53,7 @@ export type PathRead = { ok: true; path: string } | { ok: false; reason: "form" 
 export function resolveIncludePath(backlogPath: string, written: string): PathRead {
   const segments = written.split("/");
   const last = segments[segments.length - 1] ?? "";
-  if (
-    written.startsWith("/") ||
-    !PATH_CHARS.test(written) ||
-    segments.includes("") ||
-    !last.endsWith(".md")
-  )
+  if (!PATH_CHARS.test(written) || segments.includes("") || !last.endsWith(".md"))
     return { ok: false, reason: "form" };
   const parts = backlogPath.split("/").slice(0, -1);
   for (const seg of segments) {

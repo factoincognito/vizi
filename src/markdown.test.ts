@@ -367,6 +367,16 @@ describe("links to project files from code spans", () => {
 });
 
 describe("hostile input stays fast and does not throw", () => {
+  // The limit is on the CPU time `render` uses, not on the wall clock: on a loaded
+  // machine the wall clock also counts the time the process waits for a core, which
+  // says nothing about the algorithm. A quadratic or worse `render` still exceeds it.
+  const CPU_LIMIT_MS = 1500;
+  const cpuMs = (run: () => void): number => {
+    const before = process.cpuUsage();
+    run();
+    const used = process.cpuUsage(before);
+    return (used.user + used.system) / 1000;
+  };
   const big = 50000;
   it.each([
     ["stars", "*".repeat(big)],
@@ -380,9 +390,11 @@ describe("hostile input stays fast and does not throw", () => {
     ["comment starts", "<!--".repeat(big / 4)],
     ["backslashes", "\\".repeat(big)],
   ])("%s", (_name, input) => {
-    const start = Date.now();
-    expect(() => render(input)).not.toThrow();
-    expect(Date.now() - start).toBeLessThan(1500);
+    let used = Number.NaN;
+    expect(() => {
+      used = cpuMs(() => render(input));
+    }).not.toThrow();
+    expect(used).toBeLessThan(CPU_LIMIT_MS);
   });
 
   // One megabyte on a single line. Every `](` used to scan up to 4096
@@ -397,9 +409,11 @@ describe("hostile input stays fast and does not throw", () => {
     ["nested parentheses", "[]((((".repeat(mb / 6)],
     ["unclosed links", "[](a".repeat(mb / 4)],
   ])("a 1 MB line of %s", (_name, input) => {
-    const start = Date.now();
-    expect(() => render(input)).not.toThrow();
-    expect(Date.now() - start).toBeLessThan(1500);
+    let used = Number.NaN;
+    expect(() => {
+      used = cpuMs(() => render(input));
+    }).not.toThrow();
+    expect(used).toBeLessThan(CPU_LIMIT_MS);
   });
 
   it("nests deeply without a stack overflow", () => {

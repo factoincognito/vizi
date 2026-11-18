@@ -721,6 +721,23 @@ describe("readRepoFile: one file of a repo (3.9, Show status)", () => {
     expect(sent[0]?.url).not.toContain(TOKEN);
   });
 
+  // The expected URLs are written out; the `contents` helper above encodes with the
+  // same function as the code, so it could not show a missing encoding.
+  it.each([
+    ["a space", "projects/my notes/STATUS.md", "projects/my%20notes/STATUS.md"],
+    ["a #", "projects/a#b/STATUS.md", "projects/a%23b/STATUS.md"],
+    ["a ?", "projects/a?b/STATUS.md", "projects/a%3Fb/STATUS.md"],
+    ["a %", "projects/100%/STATUS.md", "projects/100%25/STATUS.md"],
+  ])(
+    "with a token: a path segment with %s is percent-encoded and the slashes between segments are not",
+    async (_name, path, encoded) => {
+      const url = `${API}/contents/${encoded}?ref=main`;
+      const { fetcher, sent } = fakeWithInit({ [url]: { status: 200, body: "t" } });
+      expect(await readRepoFile(at, path, fetcher, TOKEN)).toEqual({ ok: true, text: "t" });
+      expect(sent.map((s) => s.url)).toEqual([url]);
+    },
+  );
+
   it.each([
     [404, "http"],
     [500, "http"],
