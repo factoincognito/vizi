@@ -114,6 +114,7 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - CI reviewer: reads the section files that the index of `docs/SPEC.md` lists, and does not review when it cannot (#111).
 - Spec: `docs/SPEC.md` is an index, and its text is in 28 section files in `docs/spec/`, unchanged (#112).
 - Tests (PBI-1.10, groups D to I, no behaviour change): the CSP browser tests check late violations (#114); the token browser tests read the whole page and assert `window.__pwned` stays unset (#115); the help view and umbrella tests are hardened (#116); the branch picker's contrast and `change` events are tested, and `hideResults` clears the picker's `aria-busy` and the disabled "Open branch" (#117); small code and test items, including CPU time in the "hostile input stays fast" test and the removal of an include-path condition that no input can reach (#118); a two-owner token test, and a read that rejects ends as a failed read with 3.8's message (#119).
+- Tests (PBI-1.10, point 33): a failing test keeps its Playwright trace in CI only, in the HTML report that CI already uploads; local runs are unchanged (#121).
 
 ## Project created
 
