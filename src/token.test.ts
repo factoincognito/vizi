@@ -833,6 +833,33 @@ describe("migration of the old key vizi.githubToken", () => {
     expect(b.migration()).toBeNull();
   });
 
+  it("Forget all with no storage does not throw, and leaves no token and no migration line", () => {
+    const store = createTokenStore(null);
+    store.use("acme", T2, true);
+    expect(() => store.forgetAll()).not.toThrow();
+    expect(store.owners()).toEqual([]);
+    expect(store.migration()).toBeNull();
+  });
+
+  it("Forget all with storage that refuses removeItem does not throw, and still forgets in memory, the migration line included", () => {
+    const { storage, data } = memoryStorage({ [OLD_TOKEN_KEY]: T1 });
+    const store = createTokenStore({
+      ...storage,
+      removeItem: () => {
+        throw new Error(`blocked ${T1}`);
+      },
+    });
+    store.start();
+    store.use("acme", T2, true);
+    expect(store.migration()).toBe(T1);
+    expect(() => store.forgetAll()).not.toThrow();
+    expect(store.owners()).toEqual([]);
+    expect(store.tokenFor("acme")).toBeNull();
+    expect(store.migration()).toBeNull();
+    // Nothing could be removed from storage; that is all the store can then do.
+    expect(data.has(OLD_TOKEN_KEY)).toBe(true);
+  });
+
   it("the old key's event: a valid new value shows or updates the line; removed or invalid hides it; nothing is written", () => {
     const { storage, log } = memoryStorage();
     const store = createTokenStore(storage);
