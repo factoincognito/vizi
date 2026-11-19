@@ -875,6 +875,37 @@ test.describe("a second tab (3.8)", () => {
     await expect(anyLine(page)).toHaveCount(0);
   });
 
+  test("Forget all there with nothing saved still reaches this tab, which held a token for its page only", async ({
+    page,
+    context,
+  }) => {
+    await stubGithub(context);
+    await page.goto("/");
+    await openPanel(page);
+    await useToken(page, TOKEN, false);
+    await openUrl(page);
+    await expect(page.getByTestId("column").first()).toBeVisible();
+    await branchListRead(page);
+    expect(await saved(page)).toBeNull();
+
+    const other = await context.newPage();
+    await other.goto("/");
+    await openPanel(other);
+    await useToken(other, TOKEN2, false, "fomo-t");
+    expect(await saved(other)).toBeNull();
+    await forgetAll(other).click();
+
+    // Nothing was saved, so the page itself never held a key to remove: the event that
+    // reaches this tab is the one Forget all raises by writing the empty value first.
+    await expect(anyLine(page)).toHaveCount(0);
+    await expect(page.locator("#results")).toBeHidden();
+    await expect(page.locator("#message")).toHaveText(
+      "The tokens were removed in another tab, so they have been forgotten.",
+    );
+    expect(await saved(page)).toBeNull();
+    expect(await page.evaluate(() => localStorage.length)).toBe(0);
+  });
+
   test("clearing all of storage there counts as the key removed", async ({ page, context }) => {
     await stubGithub(context);
     await page.goto("/");
@@ -1434,6 +1465,23 @@ test.describe("a token saved by an earlier vizi (3.8, migration)", () => {
     await forgetAll(page).click();
     await expect(migrateLine(page)).toBeHidden();
     expect(await page.evaluate(() => localStorage.length)).toBe(0);
+  });
+
+  test("Forget all takes the earlier-token clause out of the panel's summary and puts the focus on the panel's toggle", async ({
+    page,
+  }) => {
+    const summary = page.locator("#private-repos-summary");
+    const toggle = page.locator("#private-repos-toggle");
+    await withOldKey(page, TOKEN);
+    await useToken(page, TOKEN2, true, "acme");
+    await expect(migrateLine(page)).toBeVisible();
+    await expect(summary).toHaveText("1 token; a token saved by an earlier vizi needs its owner");
+    await forgetAll(page).click();
+    await expect(migrateLine(page)).toBeHidden();
+    await expect(forgetAll(page)).toBeHidden();
+    await expect(summary).toHaveText("No tokens");
+    await expect(toggle).toBeFocused();
+    expect(await page.evaluate((k) => localStorage.getItem(k), OLD_KEY)).toBeNull();
   });
 
   test("is listed with its masked form, an Owner field and two buttons, and is used for no load until it has an owner", async ({
