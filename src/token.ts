@@ -245,7 +245,17 @@ export function createTokenStore(storage: TokenStorage | null): TokenStore {
 
     forgetAll() {
       held.clear();
-      if (storage !== null) attempt(() => storage.removeItem(TOKENS_KEY));
+      if (storage !== null) {
+        const store = storage;
+        // Removing a key that is not there raises no `storage` event. With nothing saved, an empty
+        // value is written first, so that the removal is a change and other tabs hear it (3.8).
+        // The removal has its own `attempt`: a read that throws must not skip it.
+        attempt(() => {
+          if (store.getItem(TOKENS_KEY) === null)
+            store.setItem(TOKENS_KEY, serialize(new Map(), []));
+        });
+        attempt(() => store.removeItem(TOKENS_KEY));
+      }
       removeOld();
     },
 

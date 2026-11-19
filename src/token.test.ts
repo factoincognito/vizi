@@ -438,6 +438,75 @@ describe("the token store: Forget and Forget all", () => {
     expect(data.has(TOKENS_KEY)).toBe(false);
   });
 
+  it("Forget all with a token saved makes one write, the removal, and no empty value first", () => {
+    const { storage, log } = memoryStorage();
+    const store = createTokenStore(storage);
+    store.use("acme", T1, true);
+    const before = log.length;
+    store.forgetAll();
+    expect(log.slice(before).map((w) => [w.key, w.newValue])).toEqual([[TOKENS_KEY, null]]);
+  });
+
+  it("Forget all still removes the key when reading it throws", () => {
+    const { storage, data } = memoryStorage();
+    createTokenStore(storage).use("acme", T1, true);
+    expect(data.has(TOKENS_KEY)).toBe(true);
+    const removed: string[] = [];
+    const store = createTokenStore({
+      getItem: () => {
+        throw new Error(`blocked ${T1}`);
+      },
+      setItem: () => {},
+      removeItem: (k) => {
+        removed.push(k);
+        storage.removeItem(k);
+      },
+    });
+    store.forgetAll();
+    expect(removed).toContain(TOKENS_KEY);
+    expect(data.has(TOKENS_KEY)).toBe(false);
+  });
+
+  it("Forget all with nothing saved still reaches another tab that holds a token for its page only", () => {
+    const s = sharedStorage();
+    const a = createTokenStore(s.view("a"));
+    const b = createTokenStore(s.view("b"));
+    a.start();
+    b.start();
+    a.use("acme", T1, false);
+    b.use("fomo-t", T2, false);
+    expect(s.data.has(TOKENS_KEY)).toBe(false);
+    a.forgetAll();
+    expect(s.data.has(TOKENS_KEY)).toBe(false);
+    const outcomes = deliver(b, s.log, "b");
+    expect(outcomes.some((o) => o.allForgotten)).toBe(true);
+    expect(b.owners()).toEqual([]);
+    expect(a.owners()).toEqual([]);
+    // Following the event wrote nothing in tab b, so tabs do not answer each other's removals (3.8).
+    expect(s.log.filter((w) => w.from === "b")).toEqual([]);
+  });
+
+  it("the empty value that Forget all with nothing saved writes first changes nothing in another tab by itself", () => {
+    const s = sharedStorage();
+    const a = createTokenStore(s.view("a"));
+    const b = createTokenStore(s.view("b"));
+    a.start();
+    b.start();
+    b.use("fomo-t", T2, false);
+    a.forgetAll();
+    const first = s.log.findIndex((w) => w.key === TOKENS_KEY);
+    const outcomes = deliver(b, s.log, "b", first, first + 1);
+    expect(s.log[first]?.newValue).toBe(json({}));
+    expect(outcomes[0]).toEqual({
+      allForgotten: false,
+      forgotten: [],
+      adopted: [],
+      keptForPage: [],
+      migrationChanged: false,
+    });
+    expect(b.tokenFor("fomo-t")).toBe(T2);
+  });
+
   it("the forgot list of a write is not carried over to the next write", () => {
     const { storage, data } = memoryStorage();
     const store = createTokenStore(storage);
