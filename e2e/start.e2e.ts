@@ -132,6 +132,25 @@ test.describe("the header and the address section (3.12)", () => {
   });
 });
 
+test.describe("the header's tagline gap (3.12)", () => {
+  test("is the same whatever width the font's space has", async ({ page }) => {
+    await page.goto("/");
+    await page.evaluate(() => document.fonts.ready);
+    // A font whose space is far wider than Inter's: the gap must not follow the space.
+    const gap = await page.locator("header h1").evaluate((el) => {
+      (el as HTMLElement).style.setProperty("font-family", "monospace", "important");
+      const r = document.createRange();
+      r.setStart(el.firstChild as Node, 0);
+      r.setEnd(el.firstChild as Node, 4);
+      return (
+        (el.querySelector("span") as HTMLElement).getBoundingClientRect().left -
+        r.getBoundingClientRect().right
+      );
+    });
+    expect(Math.abs(gap - (isPhone(page) ? 10 : 12))).toBeLessThanOrEqual(0.5);
+  });
+});
+
 test.describe("the Private repos panel (3.12)", () => {
   test("is folded at start, opens and folds with Enter and Space, keeps the focus, and is folded again after a reload with nothing stored", async ({
     page,

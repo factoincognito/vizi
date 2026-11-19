@@ -838,6 +838,46 @@ describe("migration of the old key vizi.githubToken", () => {
     expect(store.tokenFor("acme")).toBeNull();
   });
 
+  it("Keep in storage that will not save leaves a token held for this page only as it was", () => {
+    const { storage, data } = memoryStorage({ [OLD_TOKEN_KEY]: T1 });
+    const refusing = createTokenStore({
+      getItem: (k) => storage.getItem(k),
+      removeItem: (k) => storage.removeItem(k),
+      setItem: () => {
+        throw new Error("quota");
+      },
+    });
+    refusing.start();
+    refusing.use("acme", T2, false);
+    expect(refusing.keepMigrated("acme").ok).toBe(false);
+    expect(refusing.tokenFor("acme")).toBe(T2);
+    expect(refusing.isSaved("acme")).toBe(false);
+    expect(refusing.migration()).toBe(T1);
+    expect(data.get(OLD_TOKEN_KEY)).toBe(T1);
+    expect(data.has(TOKENS_KEY)).toBe(false);
+  });
+
+  it("Keep in storage that will not save leaves a saved token for that owner held and saved", () => {
+    const s = sharedStorage({ [OLD_TOKEN_KEY]: T1, [TOKENS_KEY]: json({ acme: T2 }) });
+    let failing = false;
+    const base = s.view("a");
+    const store = createTokenStore({
+      ...base,
+      setItem: (k, v) => {
+        if (failing) throw new Error("quota");
+        base.setItem(k, v);
+      },
+    });
+    store.start();
+    expect(store.tokenFor("acme")).toBe(T2);
+    failing = true;
+    expect(store.keepMigrated("acme").ok).toBe(false);
+    expect(store.tokenFor("acme")).toBe(T2);
+    expect(store.isSaved("acme")).toBe(true);
+    expect(stored(s.data).tokens).toEqual({ acme: T2 });
+    expect(store.migration()).toBe(T1);
+  });
+
   it("Forget removes the old key", () => {
     const { storage, data } = memoryStorage({ [OLD_TOKEN_KEY]: T1 });
     const store = createTokenStore(storage);
@@ -845,6 +885,76 @@ describe("migration of the old key vizi.githubToken", () => {
     store.forgetMigrated();
     expect(store.migration()).toBeNull();
     expect(data.has(OLD_TOKEN_KEY)).toBe(false);
+  });
+
+  it("Forget all also removes the old key and its line", () => {
+    const { storage, data } = memoryStorage({ [OLD_TOKEN_KEY]: T1 });
+    const store = createTokenStore(storage);
+    store.start();
+    store.use("acme", T2, true);
+    expect(store.migration()).toBe(T1);
+    store.forgetAll();
+    expect(store.migration()).toBeNull();
+    expect(store.owners()).toEqual([]);
+    expect(data.has(OLD_TOKEN_KEY)).toBe(false);
+    expect(data.has(TOKENS_KEY)).toBe(false);
+  });
+
+  it("Forget all also removes the old key when no token is held, and another tab hides its line", () => {
+    const s = sharedStorage({ [OLD_TOKEN_KEY]: T1 });
+    const a = createTokenStore(s.view("a"));
+    const b = createTokenStore(s.view("b"));
+    a.start();
+    b.start();
+    a.forgetAll();
+    expect(s.data.has(OLD_TOKEN_KEY)).toBe(false);
+    const outcomes = deliver(b, s.log, "b");
+    expect(outcomes.some((o) => o.migrationChanged)).toBe(true);
+    expect(b.migration()).toBeNull();
+  });
+
+  it("Forget all removes the old key in the tab that does it only: following the event writes nothing in another tab", () => {
+    const s = sharedStorage({ [OLD_TOKEN_KEY]: T1 });
+    const a = createTokenStore(s.view("a"));
+    const b = createTokenStore(s.view("b"));
+    a.start();
+    b.start();
+    a.use("acme", T2, true);
+    deliver(b, s.log, "b");
+    const before = s.log.length;
+    a.forgetAll();
+    const outcomes = deliver(b, s.log, "b", before);
+    expect(outcomes.some((o) => o.allForgotten)).toBe(true);
+    expect(b.owners()).toEqual([]);
+    expect(b.migration()).toBeNull();
+    expect(s.log.filter((w) => w.from === "b")).toEqual([]);
+  });
+
+  it("Forget all with no storage does not throw, and leaves no token and no migration line", () => {
+    const store = createTokenStore(null);
+    store.use("acme", T2, true);
+    expect(() => store.forgetAll()).not.toThrow();
+    expect(store.owners()).toEqual([]);
+    expect(store.migration()).toBeNull();
+  });
+
+  it("Forget all with storage that refuses removeItem does not throw, and still forgets in memory, the migration line included", () => {
+    const { storage, data } = memoryStorage({ [OLD_TOKEN_KEY]: T1 });
+    const store = createTokenStore({
+      ...storage,
+      removeItem: () => {
+        throw new Error(`blocked ${T1}`);
+      },
+    });
+    store.start();
+    store.use("acme", T2, true);
+    expect(store.migration()).toBe(T1);
+    expect(() => store.forgetAll()).not.toThrow();
+    expect(store.owners()).toEqual([]);
+    expect(store.tokenFor("acme")).toBeNull();
+    expect(store.migration()).toBeNull();
+    // Nothing could be removed from storage; that is all the store can then do.
+    expect(data.has(OLD_TOKEN_KEY)).toBe(true);
   });
 
   it("the old key's event: a valid new value shows or updates the line; removed or invalid hides it; nothing is written", () => {

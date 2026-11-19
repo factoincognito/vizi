@@ -86,7 +86,7 @@ export interface TokenStore {
   setRemember(owner: string, remember: boolean): void;
   /** Drops the owner's token from memory and removes its saved copy. */
   forget(owner: string): void;
-  /** Drops every token and removes the key; with nothing saved it still raises the removal's event for other tabs. */
+  /** Drops every token and removes the key (with nothing saved it still raises the removal's event for other tabs), and the old key with its line. */
   forgetAll(): void;
   /** Forgets the owner's token only if it is still `token` (a 401 forgets the token GitHub refused). */
   forgetIfCurrent(owner: string, token: string): boolean;
@@ -245,14 +245,17 @@ export function createTokenStore(storage: TokenStorage | null): TokenStore {
 
     forgetAll() {
       held.clear();
-      if (storage === null) return;
-      attempt(() => {
-        // Removing a key that is not there raises no `storage` event. With nothing saved, an empty
-        // value is written first, so that the removal is a change and other tabs hear it (3.8).
-        if (storage.getItem(TOKENS_KEY) === null)
-          storage.setItem(TOKENS_KEY, serialize(new Map(), []));
-        storage.removeItem(TOKENS_KEY);
-      });
+      if (storage !== null) {
+        const store = storage;
+        attempt(() => {
+          // Removing a key that is not there raises no `storage` event. With nothing saved, an empty
+          // value is written first, so that the removal is a change and other tabs hear it (3.8).
+          if (store.getItem(TOKENS_KEY) === null)
+            store.setItem(TOKENS_KEY, serialize(new Map(), []));
+          store.removeItem(TOKENS_KEY);
+        });
+      }
+      removeOld();
     },
 
     forgetIfCurrent(owner, token) {
@@ -265,10 +268,12 @@ export function createTokenStore(storage: TokenStorage | null): TokenStore {
       const name = parseOwner(owner);
       if (name === null) return { ok: false, message: OWNER_REFUSED };
       if (oldToken === null) return { ok: false, message: REFUSED };
+      const earlier = held.get(name);
       const moved = use(name, oldToken, true);
       if (moved.ok && !moved.saved) {
-        // Not moved: the token stays under the old key and is not held for the owner.
-        held.delete(name);
+        // Not moved: the token stays under the old key. What was held for the owner stays as it was.
+        if (earlier === undefined) held.delete(name);
+        else held.set(name, earlier);
         return { ok: false, message: NOT_MOVED };
       }
       removeOld();

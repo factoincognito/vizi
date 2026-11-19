@@ -179,11 +179,14 @@ header h1 {
   font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.01em;
+  /* The gap is set here, not left to the width of the space between "vizi" and the tagline. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 12px;
 }
 
-/* With the space before it, 12 px between "vizi" and the tagline. */
 header h1 .tagline {
-  margin-left: 6.5px;
   font-size: 15px;
   font-weight: 400;
   letter-spacing: normal;
@@ -961,10 +964,10 @@ footer {
 
   header h1 {
     font-size: 22px;
+    column-gap: 10px;
   }
 
   header h1 .tagline {
-    margin-left: 5px;
     font-size: 14px;
   }
 
