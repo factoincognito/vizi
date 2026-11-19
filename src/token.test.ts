@@ -798,6 +798,46 @@ describe("migration of the old key vizi.githubToken", () => {
     expect(store.tokenFor("acme")).toBeNull();
   });
 
+  it("Keep in storage that will not save leaves a token held for this page only as it was", () => {
+    const { storage, data } = memoryStorage({ [OLD_TOKEN_KEY]: T1 });
+    const refusing = createTokenStore({
+      getItem: (k) => storage.getItem(k),
+      removeItem: (k) => storage.removeItem(k),
+      setItem: () => {
+        throw new Error("quota");
+      },
+    });
+    refusing.start();
+    refusing.use("acme", T2, false);
+    expect(refusing.keepMigrated("acme").ok).toBe(false);
+    expect(refusing.tokenFor("acme")).toBe(T2);
+    expect(refusing.isSaved("acme")).toBe(false);
+    expect(refusing.migration()).toBe(T1);
+    expect(data.get(OLD_TOKEN_KEY)).toBe(T1);
+    expect(data.has(TOKENS_KEY)).toBe(false);
+  });
+
+  it("Keep in storage that will not save leaves a saved token for that owner held and saved", () => {
+    const s = sharedStorage({ [OLD_TOKEN_KEY]: T1, [TOKENS_KEY]: json({ acme: T2 }) });
+    let failing = false;
+    const base = s.view("a");
+    const store = createTokenStore({
+      ...base,
+      setItem: (k, v) => {
+        if (failing) throw new Error("quota");
+        base.setItem(k, v);
+      },
+    });
+    store.start();
+    expect(store.tokenFor("acme")).toBe(T2);
+    failing = true;
+    expect(store.keepMigrated("acme").ok).toBe(false);
+    expect(store.tokenFor("acme")).toBe(T2);
+    expect(store.isSaved("acme")).toBe(true);
+    expect(stored(s.data).tokens).toEqual({ acme: T2 });
+    expect(store.migration()).toBe(T1);
+  });
+
   it("Forget removes the old key", () => {
     const { storage, data } = memoryStorage({ [OLD_TOKEN_KEY]: T1 });
     const store = createTokenStore(storage);

@@ -258,10 +258,12 @@ export function createTokenStore(storage: TokenStorage | null): TokenStore {
       const name = parseOwner(owner);
       if (name === null) return { ok: false, message: OWNER_REFUSED };
       if (oldToken === null) return { ok: false, message: REFUSED };
+      const earlier = held.get(name);
       const moved = use(name, oldToken, true);
       if (moved.ok && !moved.saved) {
-        // Not moved: the token stays under the old key and is not held for the owner.
-        held.delete(name);
+        // Not moved: the token stays under the old key. What was held for the owner stays as it was.
+        if (earlier === undefined) held.delete(name);
+        else held.set(name, earlier);
         return { ok: false, message: NOT_MOVED };
       }
       removeOld();
