@@ -680,6 +680,50 @@ test.describe("answers to a token (3.8)", () => {
     expect((await saved(page))?.tokens).toEqual({ acme: TOKEN });
   });
 
+  const limited = "GitHub is limiting requests for now. Wait a minute and try again.";
+  for (const [name, status, after, message] of [
+    ["a 429", 429, undefined, limited],
+    [
+      "a 429 with Retry-After",
+      429,
+      "30",
+      `${limited} GitHub allows requests again in about 30 seconds.`,
+    ],
+    [
+      "a 403 with Retry-After",
+      403,
+      "60",
+      `${limited} GitHub allows requests again in about 60 seconds.`,
+    ],
+    ["Retry-After that is markup", 429, "<svg onload=window.__pwned=1>", limited],
+  ] as const) {
+    test(`${name}: GitHub is limiting requests, not a bad token; the token is kept (PBI-1.10 point 5)`, async ({
+      page,
+      context,
+    }) => {
+      await stubGithub(context, {
+        answer: (url) =>
+          url === API
+            ? {
+                status,
+                headers: {
+                  ...(after === undefined ? {} : { "retry-after": after }),
+                  "access-control-expose-headers": "retry-after",
+                },
+              }
+            : undefined,
+      });
+      await page.goto("/");
+      await openPanel(page);
+      await useToken(page, TOKEN, true);
+      await openUrl(page);
+      await expect(page.locator("#message")).toHaveText(message);
+      await expect(line(page)).toBeVisible();
+      expect((await saved(page))?.tokens).toEqual({ acme: TOKEN });
+      expect(await pwned(page)).toBeUndefined();
+    });
+  }
+
   test("403 otherwise: the token may not read this repo; the token is kept", async ({
     page,
     context,
@@ -1380,6 +1424,15 @@ test.describe("a token saved by an earlier vizi (3.8, migration)", () => {
     await page.reload();
     await openPanel(page);
   }
+
+  test("Forget all removes the old key and hides the line", async ({ page }) => {
+    await withOldKey(page, TOKEN);
+    await expect(migrateLine(page)).toBeVisible();
+    await useToken(page, TOKEN2, true, "acme");
+    await forgetAll(page).click();
+    await expect(migrateLine(page)).toBeHidden();
+    expect(await page.evaluate(() => localStorage.length)).toBe(0);
+  });
 
   test("is listed with its masked form, an Owner field and two buttons, and is used for no load until it has an owner", async ({
     page,
