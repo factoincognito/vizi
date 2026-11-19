@@ -52,6 +52,12 @@ export const isName = (s: string) => NAME.test(s) && s !== "." && s !== "..";
 /** The Repository field's message for a text it cannot read (docs/SPEC.md 3.1, "The Repository field"). */
 export const REPOSITORY_MESSAGE =
   "Type the repository as <owner>/<repo>, for example fomo-t/fomo-f, or paste its GitHub address (github.com/<owner>/<repo>, optionally with /tree/<branch>).";
+/** 3.8, a 401 for a token that was replaced meanwhile: the new one is kept, so "forgotten" would be false. */
+export const replacedRefusalMessage = (owner: string): string => {
+  const name = owner.toLowerCase();
+  return `GitHub refused the earlier token for ${name}: it may have expired. A newer token for ${name} was entered meanwhile, and it is kept.`;
+};
+
 /** A branch whose name, decoded, holds #, % or ?, or that does not decode: 3.1's text, also for a decoded ?. */
 export const BRANCH_MESSAGE = "vizi cannot open this branch: its name holds # or %.";
 /** A repo name ending in .git: a clone address. */

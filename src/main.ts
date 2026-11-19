@@ -23,6 +23,7 @@ import {
   type RepoRef,
   readRepoFile,
   readRepository,
+  replacedRefusalMessage,
 } from "./github";
 import {
   branchView,
@@ -604,7 +605,12 @@ async function showProjectStatus(pointer: Extract<Pointer, { kind: "folder" }>):
       renderTokens();
       forgetResultsFor(owner, read.message);
     } else {
-      say(read.message);
+      // Only a refused token reaches here (the enclosing if): a token entered meanwhile for the owner is kept, and the message says so (3.8, PBI-1.10 points 26 and 52).
+      say(
+        owner !== null && read.token !== null && tokens.replacedSince(owner, read.token)
+          ? replacedRefusalMessage(owner)
+          : read.message,
+      );
     }
     return;
   }
@@ -834,6 +840,7 @@ async function readBranches(token: string | null): Promise<void> {
   );
   if (stale()) return;
   const failure = answer.failure;
+  let failureMessage = failure?.message ?? "";
   if (failure?.kind === "token-refused" && token !== null) {
     // 3.8's 401 rule: forget the token if it is still the one held; the results loaded with it go, the picker with them.
     if (tokens.forgetIfCurrent(owner, token)) {
@@ -841,12 +848,13 @@ async function readBranches(token: string | null): Promise<void> {
       forgetResultsFor(owner, failure.message);
       return;
     }
-    // The refused token was replaced meanwhile: the new one is kept, and the message is 3.8's as the spec reads (PBI-1.10).
+    // The refused token was replaced meanwhile: the new one is kept, and the message says so (3.8, PBI-1.10 points 26 and 52).
+    if (tokens.replacedSince(owner, token)) failureMessage = replacedRefusalMessage(owner);
   }
   list.names = answer.names;
   list.reading = false;
   list.message = failure
-    ? listFailureMessage(failure.message, answer.pagesRead)
+    ? listFailureMessage(failureMessage, answer.pagesRead)
     : answer.more
       ? capMessage(list.owner, list.repo)
       : "";
@@ -923,7 +931,10 @@ async function openRef(ref: RepoRef, load: number, picked: boolean): Promise<voi
     // A failed pick whose button had the focus moves it to the message, not onto a hidden button (3.13).
     const focusMessage =
       picked && document.activeElement === document.getElementById("branch-open");
-    say(result.message);
+    // A token entered meanwhile is kept, and the message says so (3.8, PBI-1.10 points 26 and 52).
+    const replaced =
+      result.kind === "token-refused" && token !== null && tokens.replacedSince(owner, token);
+    say(replaced ? replacedRefusalMessage(owner) : result.message);
     hideResults();
     if (focusMessage) must("message").focus();
     return;

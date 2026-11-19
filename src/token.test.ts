@@ -546,6 +546,53 @@ describe("the token store: a 401 forgets only the token GitHub refused", () => {
   });
 });
 
+describe("the token store: was the refused token replaced meanwhile", () => {
+  it("is true when a different token is held for the owner, saved or for this page only", () => {
+    const { storage } = memoryStorage();
+    const store = createTokenStore(storage);
+    store.use("acme", T1, true);
+    store.use("acme", T2, true);
+    expect(store.replacedSince("acme", T1)).toBe(true);
+    store.use("acme", T3, false);
+    expect(store.replacedSince("acme", T1)).toBe(true);
+  });
+
+  it("is false when the refused token is still the one held (a 401 then forgets it)", () => {
+    const { storage } = memoryStorage();
+    const store = createTokenStore(storage);
+    store.use("acme", T1, true);
+    expect(store.replacedSince("acme", T1)).toBe(false);
+  });
+
+  it("is false when the owner has no token any more: the refused one was forgotten, not replaced", () => {
+    const { storage } = memoryStorage();
+    const store = createTokenStore(storage);
+    store.use("acme", T1, true);
+    store.forget("acme");
+    expect(store.replacedSince("acme", T1)).toBe(false);
+    expect(store.replacedSince("fomo-t", T1)).toBe(false);
+  });
+
+  it("reads the owner in lower case, as every other lookup does, and another owner's token does not count", () => {
+    const { storage } = memoryStorage();
+    const store = createTokenStore(storage);
+    store.use("acme", T2, true);
+    store.use("fomo-t", T3, true);
+    expect(store.replacedSince("Acme", T1)).toBe(true);
+    expect(store.replacedSince("other", T1)).toBe(false);
+  });
+
+  it("changes nothing in the store", () => {
+    const { storage, data } = memoryStorage();
+    const store = createTokenStore(storage);
+    store.use("acme", T2, true);
+    const before = new Map(data);
+    store.replacedSince("acme", T1);
+    expect(store.tokenFor("acme")).toBe(T2);
+    expect(new Map(data)).toEqual(before);
+  });
+});
+
 describe("the token store: the storage event of another tab, per owner", () => {
   const none: StorageOutcome = {
     allForgotten: false,

@@ -1404,7 +1404,9 @@ test.describe("a 401 forgets only the refused token (3.8)", () => {
     await expect.poll(() => gets(stub).length).toBe(1);
     await useToken(page, TOKEN2, true);
     stub.release();
-    await expect(page.locator("#message")).toContainText("GitHub refused the token for acme");
+    await expect(page.locator("#message")).toHaveText(
+      "GitHub refused the earlier token for acme: it may have expired. A newer token for acme was entered meanwhile, and it is kept.",
+    );
     await expectLine(page, "acme", "github_pat_…9876", true);
     expect((await saved(page))?.tokens).toEqual({ acme: TOKEN2 });
     expect(gets(stub)).toHaveLength(1);

@@ -557,7 +557,7 @@ test.describe("late answers of the list (3.13, Errors)", () => {
     await expect(page.locator("#branch-select option")).toHaveCount(0);
   });
 
-  test("a 401 on the list whose token was replaced meanwhile keeps the new token, with 3.8's message", async ({
+  test("a 401 on the list whose token was replaced meanwhile keeps the new token, and says it was replaced", async ({
     page,
     context,
   }) => {
@@ -572,9 +572,9 @@ test.describe("late answers of the list (3.13, Errors)", () => {
     // A new token for the same owner replaces the one the list's read carries; that is not a Forget.
     await tokenFor(page, "acme", TOKEN_OTHER);
     stub.release(due);
-    // 3.8's message, as the spec reads; that its wording does not fit this case is PBI-1.10 (from #42, item 7).
+    // 3.8's message for a refused token that was replaced meanwhile (PBI-1.10 points 26 and 52).
     await expect(page.locator("#branch-message")).toHaveText(
-      "The branch list could not be read: GitHub refused the token for acme: it may have expired. It has been forgotten; enter a new one.",
+      "The branch list could not be read: GitHub refused the earlier token for acme: it may have expired. A newer token for acme was entered meanwhile, and it is kept.",
     );
     await expect(page.locator("#results")).toBeVisible();
     await expect(openBranch(page)).toBeEnabled();
