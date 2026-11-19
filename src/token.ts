@@ -86,7 +86,7 @@ export interface TokenStore {
   setRemember(owner: string, remember: boolean): void;
   /** Drops the owner's token from memory and removes its saved copy. */
   forget(owner: string): void;
-  /** Drops every token and removes the key. */
+  /** Drops every token and removes the key, and the old key with its line. */
   forgetAll(): void;
   /** Forgets the owner's token only if it is still `token` (a 401 forgets the token GitHub refused). */
   forgetIfCurrent(owner: string, token: string): boolean;
@@ -246,6 +246,7 @@ export function createTokenStore(storage: TokenStorage | null): TokenStore {
     forgetAll() {
       held.clear();
       if (storage !== null) attempt(() => storage.removeItem(TOKENS_KEY));
+      removeOld();
     },
 
     forgetIfCurrent(owner, token) {
