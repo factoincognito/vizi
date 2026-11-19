@@ -124,6 +124,7 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Tokens (PBI-1.10, point 30): "Forget all" also removes the old key `vizi.githubToken` and hides its migration line, in this tab and, through the old key's event, in the others (#133).
 - Tokens (PBI-1.10, points 26 and 52): when GitHub refuses a token and a different token for that owner was entered while the request ran, the message says that the earlier token was refused and the newer one is kept, instead of "It has been forgotten" (#136).
 - Start page (PBI-1.10, point 71): the tagline's gap to the title is a flex column gap, not a margin that depended on the width of the font's space (#134).
+- Spec and tests (PBI-1.10): the spec lines for the "Forget all" cases of #132 and #133 and the Tests lists of 3.8, and two browser tests for them (a second tab after "Forget all" with nothing saved; the summary and focus after "Forget all" with an earlier token) (#138).
 
 ## Project created
 
