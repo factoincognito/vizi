@@ -1096,4 +1096,25 @@ test.describe("two owners' tokens (3.8, 3.9)", () => {
     await expect(tokenLine(page, "acme")).toBeVisible();
     await expect(panel(page)).toBeHidden();
   });
+
+  test("a 404 on Show status while a token is replaced does not say that GitHub refused a token", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context, {
+      hold: (url) => url === NOTES_API,
+      status: (url) => (url === NOTES_API ? 404 : undefined),
+    });
+    await page.goto("/");
+    await openPanel(page);
+    await useToken(page, TOKEN, "acme");
+    await openUrl(page, HUB);
+    await showStatus(page, "projects/notes/").click();
+    await expect.poll(() => gets(stub).some((s) => s.url === NOTES_API)).toBe(true);
+    await useToken(page, TOKEN2, "acme");
+    stub.release();
+    await expect(page.locator("#message")).not.toBeEmpty();
+    await expect(page.locator("#message")).not.toContainText("refused");
+    await expect(tokenLine(page, "acme")).toBeVisible();
+  });
 });

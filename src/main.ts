@@ -605,7 +605,7 @@ async function showProjectStatus(pointer: Extract<Pointer, { kind: "folder" }>):
       renderTokens();
       forgetResultsFor(owner, read.message);
     } else {
-      // A token entered meanwhile for the owner is kept, and the message says so (3.8, PBI-1.10 points 26 and 52).
+      // Only a refused token reaches here (the enclosing if): a token entered meanwhile for the owner is kept, and the message says so (3.8, PBI-1.10 points 26 and 52).
       say(
         owner !== null && read.token !== null && tokens.replacedSince(owner, read.token)
           ? replacedRefusalMessage(owner)
