@@ -453,6 +453,8 @@ describe("the token store: Forget and Forget all", () => {
     expect(outcomes.some((o) => o.allForgotten)).toBe(true);
     expect(b.owners()).toEqual([]);
     expect(a.owners()).toEqual([]);
+    // Following the event wrote nothing in tab b, so tabs do not answer each other's removals (3.8).
+    expect(s.log.filter((w) => w.from === "b")).toEqual([]);
   });
 
   it("the empty value that Forget all with nothing saved writes first changes nothing in another tab by itself", () => {
