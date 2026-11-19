@@ -895,8 +895,8 @@ test.describe("a second tab (3.8)", () => {
     expect(await saved(other)).toBeNull();
     await forgetAll(other).click();
 
-    // Nothing was saved, so the page itself never held a key to remove: the event that
-    // reaches this tab is the one Forget all raises by writing the empty value first.
+    // Nothing was saved, so the other tab has no key to remove: Forget all there writes the
+    // empty value first (which changes nothing here) so that its removal raises the event.
     await expect(anyLine(page)).toHaveCount(0);
     await expect(page.locator("#results")).toBeHidden();
     await expect(page.locator("#message")).toHaveText(
