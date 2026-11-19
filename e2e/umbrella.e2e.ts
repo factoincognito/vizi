@@ -1113,8 +1113,10 @@ test.describe("two owners' tokens (3.8, 3.9)", () => {
     await expect.poll(() => gets(stub).some((s) => s.url === NOTES_API)).toBe(true);
     await useToken(page, TOKEN2, "acme");
     stub.release();
-    await expect(page.locator("#message")).not.toBeEmpty();
-    await expect(page.locator("#message")).not.toContainText("refused");
+    await expect(panel(page)).toContainText(
+      "GitHub answered HTTP 404 for https://api.github.com/repos/acme/hub/contents/projects/notes/STATUS.md?ref=main.",
+    );
+    await expect(page.locator("body")).not.toContainText("refused the");
     await expect(tokenLine(page, "acme")).toBeVisible();
   });
 });
