@@ -86,7 +86,7 @@ export interface TokenStore {
   setRemember(owner: string, remember: boolean): void;
   /** Drops the owner's token from memory and removes its saved copy. */
   forget(owner: string): void;
-  /** Drops every token and removes the key (with nothing saved it still raises the removal's event for other tabs), and the old key with its line. */
+  /** Drops every token and removes the key, and the old key with its line. */
   forgetAll(): void;
   /** Forgets the owner's token only if it is still `token` (a 401 forgets the token GitHub refused). */
   forgetIfCurrent(owner: string, token: string): boolean;
@@ -247,13 +247,14 @@ export function createTokenStore(storage: TokenStorage | null): TokenStore {
       held.clear();
       if (storage !== null) {
         const store = storage;
+        // Removing a key that is not there raises no `storage` event. With nothing saved, an empty
+        // value is written first, so that the removal is a change and other tabs hear it (3.8).
+        // The removal has its own `attempt`: a read that throws must not skip it.
         attempt(() => {
-          // Removing a key that is not there raises no `storage` event. With nothing saved, an empty
-          // value is written first, so that the removal is a change and other tabs hear it (3.8).
           if (store.getItem(TOKENS_KEY) === null)
             store.setItem(TOKENS_KEY, serialize(new Map(), []));
-          store.removeItem(TOKENS_KEY);
         });
+        attempt(() => store.removeItem(TOKENS_KEY));
       }
       removeOld();
     },
