@@ -118,6 +118,11 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Spec (PBI-1.10, spec PRs A and B, no behaviour change): 3.8 says what is built for tokens: the Owner fill as typed, "Use" without "Remember", lower-casing and duplicate owners at startup, a Forget dropping every running load, and the two new messages (#122); 3.9, 3.10, 3.12 and 3.13 are corrected where they were stale, and say what the code does for a `.git` pointer, the order of the branch marks, the hashes that change with a build and which Forgets drop the branch list (#123).
 - Phone (PBI-1.10, point 46): a token row's "Forget" keeps its own width at the row's end and its box's label stays on one line, as 3.12's "Phone" has the two lines (#126).
 - Spec (PBI-1.10, point 48, no behaviour change): 3.12 lists three more differences on a phone from the design canvas's boards: the help control is 44 px high, "Forget all tokens" is shown, the guide is in its box (#127).
+- Messages (PBI-1.10, point 5, decision C): a 429, or a 403 that carries `Retry-After`, with requests left, says "GitHub is limiting requests for now. Wait a minute and try again." instead of "the token may not read this repo" (#135).
+- Tokens (PBI-1.10, point 32): "Keep for this owner", when the browser will not save the moved token, leaves the owner's earlier token held as it was (#131).
+- Tokens (PBI-1.10, point 31): "Forget all" with nothing saved writes the empty value before it removes the key, so that other tabs hear the removal and forget their page-only tokens (#132).
+- Tokens (PBI-1.10, point 30): "Forget all" also removes the old key `vizi.githubToken` and hides its migration line, in this tab and, through the old key's event, in the others (#133).
+- Start page (PBI-1.10, point 71): the tagline's gap to the title is a flex column gap, not a margin that depended on the width of the font's space (#134).
 
 ## Project created
 
