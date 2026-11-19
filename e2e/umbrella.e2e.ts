@@ -1073,4 +1073,27 @@ test.describe("two owners' tokens (3.8, 3.9)", () => {
     await expect(tokenLine(page, "other")).toBeVisible();
     await expect(panel(page)).toBeHidden();
   });
+
+  test("a 401 on Show status whose token was replaced meanwhile keeps the new token and says it was replaced", async ({
+    page,
+    context,
+  }) => {
+    const stub = await stubGithub(context, {
+      hold: (url) => url === NOTES_API,
+      status: (url) => (url === NOTES_API ? 401 : undefined),
+    });
+    await page.goto("/");
+    await openPanel(page);
+    await useToken(page, TOKEN, "acme");
+    await openUrl(page, HUB);
+    await showStatus(page, "projects/notes/").click();
+    await expect.poll(() => gets(stub).some((s) => s.url === NOTES_API)).toBe(true);
+    await useToken(page, TOKEN2, "acme");
+    stub.release();
+    await expect(page.locator("#message")).toHaveText(
+      "GitHub refused the earlier token for acme: it may have expired. A newer token for acme was entered meanwhile, and it is kept.",
+    );
+    await expect(tokenLine(page, "acme")).toBeVisible();
+    await expect(panel(page)).toBeHidden();
+  });
 });

@@ -90,6 +90,8 @@ export interface TokenStore {
   forgetAll(): void;
   /** Forgets the owner's token only if it is still `token` (a 401 forgets the token GitHub refused). */
   forgetIfCurrent(owner: string, token: string): boolean;
+  /** True when the owner now holds a token other than `token`: the refused one was replaced meanwhile. */
+  replacedSince(owner: string, token: string): boolean;
   /** Moves the old key's token to the owner, saved, then removes the old key. */
   keepMigrated(owner: string): Entered;
   /** Removes the old key. */
@@ -252,6 +254,11 @@ export function createTokenStore(storage: TokenStorage | null): TokenStore {
       if (held.get(owner.toLowerCase())?.token !== token) return false;
       forget(owner);
       return true;
+    },
+
+    replacedSince(owner, token) {
+      const now = held.get(owner.toLowerCase())?.token;
+      return now !== undefined && now !== token;
     },
 
     keepMigrated(owner) {

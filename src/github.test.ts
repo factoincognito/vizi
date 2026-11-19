@@ -486,6 +486,14 @@ describe("loadRepo with a token (3.8): the answers", () => {
     expect(!r.ok && r.message).not.toContain(TOKEN);
   });
 
+  it("the message for a 401 whose token was replaced meanwhile names the owner in lower case, says the newer token is kept, and never says forgotten", () => {
+    const message = github.replacedRefusalMessage("Acme");
+    expect(message).toBe(
+      "GitHub refused the earlier token for acme: it may have expired. A newer token for acme was entered meanwhile, and it is kept.",
+    );
+    expect(message).not.toContain("forgotten");
+  });
+
   it("401 without a token is an ordinary HTTP status, as in 3.1", async () => {
     const { fetcher } = fakeWithInit({ [API]: { status: 401 } });
     expect(await loadRepo(ref, fetcher)).toMatchObject({ ok: false, kind: "http", status: 401 });
