@@ -833,6 +833,23 @@ describe("migration of the old key vizi.githubToken", () => {
     expect(b.migration()).toBeNull();
   });
 
+  it("Forget all removes the old key in the tab that does it only: following the event writes nothing in another tab", () => {
+    const s = sharedStorage({ [OLD_TOKEN_KEY]: T1 });
+    const a = createTokenStore(s.view("a"));
+    const b = createTokenStore(s.view("b"));
+    a.start();
+    b.start();
+    a.use("acme", T2, true);
+    deliver(b, s.log, "b");
+    const before = s.log.length;
+    a.forgetAll();
+    const outcomes = deliver(b, s.log, "b", before);
+    expect(outcomes.some((o) => o.allForgotten)).toBe(true);
+    expect(b.owners()).toEqual([]);
+    expect(b.migration()).toBeNull();
+    expect(s.log.filter((w) => w.from === "b")).toEqual([]);
+  });
+
   it("Forget all with no storage does not throw, and leaves no token and no migration line", () => {
     const store = createTokenStore(null);
     store.use("acme", T2, true);
