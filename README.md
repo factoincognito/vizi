@@ -9,6 +9,10 @@ Processes of factoincognito's product office, the private repository
 `factoincognito/product-office` (`RULES.md` L § 1). `CLAUDE.md` is this
 repository's entry point and `RULES.md` holds its local rules.
 
+This project was developed with the assistance of AI (Claude, by
+Anthropic); the extent varies by contribution, and commits made with it
+carry a Co-Authored-By trailer.
+
 ## Setup
 
 ### Prerequisites
