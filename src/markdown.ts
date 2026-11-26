@@ -354,26 +354,32 @@ function parseInline(src: string, opts: RenderOptions, depth: number, inLink: bo
 const FENCE = /^( {0,3})(`{3,}|~{3,})(.*)$/;
 
 /**
- * The longest run of combining marks that NFC is still applied to. NFC sorts a run
- * of marks by combining class, which takes time that grows with the square of the
- * run (UAX #15, "Stream-Safe Text Format", allows 30 for the same reason), so one
- * heading or anchor of a hostile file could hold the page for minutes. A run of 30
- * or fewer costs at most 30 steps a character.
+ * The longest run of combining marks (code points, not UTF-16 units) that NFC is
+ * still applied to. NFC sorts a run of marks by combining class, which takes time
+ * that grows with the square of the run, so one heading or anchor of a hostile file
+ * could hold the page for minutes. The limit follows the Unicode Stream-Safe Text
+ * Format of UAX #15, which has 30 for the same reason. The run is checked once, on
+ * the text as written, for both NFC steps of `slugify`. It is bounded after the
+ * steps too: NFC turns one mark into at most two (U+0344, U+0F73 and a few more)
+ * and one character into a base and at most two marks (U+FB2C), and lower-casing
+ * adds one mark (U+0130 becomes `i` and U+0307), so no run that a step sorts
+ * is longer than 2 x 30 + 2 + 1 = 63, and the cost stays linear in the text.
  */
 const MAX_MARK_RUN = 30;
 const MARK_RUN = /\p{M}+/gu;
+
+function codePointCount(s: string): number {
+  let n = 0;
+  for (let i = 0; i < s.length; i += (s.codePointAt(i) ?? 0) > 0xffff ? 2 : 1) n++;
+  return n;
+}
 
 /** Whether the text holds more than MAX_MARK_RUN combining marks in a row. One pass over the runs: a pattern of 31 marks costs up to 30 steps at every mark. */
 function hasLongMarkRun(text: string): boolean {
   MARK_RUN.lastIndex = 0;
   for (let m = MARK_RUN.exec(text); m !== null; m = MARK_RUN.exec(text))
-    if (m[0].length > MAX_MARK_RUN) return true;
+    if (m[0].length > MAX_MARK_RUN && codePointCount(m[0]) > MAX_MARK_RUN) return true;
   return false;
-}
-
-/** The text made NFC, unless it holds a run of more than MAX_MARK_RUN marks; then it is returned as written. */
-function nfc(text: string): string {
-  return hasLongMarkRun(text) ? text : text.normalize("NFC");
 }
 
 /**
@@ -381,11 +387,13 @@ function nfc(text: string): string {
  * precomposed `Ö` and `O` with a combining mark agree; not NFKC), lower case, made
  * NFC again (a capital with a mark may have a precomposed small letter only, as
  * `J` and U+030C have `ǰ`), runs of characters other than letters, combining marks
- * and digits (of any script) become one hyphen. Text with a run of more than
- * MAX_MARK_RUN combining marks is not made NFC.
+ * and digits (of any script) become one hyphen. A text with a run of more than
+ * MAX_MARK_RUN combining marks, as written, is not made NFC at either step.
  */
 export function slugify(text: string): string {
-  return nfc(nfc(text).toLowerCase())
+  const normalise = !hasLongMarkRun(text);
+  const lower = (normalise ? text.normalize("NFC") : text).toLowerCase();
+  return (normalise ? lower.normalize("NFC") : lower)
     .replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "");
 }
