@@ -48,7 +48,11 @@ function hasControl(s: string): boolean {
   return false;
 }
 
-/** Joins a relative path to the directory of `base` and normalises it. Null when it leaves the project or is empty. */
+/**
+ * Joins a relative path to the directory of `base` and normalises it. Null when it
+ * leaves the project, is empty, is badly percent-encoded, or decodes (once) to a
+ * control character or a backslash, which 3.7 item 4 refuses in a target as written.
+ */
 export function resolvePath(base: string, rel: string): string | null {
   const cut = rel.search(/[?#]/);
   let path = cut >= 0 ? rel.slice(0, cut) : rel;
@@ -57,6 +61,7 @@ export function resolvePath(base: string, rel: string): string | null {
   } catch {
     return null;
   }
+  if (hasControl(path) || path.includes("\\")) return null;
   const parts = path.startsWith("/") ? [] : base.split("/").slice(0, -1);
   for (const seg of path.split("/")) {
     if (seg === "" || seg === ".") continue;
@@ -349,12 +354,14 @@ function parseInline(src: string, opts: RenderOptions, depth: number, inLink: bo
 const FENCE = /^( {0,3})(`{3,}|~{3,})(.*)$/;
 
 /**
- * The id a heading gets and a `#anchor` link points at: lower case, runs of
- * characters other than letters, combining marks and digits (of any script)
+ * The id a heading gets and a `#anchor` link points at: the text made NFC (so a
+ * precomposed `Ö` and `O` with a combining mark agree; not NFKC), lower case, runs
+ * of characters other than letters, combining marks and digits (of any script)
  * become one hyphen.
  */
 export function slugify(text: string): string {
   return text
+    .normalize("NFC")
     .toLowerCase()
     .replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "");

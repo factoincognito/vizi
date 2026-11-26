@@ -546,6 +546,7 @@ test.describe("heading ids and anchors in NFC (3.7 item 4)", () => {
     }
     const both = page.locator('[data-testid="card"][data-id="UC-4"]');
     await both.locator("summary").click();
+    await expect(both.locator("h4")).toHaveCount(2);
     const ids = await both.locator("h4").evaluateAll((els) => els.map((e) => e.id));
     expect(ids.map((i) => decodeURIComponent(i).replace(/^md-\d+-/, ""))).toEqual([
       "\u00f6versikt",
