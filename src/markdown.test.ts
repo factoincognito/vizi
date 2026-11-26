@@ -413,6 +413,25 @@ describe("hostile input stays fast and does not throw", () => {
       "anchors of decomposed letters at the length limit",
       `[a](#${"o\u0308".repeat(2000)}) `.repeat(mb / 4000),
     ],
+    // Marks of two combining classes: NFC sorts a run of them, which takes time that grows with the
+    // square of the run (UAX #15), so the slug of a text with a long run is made without NFC.
+    ["a heading of alternating marks of two classes", `# a${"\u0316\u0301".repeat(50_000)}`],
+    [
+      "a heading of one class of marks, then another",
+      `# a${"\u0301".repeat(50_000)}${"\u0316".repeat(50_000)}`,
+    ],
+    [
+      "anchors of marks of two classes at the length limit",
+      `[a](#a${"\u0301".repeat(2000)}${"\u0316".repeat(2000)}) `.repeat(mb / 4000),
+    ],
+    [
+      "anchors of alternating marks of two classes at the length limit",
+      `[a](#a${"\u0316\u0301".repeat(2000)}) `.repeat(mb / 4000),
+    ],
+    [
+      "anchors of the longest runs that are still normalised",
+      `[a](#a${"\u0316\u0301".repeat(15)}) `.repeat(mb / 40),
+    ],
   ])("a 1 MB line of %s", (_name, input) => {
     let used = Number.NaN;
     expect(() => {
@@ -725,5 +744,54 @@ describe("heading text and anchor text are made NFC before the slug (3.7 item 4)
     expect(render(`# ${DEC}`)).toMatchObject([
       { t: "heading", children: [{ t: "text", text: DEC }] },
     ]);
+  });
+});
+
+describe("NFC is skipped for a long run of combining marks (3.7 item 4)", () => {
+  const MARKS = "\u0301".repeat(29);
+  it("normalises a text whose longest run of marks is 30, and does not normalise one of 31", () => {
+    expect(slugify(`O\u0308${MARKS}`)).toBe(`\u00f6${MARKS}`);
+    expect(slugify(`O\u0308${MARKS}\u0301`)).toBe(`o\u0308${MARKS}\u0301`);
+  });
+
+  it("counts a run, not the marks of the text: a letter between two runs ends the first", () => {
+    const run = "\u0301".repeat(29);
+    expect(slugify(`O\u0308${run}x O\u0308${run}`)).toBe(`\u00f6${run}x-\u00f6${run}`);
+  });
+
+  it("makes the slug from the text as written, and changes nothing else, when a run is long", () => {
+    const long = "\u0316\u0301".repeat(20);
+    expect(slugify(`Ab ${long} Cd`)).toBe(`ab-${long}-cd`);
+    expect(slugify(`\u00d6${long}`)).toBe(`\u00f6${long}`);
+  });
+
+  it("applies to a heading and to an anchor alike", () => {
+    const long = "\u0301".repeat(31);
+    const [h] = render(`# O\u0308${long}`);
+    expect(h).toMatchObject({ t: "heading", slug: `o\u0308${long}` });
+    expect(classifyTarget(`#O\u0308${long}`, {})).toEqual({
+      kind: "anchor",
+      id: `o\u0308${long}`,
+    });
+  });
+});
+
+describe("a capital with a mark whose precomposed form is only a small letter (3.7 item 4)", () => {
+  it.each([
+    ["J with caron", "J\u030c", "\u01f0"],
+    ["T with diaeresis", "T\u0308", "\u1e97"],
+    ["H with line below", "H\u0331", "\u1e96"],
+    ["Greek capital iota with diaeresis and tonos", "\u03aa\u0301", "\u0390"],
+  ])("%s: the heading and the anchor, in either form, give one slug", (_name, heading, small) => {
+    expect(slugify(heading)).toBe(small);
+    expect(slugify(small)).toBe(small);
+    const [block] = render(`# ${heading}`);
+    expect(block).toMatchObject({ t: "heading", slug: small });
+    expect(classifyTarget(`#${heading}`, {})).toEqual({ kind: "anchor", id: small });
+    expect(classifyTarget(`#${small}`, {})).toEqual({ kind: "anchor", id: small });
+    expect(classifyTarget(`#${encodeURIComponent(heading)}`, {})).toEqual({
+      kind: "anchor",
+      id: small,
+    });
   });
 });
