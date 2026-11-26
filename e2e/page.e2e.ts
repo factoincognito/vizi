@@ -517,6 +517,13 @@ test.describe("heading ids and anchors in NFC (3.7 item 4)", () => {
     `  ## ${DEC}`,
     "",
     `  [first](#${DEC}) [second](#${PRE}-1)`,
+    "",
+    "- **[NOW] UC-5** — A capital whose small letter alone is precomposed.",
+    "  Intro.",
+    "",
+    "  ## J\u030c",
+    "",
+    "  [precomposed](#\u01f0) [decomposed](#J\u030c) [encoded](#J%CC%8C)",
   ].join("\n");
 
   test("a heading and an anchor written in either form reach each other, and both forms in one text are one slug", async ({
@@ -558,6 +565,19 @@ test.describe("heading ids and anchors in NFC (3.7 item 4)", () => {
     expect(hrefs.map((h) => decodeURIComponent(h.slice(1)))).toEqual([
       decodeURIComponent(ids[0] ?? ""),
       decodeURIComponent(ids[1] ?? ""),
+    ]);
+    const caron = page.locator('[data-testid="card"][data-id="UC-5"]');
+    await caron.locator("summary").click();
+    await expect(caron.locator("h4")).toHaveCount(1);
+    const caronId = (await caron.locator("h4").getAttribute("id")) ?? "";
+    expect(decodeURIComponent(caronId)).toMatch(/^md-\d+-\u01f0$/);
+    const caronHrefs = await caron
+      .locator("a[href^='#']")
+      .evaluateAll((els) => els.map((e) => e.getAttribute("href") ?? ""));
+    expect(caronHrefs.map((h) => decodeURIComponent(h.slice(1)))).toEqual([
+      decodeURIComponent(caronId),
+      decodeURIComponent(caronId),
+      decodeURIComponent(caronId),
     ]);
   });
 });

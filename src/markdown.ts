@@ -354,15 +354,38 @@ function parseInline(src: string, opts: RenderOptions, depth: number, inLink: bo
 const FENCE = /^( {0,3})(`{3,}|~{3,})(.*)$/;
 
 /**
+ * The longest run of combining marks that NFC is still applied to. NFC sorts a run
+ * of marks by combining class, which takes time that grows with the square of the
+ * run (UAX #15, "Stream-Safe Text Format", allows 30 for the same reason), so one
+ * heading or anchor of a hostile file could hold the page for minutes. A run of 30
+ * or fewer costs at most 30 steps a character.
+ */
+const MAX_MARK_RUN = 30;
+const MARK_RUN = /\p{M}+/gu;
+
+/** Whether the text holds more than MAX_MARK_RUN combining marks in a row. One pass over the runs: a pattern of 31 marks costs up to 30 steps at every mark. */
+function hasLongMarkRun(text: string): boolean {
+  MARK_RUN.lastIndex = 0;
+  for (let m = MARK_RUN.exec(text); m !== null; m = MARK_RUN.exec(text))
+    if (m[0].length > MAX_MARK_RUN) return true;
+  return false;
+}
+
+/** The text made NFC, unless it holds a run of more than MAX_MARK_RUN marks; then it is returned as written. */
+function nfc(text: string): string {
+  return hasLongMarkRun(text) ? text : text.normalize("NFC");
+}
+
+/**
  * The id a heading gets and a `#anchor` link points at: the text made NFC (so a
- * precomposed `Ö` and `O` with a combining mark agree; not NFKC), lower case, runs
- * of characters other than letters, combining marks and digits (of any script)
- * become one hyphen.
+ * precomposed `Ö` and `O` with a combining mark agree; not NFKC), lower case, made
+ * NFC again (a capital with a mark may have a precomposed small letter only, as
+ * `J` and U+030C have `ǰ`), runs of characters other than letters, combining marks
+ * and digits (of any script) become one hyphen. Text with a run of more than
+ * MAX_MARK_RUN combining marks is not made NFC.
  */
 export function slugify(text: string): string {
-  return text
-    .normalize("NFC")
-    .toLowerCase()
+  return nfc(nfc(text).toLowerCase())
     .replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "");
 }

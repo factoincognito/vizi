@@ -416,6 +416,15 @@ describe("hostile input stays fast and does not throw", () => {
     // Marks of two combining classes: NFC sorts a run of them, which takes time that grows with the
     // square of the run (UAX #15), so the slug of a text with a long run is made without NFC.
     ["a heading of alternating marks of two classes", `# a${"\u0316\u0301".repeat(50_000)}`],
+    ["a 1 MB heading of alternating marks of two classes", `# a${"\u0316\u0301".repeat(mb / 2)}`],
+    [
+      "a heading of 100000 marks of one class, then 100000 of another",
+      `# a${"\u0301".repeat(100_000)}${"\u0316".repeat(100_000)}`,
+    ],
+    [
+      "a heading of the worst runs that are still normalised (30 marks in reverse class order)",
+      `# ${`a${"\u0316\u0315\u0314\u0313\u0312\u0311\u0310\u030f\u030e\u030d\u030c\u030b\u030a\u0309\u0308\u0307\u0306\u0305\u0304\u0303\u0302\u0301\u0300\u0345\u0346\u0347\u0348\u0349\u034a\u034b"}`.repeat(mb / 31)}`,
+    ],
     [
       "a heading of one class of marks, then another",
       `# a${"\u0301".repeat(50_000)}${"\u0316".repeat(50_000)}`,
