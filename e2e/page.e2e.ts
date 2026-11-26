@@ -214,9 +214,12 @@ test.describe("GitHub URL input (3.1)", () => {
     await page.getByRole("tab", { name: "Board" }).click();
     const card = page.locator('[data-testid="card"][data-id="WG-1"]');
     await card.locator("summary").click();
-    // The code span names a file that is not in the list: no link. The relative link still goes to github.com.
-    await expect(card.locator('a:has(code:text("docs/guide.md"))')).toHaveCount(0);
+    // The description renders when the card opens. The relative link still goes to github.com; waiting for it
+    // is what makes the "no link" check below run after the description is there (a count of 0 passes at once).
     await expect(card.locator('a[href$="/blob/main/docs/guide.md"]')).toHaveCount(1);
+    // The code span names a file that is not in the list: no link.
+    await expect(card.locator("code", { hasText: "docs/guide.md" })).toBeVisible();
+    await expect(card.locator('a:has(code:text("docs/guide.md"))')).toHaveCount(0);
   });
 
   test("a complete file list adds no truncation note to the report", async ({ page }) => {
@@ -603,6 +606,24 @@ test.describe("a late answer from an older load (3.1)", () => {
     await expect(page.locator("#results")).toBeVisible();
     await expect(page.locator("#message")).not.toContainText("500");
     await expect(page.locator("#project-name")).toHaveText("acme/widgets (main)");
+  });
+
+  test("is ignored when a newer address that GitHub could not find was submitted", async ({
+    page,
+  }) => {
+    // stubGithub answers 404 for any repo but acme/widgets: the newer load fails fast, the older one succeeds late.
+    await stubGithub(page);
+    const slow = await stubSlowRepo(page, "files");
+    await page.goto("/");
+    await openUrl(page, SLOW);
+    await openUrl(page, "https://github.com/acme/missing");
+    await expect(page.locator("#message")).toContainText("Not found or not public");
+    slow.release();
+    await slow.finished;
+    await settle(page);
+    await expect(page.locator("#message")).toContainText("Not found or not public");
+    await expect(page.locator("#results")).toBeHidden();
+    await expect(page.getByTestId("card").filter({ hasText: "SL-1" })).toHaveCount(0);
   });
 
   test("is ignored when a refused address was submitted after it", async ({ page }) => {
