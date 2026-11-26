@@ -400,6 +400,11 @@ describe("hostile input stays fast and does not throw", () => {
   // One megabyte on a single line. Every `](` used to scan up to 4096
   // characters for its destination, so these took 1.5 to 7 seconds.
   const mb = 1_000_000;
+  // 30 combining marks of 30 different classes, in descending order of class (the order NFC must reverse):
+  // U+0345 240, U+0315 232, U+0300 230, U+0316 220, U+0321 202, Arabic points 34 to 27,
+  // Hebrew points 25 to 10, U+0334 1.
+  const DESCENDING =
+    "\u0345\u0315\u0300\u0316\u0321\u0652\u0651\u0650\u064f\u064e\u064d\u064c\u064b\u05c2\u05c1\u05bf\u05bd\u05bc\u05bb\u05b9\u05b8\u05b7\u05b6\u05b5\u05b4\u05b3\u05b2\u05b1\u05b0\u0334";
   it.each([
     ["empty labels", "[](".repeat(mb / 3)],
     ["labels", "[a](".repeat(mb / 4)],
@@ -422,8 +427,16 @@ describe("hostile input stays fast and does not throw", () => {
       `# a${"\u0301".repeat(100_000)}${"\u0316".repeat(100_000)}`,
     ],
     [
-      "a heading of the worst runs that are still normalised (30 marks in reverse class order)",
-      `# ${`a${"\u0316\u0315\u0314\u0313\u0312\u0311\u0310\u030f\u030e\u030d\u030c\u030b\u030a\u0309\u0308\u0307\u0306\u0305\u0304\u0303\u0302\u0301\u0300\u0345\u0346\u0347\u0348\u0349\u034a\u034b"}`.repeat(mb / 31)}`,
+      "a heading of the worst runs that are still normalised (30 marks of strictly descending combining class)",
+      `# ${`x${DESCENDING}`.repeat(mb / 31)}`,
+    ],
+    [
+      "a heading of the runs that grow most when normalised (30 U+0344, which become 60 marks, after U+FB2C)",
+      `# ${`\ufb2c${"\u0344".repeat(30)}`.repeat(mb / 32)}`,
+    ],
+    [
+      "a heading of runs that grow when lower-cased (U+0130, then 30 marks of descending class)",
+      `# ${`\u0130${DESCENDING}`.repeat(mb / 32)}`,
     ],
     [
       "a heading of one class of marks, then another",
@@ -782,6 +795,45 @@ describe("NFC is skipped for a long run of combining marks (3.7 item 4)", () => 
       kind: "anchor",
       id: `o\u0308${long}`,
     });
+  });
+});
+
+describe("the run limit counts combining marks, and is decided once on the text as written (3.7 item 4)", () => {
+  // U+1D167 to U+1D169 are marks outside the BMP: two UTF-16 units each.
+  const astral = (n: number) =>
+    Array.from({ length: n }, (_, i) => String.fromCodePoint(0x1d167 + (i % 3))).join("");
+
+  it("counts a mark outside the BMP once: 29 of them after a diaeresis (30 marks) are normalised", () => {
+    expect(slugify(`O\u0308${astral(29)}`)).toBe(`\u00f6${astral(29)}`);
+    expect(render(`# O\u0308${astral(29)}`)).toMatchObject([{ slug: `\u00f6${astral(29)}` }]);
+    expect(classifyTarget(`#O\u0308${astral(29)}`, {})).toEqual({
+      kind: "anchor",
+      id: `\u00f6${astral(29)}`,
+    });
+  });
+
+  it("counts a mark outside the BMP once: 30 of them after a diaeresis (31 marks) are not", () => {
+    expect(slugify(`O\u0308${astral(30)}`)).toBe(`o\u0308${astral(30)}`);
+  });
+
+  it("a run of 16 marks outside the BMP (32 UTF-16 units) is normalised", () => {
+    expect(slugify(`O\u0308${astral(16)}`)).toBe(`\u00f6${astral(16)}`);
+  });
+
+  it("decides once, on the text as written: U+0130 and 30 marks are normalised at both steps", () => {
+    // U+0130 lower-cases to `i` + U+0307, so the second step sees a run of 31. Normalised at both steps,
+    // U+0316 is sorted before U+0307.
+    expect(slugify(`\u0130${"\u0316".repeat(30)}`)).toBe(`i${"\u0316".repeat(30)}\u0307`);
+  });
+
+  it("decides once, on the text as written: U+0130 and 31 marks are not normalised at either step", () => {
+    expect(slugify(`\u0130${"\u0316".repeat(31)}`)).toBe(`i\u0307${"\u0316".repeat(31)}`);
+  });
+
+  it("a run that grows when normalised (U+0344 becomes two marks) is normalised", () => {
+    const text = `\ufb2c${"\u0344".repeat(30)}`;
+    expect(slugify(text)).toBe(text.normalize("NFC"));
+    expect([...slugify(text)].length).toBeGreaterThan(60);
   });
 });
 
