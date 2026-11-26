@@ -491,6 +491,149 @@ test.describe("heading ids and anchors (3.7 item 4)", () => {
   });
 });
 
+test.describe("heading ids and anchors in NFC (3.7 item 4)", () => {
+  const PRE = "\u00d6versikt";
+  const DEC = "O\u0308versikt";
+  const entry = (id: string, heading: string, ...anchors: string[]) => [
+    `- **[NOW] ${id}** — Heading in one form.`,
+    "  Intro.",
+    "",
+    `  ## ${heading}`,
+    "",
+    `  ${anchors.map((a, i) => `[link${i}](#${a})`).join(" ")}`,
+    "",
+  ];
+  const backlog = [
+    "# Backlog",
+    "",
+    ...entry("UC-1", DEC, PRE, DEC, "O%CC%88versikt", "%C3%96versikt"),
+    ...entry("UC-2", PRE, DEC, PRE),
+    ...entry("UC-3", PRE, "O%CC%88versikt"),
+    "- **[NOW] UC-4** — Both forms in one description.",
+    "  Intro.",
+    "",
+    `  ## ${PRE}`,
+    "",
+    `  ## ${DEC}`,
+    "",
+    `  [first](#${DEC}) [second](#${PRE}-1)`,
+    "",
+    "- **[NOW] UC-5** — A capital whose small letter alone is precomposed.",
+    "  Intro.",
+    "",
+    "  ## J\u030c",
+    "",
+    "  [precomposed](#\u01f0) [decomposed](#J\u030c) [encoded](#J%CC%8C)",
+  ].join("\n");
+
+  test("a heading and an anchor written in either form reach each other, and both forms in one text are one slug", async ({
+    page,
+  }) => {
+    await stubGithub(page, { tree: ["docs/BACKLOG.md"], backlog });
+    await page.goto("/");
+    await openUrl(page);
+    for (const [id, anchors] of [
+      ["UC-1", 4],
+      ["UC-2", 2],
+      ["UC-3", 1],
+    ] as const) {
+      const card = page.locator(`[data-testid="card"][data-id="${id}"]`);
+      await card.locator("summary").click();
+      const heading = card.locator("h4");
+      await expect(heading).toHaveCount(1);
+      const headingId = (await heading.getAttribute("id")) ?? "";
+      expect(decodeURIComponent(headingId)).toMatch(/^md-\d+-\u00f6versikt$/);
+      const hrefs = await card
+        .locator("a[href^='#']")
+        .evaluateAll((els) => els.map((e) => e.getAttribute("href") ?? ""));
+      expect(hrefs, id).toHaveLength(anchors);
+      for (const href of hrefs)
+        expect(decodeURIComponent(href.slice(1)), id).toBe(decodeURIComponent(headingId));
+      await expect(page.locator(`[id="${headingId}"]`)).toHaveCount(1);
+    }
+    const both = page.locator('[data-testid="card"][data-id="UC-4"]');
+    await both.locator("summary").click();
+    await expect(both.locator("h4")).toHaveCount(2);
+    const ids = await both.locator("h4").evaluateAll((els) => els.map((e) => e.id));
+    expect(ids.map((i) => decodeURIComponent(i).replace(/^md-\d+-/, ""))).toEqual([
+      "\u00f6versikt",
+      "\u00f6versikt-1",
+    ]);
+    const hrefs = await both
+      .locator("a[href^='#']")
+      .evaluateAll((els) => els.map((e) => e.getAttribute("href") ?? ""));
+    expect(hrefs.map((h) => decodeURIComponent(h.slice(1)))).toEqual([
+      decodeURIComponent(ids[0] ?? ""),
+      decodeURIComponent(ids[1] ?? ""),
+    ]);
+    const caron = page.locator('[data-testid="card"][data-id="UC-5"]');
+    await caron.locator("summary").click();
+    await expect(caron.locator("h4")).toHaveCount(1);
+    const caronId = (await caron.locator("h4").getAttribute("id")) ?? "";
+    expect(decodeURIComponent(caronId)).toMatch(/^md-\d+-\u01f0$/);
+    const caronHrefs = await caron
+      .locator("a[href^='#']")
+      .evaluateAll((els) => els.map((e) => e.getAttribute("href") ?? ""));
+    expect(caronHrefs.map((h) => decodeURIComponent(h.slice(1)))).toEqual([
+      decodeURIComponent(caronId),
+      decodeURIComponent(caronId),
+      decodeURIComponent(caronId),
+    ]);
+  });
+});
+
+test.describe("links to files whose decoded path holds a control character or a backslash (3.7 item 4)", () => {
+  // Git allows these characters in a file name, so the tree holds files that the decoded targets would name.
+  const tree = [
+    "docs/BACKLOG.md",
+    "docs/ok file.md",
+    "docs/a\\b.md",
+    "docs/a\nb.md",
+    "docs/a\u0000b.md",
+    "docs/a%5Cb.md",
+    "docs/s\\t.md",
+  ];
+  const backlog = [
+    "# Backlog",
+    "",
+    "- **[NOW] UC-1** — Links with escapes.",
+    "  Intro.",
+    "",
+    "  [fine](ok%20file.md) [backslash](a%5Cb.md) [newline](a%0Ab.md) [nul](a%00b.md)",
+    "  [dirbackslash](s%5Ct.md?x=1) [twice](a%255Cb.md) [cut](ok%20file.md?x=%5C#%0A)",
+  ].join("\n");
+
+  test("only a path that decodes to ordinary characters becomes a link; the rest is text", async ({
+    page,
+  }) => {
+    await stubGithub(page, { tree, backlog });
+    await page.goto("/");
+    await openUrl(page);
+    const card = page.locator('[data-testid="card"][data-id="UC-1"]');
+    await card.locator("summary").click();
+    const description = card.getByTestId("description");
+    // The links that stay links show the description is rendered: a count of 0 passes at once.
+    await expect(description.getByRole("link", { name: "fine" })).toHaveAttribute(
+      "href",
+      "https://github.com/acme/widgets/blob/main/docs/ok%20file.md",
+    );
+    await expect(description.getByRole("link", { name: "cut" })).toHaveAttribute(
+      "href",
+      "https://github.com/acme/widgets/blob/main/docs/ok%20file.md",
+    );
+    // Decoded once, `%255C` is the name `a%5Cb.md`, a file the tree holds.
+    await expect(description.getByRole("link", { name: "twice" })).toHaveAttribute(
+      "href",
+      "https://github.com/acme/widgets/blob/main/docs/a%255Cb.md",
+    );
+    for (const name of ["backslash", "newline", "nul", "dirbackslash"]) {
+      await expect(description.getByRole("link", { name, exact: true })).toHaveCount(0);
+      await expect(description).toContainText(name);
+    }
+    await expect(description.getByRole("link")).toHaveCount(3);
+  });
+});
+
 test.describe("rendering contract (3.7)", () => {
   test("shows script and img markup as text, runs nothing, links nothing dangerous, loads no image", async ({
     page,

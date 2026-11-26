@@ -48,7 +48,11 @@ function hasControl(s: string): boolean {
   return false;
 }
 
-/** Joins a relative path to the directory of `base` and normalises it. Null when it leaves the project or is empty. */
+/**
+ * Joins a relative path to the directory of `base` and normalises it. Null when it
+ * leaves the project, is empty, is badly percent-encoded, or decodes (once) to a
+ * control character or a backslash, which 3.7 item 4 refuses in a target as written.
+ */
 export function resolvePath(base: string, rel: string): string | null {
   const cut = rel.search(/[?#]/);
   let path = cut >= 0 ? rel.slice(0, cut) : rel;
@@ -57,6 +61,7 @@ export function resolvePath(base: string, rel: string): string | null {
   } catch {
     return null;
   }
+  if (hasControl(path) || path.includes("\\")) return null;
   const parts = path.startsWith("/") ? [] : base.split("/").slice(0, -1);
   for (const seg of path.split("/")) {
     if (seg === "" || seg === ".") continue;
@@ -349,13 +354,46 @@ function parseInline(src: string, opts: RenderOptions, depth: number, inLink: bo
 const FENCE = /^( {0,3})(`{3,}|~{3,})(.*)$/;
 
 /**
- * The id a heading gets and a `#anchor` link points at: lower case, runs of
- * characters other than letters, combining marks and digits (of any script)
- * become one hyphen.
+ * The longest run of combining marks (code points, not UTF-16 units) that NFC is
+ * still applied to. NFC sorts a run of marks by combining class, which takes time
+ * that grows with the square of the run, so one heading or anchor of a hostile file
+ * could hold the page for minutes. The limit follows the Unicode Stream-Safe Text
+ * Format of UAX #15, which has 30 for the same reason. The run is checked once, on
+ * the text as written, for both NFC steps of `slugify`. It is bounded after the
+ * steps too: NFC turns one mark into at most two (U+0344, U+0F73 and a few more)
+ * and one character into a base and at most two marks (U+FB2C), and lower-casing
+ * adds one mark (U+0130 becomes `i` and U+0307), so no run that a step sorts
+ * is longer than 2 x 30 + 2 + 1 = 63, and the cost stays linear in the text.
+ */
+const MAX_MARK_RUN = 30;
+const MARK_RUN = /\p{M}+/gu;
+
+function codePointCount(s: string): number {
+  let n = 0;
+  for (let i = 0; i < s.length; i += (s.codePointAt(i) ?? 0) > 0xffff ? 2 : 1) n++;
+  return n;
+}
+
+/** Whether the text holds more than MAX_MARK_RUN combining marks in a row. One pass over the runs: a pattern of 31 marks costs up to 30 steps at every mark. */
+function hasLongMarkRun(text: string): boolean {
+  MARK_RUN.lastIndex = 0;
+  for (let m = MARK_RUN.exec(text); m !== null; m = MARK_RUN.exec(text))
+    if (m[0].length > MAX_MARK_RUN && codePointCount(m[0]) > MAX_MARK_RUN) return true;
+  return false;
+}
+
+/**
+ * The id a heading gets and a `#anchor` link points at: the text made NFC (so a
+ * precomposed `Ö` and `O` with a combining mark agree; not NFKC), lower case, made
+ * NFC again (a capital with a mark may have a precomposed small letter only, as
+ * `J` and U+030C have `ǰ`), runs of characters other than letters, combining marks
+ * and digits (of any script) become one hyphen. A text with a run of more than
+ * MAX_MARK_RUN combining marks, as written, is not made NFC at either step.
  */
 export function slugify(text: string): string {
-  return text
-    .toLowerCase()
+  const normalise = !hasLongMarkRun(text);
+  const lower = (normalise ? text.normalize("NFC") : text).toLowerCase();
+  return (normalise ? lower.normalize("NFC") : lower)
     .replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "");
 }

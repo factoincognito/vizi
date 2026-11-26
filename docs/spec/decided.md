@@ -222,6 +222,19 @@
     a token" heading) are Clead's; see 3.12, "The 'Private repos'
     panel".
 
+20. His decision of 2026-11-26 (11:20, in chat, "vizi spec apyr", on
+    Clead's recommendation on PBI-1.6; approval line: Adam, 2026-11-26
+    11:20, in chat, "vizi spec apyr" to Clead's recommendation on
+    PBI-1.6): (a) the control-character and backslash checks of a link
+    target also run on its relative path after percent-decoding, so a
+    target that decodes to a control character or a `\` is text; they
+    cover the decoded relative path only, not the decoded `#anchor`,
+    whose slug keeps only letters, marks and numbers; (b) heading text
+    and anchor text are made NFC (not NFKC) before the slug is made, so
+    a precomposed `Ö` and `O` with a combining mark give the same id.
+    How vizi does it is the "As built" text of 3.7, "Links" and
+    "Heading ids and anchors".
+
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
 Clead's call, not a question for the product owner, and it does not

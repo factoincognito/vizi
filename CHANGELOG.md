@@ -126,6 +126,7 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - Start page (PBI-1.10, point 71): the tagline's gap to the title is a flex column gap, not a margin that depended on the width of the font's space (#134).
 - Spec and tests (PBI-1.10): the spec lines for the "Forget all" cases of #132 and #133 and the Tests lists of 3.8, and two browser tests for them (a second tab after "Forget all" with nothing saved; the summary and focus after "Forget all" with an earlier token) (#138).
 - README: one sentence says the project was developed with the assistance of AI (#140).
+- Links and heading slugs (PBI-1.6, approved by Adam, 2026-11-26): a relative link target that decodes to a control character or a backslash is shown as text, as one written that way already was (decoded once, so `%255C` stays a plain `%5C`); heading text and anchor text are made NFC before the slug, so a precomposed `Ö` and `O` with a combining mark give the same id (and again after lower case, for `J` with a caron), except in a text with a run of more than 30 combining marks, which keeps NFC from being slow on hostile text. Spec 3.7 "As built", `decided.md` item 20, and PBI-1.6 done (#143).
 
 ## Project created
 
