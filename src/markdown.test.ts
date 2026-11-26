@@ -408,6 +408,11 @@ describe("hostile input stays fast and does not throw", () => {
     ["angle destinations with a space", "[](<x ".repeat(mb / 6)],
     ["nested parentheses", "[]((((".repeat(mb / 6)],
     ["unclosed links", "[](a".repeat(mb / 4)],
+    ["a heading of decomposed letters", `# ${"e\u0301".repeat(mb / 2)}`],
+    [
+      "anchors of decomposed letters at the length limit",
+      `[a](#${"o\u0308".repeat(2000)}) `.repeat(mb / 4000),
+    ],
   ])("a 1 MB line of %s", (_name, input) => {
     let used = Number.NaN;
     expect(() => {
@@ -428,7 +433,8 @@ describe("heading slugs keep Unicode letters and digits", () => {
     ["Привет, мир!", "привет-мир"],
     ["日本語 メモ 2", "日本語-メモ-2"],
     ["Café au lait", "café-au-lait"],
-    ["Cafe\u0301", "cafe\u0301"],
+    ["Cafe\u0301", "caf\u00e9"],
+    ["Caf\u00e9", "caf\u00e9"],
     ["Ärende #4: Åtgärd", "ärende-4-åtgärd"],
     ["Hello, World!", "hello-world"],
     ["---", ""],
@@ -548,5 +554,176 @@ describe("relative link targets are fully percent-decoded", () => {
 
   it("resolvePath decodes fully", () => {
     expect(resolvePath("a.md", "b%2Fc%23d.md")).toBe("b/c#d.md");
+  });
+});
+
+describe("a decoded relative path is checked again for controls and backslashes (3.7 item 4)", () => {
+  const seen: string[] = [];
+  const resolveFile = (p: string): LinkTarget | null => {
+    seen.push(p);
+    return { kind: "external", href: p, newTab: true };
+  };
+  const path = (target: string, basePath = "docs/a.md") =>
+    classifyTarget(target, { basePath, resolveFile });
+  beforeEach(() => {
+    seen.length = 0;
+  });
+
+  it.each([
+    ["NUL", "a%00b.md"],
+    ["line feed", "a%0Ab.md"],
+    ["carriage return", "a%0Db.md"],
+    ["tab", "a%09b.md"],
+    ["the last C0 control, U+001F", "a%1Fb.md"],
+    ["DEL", "a%7Fb.md"],
+    ["the first C1 control, U+0080", "a%C2%80b.md"],
+    ["the last C1 control, U+009F", "a%C2%9Fb.md"],
+    ["a backslash", "a%5Cb.md"],
+    ["a backslash in lower-case hex", "a%5cb.md"],
+    ["a backslash that starts the path", "%5Ca.md"],
+    ["a backslash in a directory name", "sub%5Cdir/a.md"],
+    ["a backslash before a decoded slash", "a%5C%2Fb.md"],
+    ["a control character at the end", "a.md%0A"],
+    ["a control character after a decoded # (the cut is made before decoding)", "a%23%0Ab.md"],
+    ["an overlong UTF-8 NUL (bad encoding)", "a%C0%80b.md"],
+  ])("is text for %s: %s", (_what, target) => {
+    expect(path(target)).toBeNull();
+    expect(seen).toEqual([]);
+    expect(links(renderInline(`[x](${target})`, { basePath: "docs/a.md", resolveFile }))).toEqual(
+      [],
+    );
+    expect(seen).toEqual([]);
+  });
+
+  it("does not make a link text of the characters just outside the controls", () => {
+    expect(path("a%20b.md")).toEqual({ kind: "external", href: "docs/a b.md", newTab: true });
+    expect(path("a%7Eb.md")).toEqual({ kind: "external", href: "docs/a~b.md", newTab: true });
+    expect(path("a%C2%A0b.md")).toEqual({
+      kind: "external",
+      href: "docs/a\u00a0b.md",
+      newTab: true,
+    });
+    expect(path("a%2Fb.md")).not.toBeNull();
+    expect(path("a%2Bb.md")).not.toBeNull();
+  });
+
+  it("decodes once: a double-encoded backslash or line break stays plain text of the path", () => {
+    expect(path("a%255Cb.md")).toEqual({ kind: "external", href: "docs/a%5Cb.md", newTab: true });
+    expect(path("a%250Ab.md")).toEqual({ kind: "external", href: "docs/a%0Ab.md", newTab: true });
+    expect(path("a%2500b.md")).toEqual({ kind: "external", href: "docs/a%00b.md", newTab: true });
+    expect(seen).toEqual(["docs/a%5Cb.md", "docs/a%0Ab.md", "docs/a%00b.md"]);
+  });
+
+  it("cuts at a literal ? or # before decoding, so an escape after the cut is not looked at", () => {
+    expect(path("a.md?x=%0A")).toEqual({ kind: "external", href: "docs/a.md", newTab: true });
+    expect(path("a.md#%5C")).toEqual({ kind: "external", href: "docs/a.md", newTab: true });
+    expect(path("a.md?x=%5C#%00")).toEqual({ kind: "external", href: "docs/a.md", newTab: true });
+  });
+
+  it("keeps bad percent-encoding as text", () => {
+    expect(path("%zz%5C.md")).toBeNull();
+    expect(path("a%0Gb.md")).toBeNull();
+    expect(path("%E0%A4%A.md")).toBeNull();
+  });
+
+  it("resolvePath refuses a decoded control character or backslash, and still decodes the rest", () => {
+    expect(resolvePath("a.md", "b%00")).toBeNull();
+    expect(resolvePath("a.md", "b%0Ac.md")).toBeNull();
+    expect(resolvePath("a.md", "b%5Cc.md")).toBeNull();
+    expect(resolvePath("a.md", "..%5C..%5Cx.md")).toBeNull();
+    expect(resolvePath("a.md", "b%2Fc%23d.md")).toBe("b/c#d.md");
+    expect(resolvePath("a.md", "b%255Cc.md")).toBe("b%5Cc.md");
+  });
+
+  it("a decoded # anchor needs no second check: its slug holds only letters, marks and numbers", () => {
+    expect(classifyTarget("#%0A", {})).toBeNull();
+    expect(classifyTarget("#%5C", {})).toBeNull();
+    expect(classifyTarget("#a%5Cb", {})).toEqual({ kind: "anchor", id: "a-b" });
+    expect(classifyTarget("#a%0Ab%00c", {})).toEqual({ kind: "anchor", id: "a-b-c" });
+  });
+
+  it("leaves a link that is not a relative path as it was", () => {
+    expect(classifyTarget("https://example.com/a%5Cb%0A", {})).toEqual({
+      kind: "external",
+      href: "https://example.com/a%5Cb%0A",
+      newTab: true,
+    });
+    expect(path("a%3Ab.md")).toEqual({ kind: "external", href: "docs/a:b.md", newTab: true });
+    expect(path("%2F%2Fa.md")).toEqual({ kind: "external", href: "a.md", newTab: true });
+  });
+});
+
+describe("heading text and anchor text are made NFC before the slug (3.7 item 4)", () => {
+  const PRE = "\u00d6versikt";
+  const DEC = "O\u0308versikt";
+  const slugOfHeading = (src: string): string[] =>
+    render(src).flatMap((b) => (b.t === "heading" ? [b.slug] : []));
+
+  it("gives a precomposed letter and a letter with a combining mark the same slug", () => {
+    expect(slugify(PRE)).toBe("\u00f6versikt");
+    expect(slugify(DEC)).toBe("\u00f6versikt");
+    expect(slugify("Cafe\u0301")).toBe(slugify("Caf\u00e9"));
+    expect(slugify("A\u030Angstr\u00f6m")).toBe(slugify("\u00c5ngstro\u0308m"));
+  });
+
+  it("composes a Hangul syllable written as jamo", () => {
+    expect(slugify("\u1112\u1161\u11ab")).toBe("\ud55c");
+  });
+
+  it("is NFC and not NFKC: compatibility characters keep their own slug", () => {
+    expect(slugify("\u00bd x")).toBe("\u00bd-x");
+    expect(slugify("\ufb01le")).toBe("\ufb01le");
+    expect(slugify("\uff21\uff22")).toBe("\uff41\uff42");
+  });
+
+  it("a heading in either form gets the same id", () => {
+    expect(slugOfHeading(`## ${PRE}`)).toEqual(["\u00f6versikt"]);
+    expect(slugOfHeading(`## ${DEC}`)).toEqual(["\u00f6versikt"]);
+  });
+
+  it("joins the text of a heading first: a combining mark in a code span or in emphasis composes with its letter", () => {
+    expect(slugOfHeading("## O`\u0308`versikt")).toEqual(["\u00f6versikt"]);
+    expect(slugOfHeading("## O*\u0308*versikt")).toEqual(["\u00f6versikt"]);
+  });
+
+  it("the two forms in one document are one slug, and the second gets -1", () => {
+    expect(slugOfHeading(lines(`# ${PRE}`, "", `# ${DEC}`))).toEqual([
+      "\u00f6versikt",
+      "\u00f6versikt-1",
+    ]);
+  });
+
+  it("an anchor in either form, written or percent-encoded, gets the slug of the heading", () => {
+    const id = { kind: "anchor", id: "\u00f6versikt" };
+    expect(classifyTarget(`#${PRE}`, {})).toEqual(id);
+    expect(classifyTarget(`#${DEC}`, {})).toEqual(id);
+    expect(classifyTarget("#%C3%96versikt", {})).toEqual(id);
+    expect(classifyTarget("#O%CC%88versikt", {})).toEqual(id);
+    expect(classifyTarget("#O%CC%88versikt-1", {})).toEqual({
+      kind: "anchor",
+      id: "\u00f6versikt-1",
+    });
+  });
+
+  it("an anchor with bad percent-encoding is kept as written and made NFC", () => {
+    expect(classifyTarget("#O\u0308%zz", {})).toEqual({ kind: "anchor", id: "\u00f6-zz" });
+  });
+
+  it("a decomposed heading is reached by a precomposed anchor, and the other way round", () => {
+    for (const [heading, anchor] of [
+      [DEC, PRE],
+      [PRE, DEC],
+    ] as const) {
+      const [block] = render(`# ${heading}`);
+      const target = classifyTarget(`#${anchor}`, {});
+      expect(block).toMatchObject({ t: "heading" });
+      expect(target).toEqual({ kind: "anchor", id: block?.t === "heading" ? block.slug : null });
+    }
+  });
+
+  it("changes no heading text that is shown: only the slug is normalised", () => {
+    expect(render(`# ${DEC}`)).toMatchObject([
+      { t: "heading", children: [{ t: "text", text: DEC }] },
+    ]);
   });
 });
