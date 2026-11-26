@@ -41,12 +41,10 @@ PBI-1.2's; their outcome after it (PR #9):
    - `loadRepo` passes GitHub's `truncated` flag through (unit test in
      `src/github.test.ts`).
 
-   Not reliably tested: that a code-span link is made only for a file
-   GitHub sent. The same browser test checks that there is no such link,
-   but right after it opens the card, when the description may not have
-   been rendered yet, so the check can pass without looking at it.
-   A check after the description renders is PBI-1.6. When GitHub
-   truncates a list was not checked.
+   That a code-span link is made only for a file GitHub sent is tested
+   by the same browser test, which waits for the rendered relative link
+   before it checks that there is no such link (PBI-1.6, #141). When
+   GitHub truncates a list was not checked.
 6. **Settled (PBI-1.2).** A synthetic backlog of 1500 lines (the
    template's `docs/BACKLOG.md` has about as many) loads by address,
    with GitHub stubbed, and shows the board and over 400 list rows in
