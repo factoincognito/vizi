@@ -10,6 +10,7 @@ import { type BrowserContext, test as base, expect, type Page, type Route } from
 import { isAllowedRequest } from "./guard";
 import { openPanel } from "./panel";
 import { branchesUrl, branchListRead } from "./picker";
+import { storedKeys } from "./storage";
 
 /** The flag that planted markup sets when it runs as script; it must stay unset. */
 const pwned = (page: Page) =>
@@ -322,7 +323,7 @@ test.describe("where the token is kept (3.8)", () => {
     await openPanel(page);
     await useToken(page, TOKEN);
     expect(await page.evaluate((k) => localStorage.getItem(k), KEY)).toBeNull();
-    expect(await page.evaluate(() => localStorage.length)).toBe(0);
+    expect(await storedKeys(page)).toEqual([]);
     await page.reload();
     await openPanel(page);
     await expect(anyLine(page)).toBeHidden();
@@ -338,7 +339,7 @@ test.describe("where the token is kept (3.8)", () => {
     await useToken(page, TOKEN, true);
     await expectLine(page, "acme", "github_pat_…1234", true);
     expect(await saved(page)).toEqual({ tokens: { acme: TOKEN }, forgot: [] });
-    expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([KEY]);
+    expect(await storedKeys(page)).toEqual([KEY]);
 
     await page.reload();
 
@@ -903,7 +904,7 @@ test.describe("a second tab (3.8)", () => {
       "The tokens were removed in another tab, so they have been forgotten.",
     );
     expect(await saved(page)).toBeNull();
-    expect(await page.evaluate(() => localStorage.length)).toBe(0);
+    expect(await storedKeys(page)).toEqual([]);
   });
 
   test("clearing all of storage there counts as the key removed", async ({ page, context }) => {
@@ -1203,7 +1204,7 @@ test.describe("the Owner field (3.8)", () => {
       await useToken(page, TOKEN, true, owner);
       await expect(page.getByTestId("token-message")).toContainText("owner");
       await expect(anyLine(page)).toBeHidden();
-      expect(await page.evaluate(() => localStorage.length)).toBe(0);
+      expect(await storedKeys(page)).toEqual([]);
       expect(await pageContents(page)).not.toContain(TOKEN);
     });
   }
@@ -1389,7 +1390,7 @@ test.describe("Forget all, and Forget with several owners (3.8)", () => {
     await expect(anyLine(page)).toBeHidden();
     await expect(forgetAll(page)).toBeHidden();
     await expect(page.locator("#results")).toBeHidden();
-    expect(await page.evaluate(() => localStorage.length)).toBe(0);
+    expect(await storedKeys(page)).toEqual([]);
   });
 
   test("Forget all leaves results loaded without a token", async ({ page, context }) => {
@@ -1464,7 +1465,7 @@ test.describe("a token saved by an earlier vizi (3.8, migration)", () => {
     await useToken(page, TOKEN2, true, "acme");
     await forgetAll(page).click();
     await expect(migrateLine(page)).toBeHidden();
-    expect(await page.evaluate(() => localStorage.length)).toBe(0);
+    expect(await storedKeys(page)).toEqual([]);
   });
 
   test("Forget all takes the earlier-token clause out of the panel's summary and puts the focus on the panel's toggle", async ({
@@ -1534,7 +1535,7 @@ test.describe("a token saved by an earlier vizi (3.8, migration)", () => {
     await withOldKey(page, TOKEN);
     await page.locator("#migrate-forget").click();
     await expect(migrateLine(page)).toBeHidden();
-    expect(await page.evaluate(() => localStorage.length)).toBe(0);
+    expect(await storedKeys(page)).toEqual([]);
   });
 
   test("an old value that is not a token is removed at startup and no line is shown", async ({

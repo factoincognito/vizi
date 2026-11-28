@@ -7,6 +7,7 @@
  * reaches the network. The 3.8 behaviour behind the controls is tested in
  * e2e/token.e2e.ts.
  */
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { test as base, expect, type Page } from "@playwright/test";
@@ -19,6 +20,11 @@ import {
   partsText,
 } from "../src/start";
 import { isAllowedRequest } from "./guard";
+
+/** The version the built page shows in its footer: the `version` of package.json (3.17 item 2). */
+const VERSION = (
+  JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8")) as { version: string }
+).version;
 
 /** Every test: a request other than the page's own document and GitHub's two hosts fails it. */
 const test = base.extend<{ guard: undefined }>({
@@ -416,7 +422,7 @@ test.describe("the focus (3.12, Accessibility)", () => {
 });
 
 test.describe("the tab order (3.12, Accessibility)", () => {
-  test("follows the page: help, address, Open, the toggle, each row, the earlier token, Add a token, the guide, Forget all tokens, the footer's link", async ({
+  test("follows the page: help, address, Open, the toggle, each row, the earlier token, Add a token, the guide, Forget all tokens, Version history, the footer's link", async ({
     page,
   }) => {
     await withOldKey(page);
@@ -425,7 +431,7 @@ test.describe("the tab order (3.12, Accessibility)", () => {
     // Start the sequential focus navigation at the top: a blur alone keeps the starting point at "Add".
     await page.locator("header h1").click();
     const seen: string[] = [];
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 19; i++) {
       await page.keyboard.press("Tab");
       seen.push(await focused(page));
     }
@@ -447,6 +453,7 @@ test.describe("the tab order (3.12, Accessibility)", () => {
       "token-use",
       "token-guide-toggle",
       "token-forget-all",
+      "history-open",
       "notices-link",
     ]);
     // The footer's link is the page's last control.
@@ -547,9 +554,13 @@ test.describe("the font (3.12)", () => {
 
   test("the footer credits it and links to the notices in a new tab", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator("footer")).toHaveText(
+    // The footer's lines (3.17 item 5): the version line above the font notice.
+    await expect(page.locator("#font-notice")).toHaveText(
       "Font: Inter, copyright 2016 The Inter Project Authors, SIL Open Font License 1.1. Third-party notices",
     );
+    await expect(page.locator("#version-line")).toHaveText(`Version ${VERSION} · Version history`);
+    const lines = await page.locator("footer > *").evaluateAll((els) => els.map((el) => el.id));
+    expect(lines).toEqual(["version-line", "font-notice"]);
     const link = page.locator("footer a");
     await expect(link).toHaveText("Third-party notices");
     await expect(link).toHaveAttribute(

@@ -11,6 +11,7 @@ import { type BrowserContext, test as base, expect, type Page, type Route } from
 import { isAllowedRequest } from "./guard";
 import { openPanel } from "./panel";
 import { branchesUrl, branchListRead } from "./picker";
+import { storedKeys } from "./storage";
 
 /** Every test: a request other than the page's own document and GitHub's two hosts fails it. */
 const test = base.extend<{ guard: undefined }>({
@@ -269,7 +270,7 @@ test.describe("the Umbrella tab (3.9)", () => {
     await expect(page.getByTestId("report-count-error")).toHaveText("1");
     await expect(page.getByTestId("report-count-warning")).toHaveText("1");
     expect(violations).toEqual([]);
-    expect(await page.evaluate(() => localStorage.length)).toBe(0);
+    expect(await storedKeys(page)).toEqual([]);
   });
 
   test("a project with a backlog opens on the Board, and the Umbrella tab is still there", async ({
@@ -448,7 +449,7 @@ test.describe("URL mode (3.9)", () => {
       branchesUrl("acme", "hub"),
     ]);
     await expect(panel(page)).toBeHidden();
-    expect(await page.evaluate(() => localStorage.length)).toBe(0);
+    expect(await storedKeys(page)).toEqual([]);
   });
 
   test("with a backlog it opens on the Board", async ({ page, context }) => {
