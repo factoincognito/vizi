@@ -235,6 +235,17 @@
     How vizi does it is the "As built" text of 3.7, "Links" and
     "Heading ids and anchors".
 
+21. His decision of 2026-11-28 (10:55, in chat, "Apyr", on Clead's
+    proposal of 10:53, after his request of 10:51 to look at PBI-1.40;
+    approval line: Adam, 2026-11-28 10:55, in chat, "Apyr" to Clead's
+    proposal of 10:53): a version of vizi is the `version` in
+    `package.json`, changed on purpose by the PR that also adds that
+    version's history entry; a merge that leaves the number alone is
+    not an upgrade; the page shows the number; the history starts at
+    0.2.0, with an entry for 0.1.0 and one for 0.2.0; the specification
+    is a section file of its own. It settles what PBI-1.37 left open.
+    How vizi does it is 3.17, whose text has no intent approval yet.
+
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
 Clead's call, not a question for the product owner, and it does not
