@@ -212,10 +212,10 @@ describe("the shipped list and package.json (3.17 items 2 and 3)", () => {
     expect(HISTORY[0]?.version).toBe(pkg.version);
   });
 
-  test("the list starts with the entries 0.2.0 and 0.1.0, dated 2026-11-28", () => {
+  test("the list starts with the entries 0.2.0 (2026-11-28) and 0.1.0 (2026-11-04)", () => {
     expect(HISTORY.map((e) => [e.version, e.date])).toEqual([
       ["0.2.0", "2026-11-28"],
-      ["0.1.0", "2026-11-28"],
+      ["0.1.0", "2026-11-04"],
     ]);
   });
 

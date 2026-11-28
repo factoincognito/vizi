@@ -162,7 +162,7 @@ export const HISTORY: readonly HistoryEntry[] = [
   },
   {
     version: "0.1.0",
-    date: "2026-11-28",
+    date: "2026-11-04",
     lines: [
       "vizi as it was before it had a version history.",
       "Open a project from GitHub by its address, with a read-only token for private repos, and see its backlog as a board and a list, its status, its documents and a report of what could not be read.",
