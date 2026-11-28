@@ -238,7 +238,9 @@ test.describe("the view's structure and text (3.10)", () => {
         .filter((el) => !document.getElementById("help")?.contains(el))
         .map((el) => [el.id, el.tagName, start?.contains(el) ?? false, start?.hidden ?? false]);
     });
+    // The version view's h2 (3.17) is in main beside the help view, outside the wrapper, and is hidden with its section.
     expect(hidden).toEqual([
+      ["history-title", "H2", false, true],
       ["open-project-title", "H2", true, true],
       ["saved-repos-title", "H2", true, true],
       ["private-repos-title", "H2", true, true],

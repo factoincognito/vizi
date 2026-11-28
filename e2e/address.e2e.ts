@@ -11,6 +11,7 @@ import { pathToFileURL } from "node:url";
 import { type BrowserContext, test as base, expect, type Page, type Route } from "@playwright/test";
 import { isAllowedRequest } from "./guard";
 import { branchesUrl, branchListRead } from "./picker";
+import { SEEN_KEY } from "./storage";
 
 /** Every test: any request other than the page's own document and GitHub's two hosts fails it (2.3). */
 const test = base.extend<{ guard: undefined }>({
@@ -32,6 +33,10 @@ const test = base.extend<{ guard: undefined }>({
 });
 
 const project = join(__dirname, "fixtures", "project");
+/** The `version` of package.json, which the built page takes as its own (3.17 item 2). */
+const VERSION = (
+  JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8")) as { version: string }
+).version;
 const read = (p: string) => readFileSync(join(project, p), "utf8");
 const TOKEN = "github_pat_TEST_address_abcd1234";
 const API = "https://api.github.com";
@@ -267,6 +272,11 @@ test.describe("the repository in the page's address (3.16)", () => {
 
   test("the focus is on document.body after the startup open", async ({ page, context }) => {
     await stubGithub(context);
+    // The version this browser last saw is the build's, so the version view of 3.17 does not open and move the focus.
+    await page.addInitScript(
+      ([k, v]) => localStorage.setItem(k as string, v as string),
+      [SEEN_KEY, VERSION],
+    );
     await page.goto("/?repo=acme/widgets");
     await expect(projectName(page)).toHaveText("acme/widgets (main)");
     await branchListRead(page);

@@ -128,6 +128,7 @@ All notable changes to Vizi - backlog visualizer are documented here.
 - README: one sentence says the project was developed with the assistance of AI (#140).
 - Links and heading slugs (PBI-1.6, approved by Adam, 2026-11-26): a relative link target that decodes to a control character or a backslash is shown as text, as one written that way already was (decoded once, so `%255C` stays a plain `%5C`); heading text and anchor text are made NFC before the slug, so a precomposed `Ö` and `O` with a combining mark give the same id (and again after lower case, for `J` with a caron), except in a text with a run of more than 30 combining marks, which keeps NFC from being slow on hostile text. Spec 3.7 "As built", `decided.md` item 20, and PBI-1.6 done (#143).
 - Spec: the version history (PBI-1.40), section 3.17: what a version of vizi is, and the history that opens by itself after an upgrade; with the product owner's intent approval of 2026-11-28; no code (#145).
+- Version history (PBI-1.40, section 3.17): `version` 0.2.0 in `package.json`, the build gives it to the page; the footer shows the version and a "Version history" link; the history view opens by itself once after an upgrade (`vizi.seenVersion` in local storage); spec 2.2, 3.8, 3.9, 3.12 and 3.16 follow the code (#146).
 
 ## Project created
 
