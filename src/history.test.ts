@@ -10,12 +10,17 @@ import { join } from "node:path";
 import {
   checkHistory,
   compareVersions,
+  entryHeading,
   HISTORY,
+  HISTORY_TITLE,
   type HistoryEntry,
   isVersion,
   SEEN_KEY,
   type SeenStore,
+  SHOW_FULL_HISTORY,
   upgradeEntries,
+  versionLabel,
+  WHATS_NEW_TITLE,
 } from "./history";
 
 const entry = (
@@ -403,6 +408,26 @@ describe("what opens at a load (3.17 item 4)", () => {
     const copy = JSON.stringify(list);
     upgradeEntries("0.3.0", memoryStore("0.1.0").store, list);
     expect(JSON.stringify(list)).toBe(copy);
+  });
+});
+
+describe("the texts of the view (3.17 items 5 and 6)", () => {
+  test("the titles and the button are those of 3.17, the apostrophe being U+0027", () => {
+    expect(HISTORY_TITLE).toBe("Version history");
+    expect(WHATS_NEW_TITLE).toBe("What's new");
+    expect(WHATS_NEW_TITLE.charCodeAt(4)).toBe(0x27);
+    expect(SHOW_FULL_HISTORY).toBe("Show full history");
+  });
+
+  test("an entry's heading is the version, a space, U+00B7, a space and the date", () => {
+    expect(entryHeading(entry("0.2.0", ["x"], "2026-11-28"))).toBe(
+      "Version 0.2.0 \u00b7 2026-11-28",
+    );
+  });
+
+  test("the footer's label is Version and the number, and nothing when V is not of the form", () => {
+    expect(versionLabel("0.2.0")).toBe("Version 0.2.0");
+    for (const bad of ["", "v0.2.0", "0.2", "undefined"]) expect(versionLabel(bad)).toBeNull();
   });
 });
 

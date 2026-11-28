@@ -672,6 +672,21 @@ footer {
   color: var(--muted);
 }
 
+/* The footer's two lines (docs/SPEC.md 3.17 item 5): the version and its link above the font notice. */
+footer #version-line,
+footer #font-notice {
+  margin: 0;
+}
+
+footer #version-line {
+  margin-bottom: 4px;
+}
+
+footer #history-open {
+  margin: 0;
+  font-size: 13px;
+}
+
 /* The results use the page's full width, inside main's side padding. */
 #results {
   margin-top: 28px;
@@ -974,6 +989,10 @@ footer {
   header #help-open {
     min-height: 44px;
     font-size: 14px;
+  }
+
+  footer #history-open {
+    min-height: 44px;
   }
 
   main {

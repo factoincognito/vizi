@@ -51,6 +51,16 @@ import {
   REPO_LINK_HELP,
   UMBRELLA_HELP,
 } from "./help";
+import {
+  entryHeading,
+  HISTORY,
+  HISTORY_TITLE,
+  type HistoryEntry,
+  SHOW_FULL_HISTORY,
+  upgradeEntries,
+  versionLabel,
+  WHATS_NEW_TITLE,
+} from "./history";
 import { type Backlog, type IncludedFile, readBacklog } from "./include";
 import {
   type Block,
@@ -102,6 +112,8 @@ function browserStorage(): Storage | null {
 }
 
 const storage = browserStorage();
+/** The build's version, from the `version` of package.json (3.17 item 2); the build sets it, the page reads no file for it. */
+const VERSION: string = __VIZI_VERSION__;
 const tokens = createTokenStore(storage);
 /** The Saved repos list (3.14): drawn from storage, never from a list of its own; it holds no token. */
 const savedRepos = createSavedStore(storage);
@@ -1412,6 +1424,81 @@ function mountHelp(
   return { control, view };
 }
 
+// ------------------------------------------------------------------ history
+
+/**
+ * The version history view of docs/SPEC.md 3.17, built as the help view is:
+ * a section in `main`, a sibling of the start wrapper, hidden while closed.
+ * Opening hides the wrapper, the help control and the footer, and closing
+ * shows all three as they are by then; a load under way carries on unseen.
+ * The text comes from src/history.ts and is set as text. No address, no
+ * history entry, and nothing is written when the view opens or closes.
+ */
+function mountHistory(
+  start: HTMLElement,
+  helpControl: HTMLElement,
+  footer: HTMLElement,
+  control: HTMLElement,
+): { view: HTMLElement; openByItself: (entries: readonly HistoryEntry[]) => void } {
+  const title = h("h2", { id: "history-title" }, HISTORY_TITLE);
+  const list = h("div", { id: "history-entries" });
+  const back = (id: string) => {
+    const b = h("button", { id, type: "button" }, "Back to vizi");
+    b.addEventListener("click", close);
+    return b;
+  };
+  const backTop = back("history-back-top");
+  const showFull = h("button", { id: "history-full", type: "button" }, SHOW_FULL_HISTORY);
+  const view = h(
+    "section",
+    { id: "history", class: "md help", "aria-labelledby": "history-title", hidden: "" },
+    backTop,
+    title,
+    list,
+    back("history-back-end"),
+  );
+
+  /** An entry is a heading and its lines as a list, in the order of the data. */
+  function draw(entries: readonly HistoryEntry[]): void {
+    list.replaceChildren(
+      ...entries.flatMap((entry) => [
+        h("h3", {}, entryHeading(entry)),
+        h("ul", {}, ...entry.lines.map((line) => h("li", {}, line))),
+      ]),
+    );
+  }
+  function show(entries: readonly HistoryEntry[], heading: string, withFull: boolean): void {
+    draw(entries);
+    title.textContent = heading;
+    showFull.remove();
+    if (withFull) list.after(showFull);
+    start.hidden = true;
+    helpControl.hidden = true;
+    footer.hidden = true;
+    view.hidden = false;
+    // The link is in the footer, which opening hides: the focus goes to the top button.
+    backTop.focus();
+  }
+  function close(): void {
+    view.hidden = true;
+    start.hidden = false;
+    helpControl.hidden = false;
+    footer.hidden = false;
+    control.focus();
+  }
+  showFull.addEventListener("click", () => {
+    draw(HISTORY);
+    title.textContent = HISTORY_TITLE;
+    showFull.remove();
+    backTop.focus();
+  });
+  control.addEventListener("click", () => show(HISTORY, HISTORY_TITLE, false));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !view.hidden) close();
+  });
+  return { view, openByItself: (entries) => show(entries, WHATS_NEW_TITLE, true) };
+}
+
 /** The picker's row under the project's heading (3.13): "Branch", the select, "Open branch", its message line. */
 function mountPicker(): HTMLElement {
   const select = h("select", { id: "branch-select" });
@@ -1887,7 +1974,8 @@ function guideTokenChanged(owner: string | null): void {
 
 // --------------------------------------------------------------------- page
 
-function mount(): void {
+/** Builds the page and returns the version view, which opens by itself at a load after an upgrade (3.17 item 4). */
+function mount(): ReturnType<typeof mountHistory> {
   const app = must("app");
   const tab = (id: Tab, label: string) => {
     const b = h(
@@ -1954,17 +2042,35 @@ function mount(): void {
 
   // The start content sits in one wrapper, which the help view hides while it is open (3.10).
   const start = h("div", { id: "start" });
+  // The version line above the font notice (3.17 item 5); without a version of the right form it reads "Version history" alone.
+  const label = versionLabel(VERSION);
+  const historyControl = h(
+    "button",
+    { id: "history-open", type: "button", class: "link-button" },
+    HISTORY_TITLE,
+  );
   const footer = h(
     "footer",
     {},
-    `${FONT_NOTICE} `,
+    h("p", { id: "version-line" }, label === null ? null : `${label} \u00b7 `, historyControl),
     h(
-      "a",
-      { id: "notices-link", href: NOTICES_LINK.href, target: "_blank", rel: "noopener noreferrer" },
-      NOTICES_LINK.label,
+      "p",
+      { id: "font-notice" },
+      `${FONT_NOTICE} `,
+      h(
+        "a",
+        {
+          id: "notices-link",
+          href: NOTICES_LINK.href,
+          target: "_blank",
+          rel: "noopener noreferrer",
+        },
+        NOTICES_LINK.label,
+      ),
     ),
   );
   const help = mountHelp(start, footer);
+  const versionView = mountHistory(start, help.control, footer, historyControl);
   // The banner, one main landmark and the footer (3.12, "The page's structure").
   app.append(
     h(
@@ -1973,7 +2079,7 @@ function mount(): void {
       h("h1", {}, "vizi", " ", h("span", { class: "tagline" }, "backlog visualizer")),
       help.control,
     ),
-    h("main", {}, help.view, start),
+    h("main", {}, help.view, versionView.view, start),
     footer,
   );
   start.append(
@@ -2037,15 +2143,19 @@ function mount(): void {
       ),
     ),
   );
+  return versionView;
 }
 
-mount();
+const versionView = mount();
 tokens.start();
 renderTokens();
 savedRepos.start();
 renderSaved();
 // After the tokens are known, so a token saved for the address's owner is used (3.16).
 openFromAddress();
+// After an upgrade the version view opens by itself, once; V is written at this load (3.17 item 4).
+const whatsNew = upgradeEntries(VERSION, storage, HISTORY);
+if (whatsNew !== null) versionView.openByItself(whatsNew);
 // Another open tab saved, forgot or removed tokens (3.8), or saved repos (3.14). Following an event never writes to storage.
 window.addEventListener("storage", (event) => {
   if (storage === null || (event.storageArea !== null && event.storageArea !== storage)) return;
