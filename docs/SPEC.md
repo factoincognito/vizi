@@ -33,4 +33,5 @@ A new or changed section is edited in its file. A new section gets a file in `do
 | 3.15 | 3.15 The include keyword (PO-105) | `docs/spec/3.15-a-the-include-keyword-po-105.md` |
 | 3.15 | 3.15 The include keyword (PO-105) (continued): What changes in `src/` (no code here) | `docs/spec/3.15-b-what-changes-in-src-no-code-here.md` |
 | 3.16 | 3.16 The repository in the page's address (PBI-1.35) | `docs/spec/3.16-the-repository-in-the-page-s-address-pbi-1-35.md` |
+| 3.17 | 3.17 Version history (PBI-1.40) | `docs/spec/3.17-version-history-pbi-1-40.md` |
 | 4 | 4. Known unknowns | `docs/spec/4-known-unknowns.md` |
