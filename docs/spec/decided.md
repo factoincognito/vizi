@@ -244,7 +244,16 @@
     not an upgrade; the page shows the number; the history starts at
     0.2.0, with an entry for 0.1.0 and one for 0.2.0; the specification
     is a section file of its own. It settles what PBI-1.37 left open.
-    How vizi does it is 3.17, whose text has no intent approval yet.
+    How vizi does it is 3.17 (item 22).
+22. His decision of 2026-11-28 (12:49, in chat, "Apyr", to Clead's
+    recommendations of 11:44; approval line: Adam, 2026-11-28 12:49, in
+    chat, "Apyr", intent of section 3.17): the intent of 3.17 is
+    approved, and on its three open points: the version history's code
+    is copied into vizi, not shared with the Snake demo and
+    what-mushroom-is-this; the link and the version line are in the
+    page's footer; browsers that used 0.1.0 get no view for the upgrade
+    to 0.2.0. The texts of the two history entries stay his to approve
+    in the code PR.
 
 **Clead's design (the HOW), within the approved intent.** Everything else
 in sections 2 and 3, and the rules in `docs/BACKLOG-FORMAT.md`. It is
